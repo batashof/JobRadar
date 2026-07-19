@@ -5,7 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 0 (remaining): hello-world deployments (prepared; blocked on hosting accounts).
+- Phase 1 — Data core: ORM choice (ADR-008), schema + migrations, ingestion workers, dedup, cron.
+
+## [0.1.0] — 2026-07-19
+
+**Phase 0 (Foundation) complete**: both apps deployed over HTTPS, CI green.
+
+### Added
+
+- Production hello-world deployments: web on Vercel (<https://job-radar-web-phi.vercel.app>), api on Render (<https://jobradar-api-ptvp.onrender.com/health>).
+- `apps/web/vercel.json`: build `packages/shared` before `next build` (fixes Vercel monorepo build).
 
 ## [0.0.5] — 2026-07-19
 

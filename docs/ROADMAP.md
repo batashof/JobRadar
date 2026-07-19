@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 0 — Foundation.**
+> **Current phase: 1 — Data core.**
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -9,7 +9,8 @@
 - [x] Monorepo scaffold: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared`, pnpm workspaces.
 - [x] Docker Compose for local dev: Postgres + Redis.
 - [x] CI on PR: lint + typecheck + tests.
-- [ ] Deploy "hello world" of **both** apps (Vercel + Render, ADR-007) — deployment pipeline first, not last.
+- [x] Deploy "hello world" of **both** apps (Vercel + Render, ADR-007) — deployment pipeline first, not last.
+  - web: <https://job-radar-web-phi.vercel.app> · api: <https://jobradar-api-ptvp.onrender.com/health>
 
 **Exit criterion:** both apps reachable over HTTPS, CI green.
 

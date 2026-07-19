@@ -2,7 +2,9 @@
 
 > Personal job-search service: a vacancy aggregator with a built-in application-tracking CRM.
 
-**Status:** phase 0 — foundation (monorepo scaffolded) · **Version:** 0.0.2 · see [CHANGELOG.md](CHANGELOG.md)
+**Status:** phase 1 — data core (phase 0 deployed) · **Version:** 0.1.0 · see [CHANGELOG.md](CHANGELOG.md)
+
+**Live:** [web](https://job-radar-web-phi.vercel.app) (Vercel) · [api /health](https://jobradar-api-ptvp.onrender.com/health) (Render, free tier — first hit after idle takes ~30–60 s)
 
 ## What it is
 
