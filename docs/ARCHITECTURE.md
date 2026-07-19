@@ -46,6 +46,7 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 5 | LLM scoring via free tiers with provider failover | [005](decisions/005-llm-free-tier-failover.md) |
 | 6 | External cron via GitHub Actions schedule | [006](decisions/006-github-actions-cron.md) |
 | 7 | API hosting on Render free tier (Railway/Fly.io no longer free) | [007](decisions/007-api-hosting-render.md) |
+| 8 | ORM: Drizzle (generated tsvector, enum arrays, light runtime) | [008](decisions/008-orm-drizzle.md) |
 
 ## Repository layout (monorepo)
 
@@ -72,7 +73,7 @@ Tooling: pnpm workspaces (+ Turborepo if build orchestration becomes painful). O
 | Frontend | React + Next.js on Vercel | Author's strong side; Vercel free tier; SSR available if needed |
 | Backend | NestJS + TypeScript | Learning goal: real backend framework with DI, modules, guards; opinionated structure teaches good habits. Fallback option: Fastify if NestJS feels too heavy |
 | Database | PostgreSQL (Neon or Supabase free tier) | Relational fits the domain; free tier; **Postgres FTS** covers full-text search without extra infrastructure |
-| ORM | Prisma or Drizzle | Type-safe queries + first-class migrations (a learning goal). Final pick at phase 1 start |
+| ORM | Drizzle (ADR-008) | Type-safe queries + first-class migrations; generated tsvector and enum arrays expressible in schema; no query engine — fast cold starts |
 | Queue / cache | Redis (Upstash free) + BullMQ | Background ingestion jobs, retries, backoff; also response caching |
 | Cron | GitHub Actions schedule → HTTP hook | Free; sidesteps free-tier container sleeping (ADR-006) |
 | Email | Resend, 3000 emails/mo free | Digests + reminders; generous free tier |

@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-19 — Phase 1: ADR-008 (Drizzle) + full DB schema & migrations
+
+- **ADR-008**: Drizzle over Prisma — generated `tsvector` + GIN index expressible in schema (Prisma needs `Unsupported()` + hand-written SQL), enum arrays / composite PKs first-class, no query engine (fast cold starts on sleeping Render).
+- Implemented the entire DATA_MODEL.md schema in `apps/api/src/db/schema.ts`; generated and applied `0000_init-schema.sql` to local Postgres.
+- Verified live: FTS query via `search_vector @@ to_tsquery('simple', 'react & typescript')` finds an inserted vacancy; FK constraints enforce delete order. `search_vector` uses `simple` config (mixed RU/EN sources) — noted in DATA_MODEL.md for future relevance tuning.
+- Nest wiring: global `DbModule` (lazy `pg` Pool — app still boots without a DB, keeps hello-world deploy alive) + `ConfigModule` reading repo-root `.env`.
+- 6 schema unit tests via `getTableConfig` (no DB needed — CI-safe). Version 0.1.1.
+- **Next step:** seed data, then hh.ru ingestion worker. Also: provision Neon Postgres and set `DATABASE_URL` on Render before ingestion goes live.
+
 ## 2026-07-19 — Phase 0 complete: both apps deployed 🎉
 
 - Developer created Vercel + Render accounts and connected the repo (Vercel root directory `apps/web`, Render via `render.yaml` blueprint).

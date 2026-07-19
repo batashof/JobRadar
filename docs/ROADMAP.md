@@ -16,8 +16,8 @@
 
 ## Phase 1 — Data core (~2 weeks)
 
-- [ ] Final ORM choice (Prisma vs Drizzle) — record as ADR-008.
-- [ ] Schema + migrations: users, search_profiles, sources, vacancies, applications, profile_matches ([DATA_MODEL.md](DATA_MODEL.md)).
+- [x] Final ORM choice (Prisma vs Drizzle) — record as ADR-008.
+- [x] Schema + migrations: users, search_profiles, sources, vacancies, applications, profile_matches ([DATA_MODEL.md](DATA_MODEL.md)).
 - [ ] Seed data.
 - [ ] hh.ru ingestion worker: fetch, normalize, upsert.
 - [ ] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely).

@@ -13,6 +13,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [005](005-llm-free-tier-failover.md) | LLM via free tiers with provider failover | Accepted |
 | [006](006-github-actions-cron.md) | External cron via GitHub Actions | Accepted |
 | [007](007-api-hosting-render.md) | API hosting on Render free tier | Accepted |
+| [008](008-orm-drizzle.md) | ORM — Drizzle | Accepted |
 
 ## Template
 

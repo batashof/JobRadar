@@ -5,7 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 1 — Data core: ORM choice (ADR-008), schema + migrations, ingestion workers, dedup, cron.
+- Phase 1 (remaining): seed data, ingestion workers, dedup, cron.
+
+## [0.1.1] — 2026-07-19
+
+### Added
+
+- ADR-008: Drizzle as the ORM (`drizzle-orm` + `drizzle-kit`, `pg` driver).
+- Full DB schema in `apps/api/src/db/schema.ts` per DATA_MODEL.md: 5 enums, 6 tables, generated `tsvector` column with GIN index, composite PK on `profile_matches`, unique `(source_id, external_id)` and `(user_id, vacancy_id)`.
+- Initial migration `apps/api/drizzle/0000_init-schema.sql`; `db:generate` / `db:migrate` scripts.
+- Nest `DbModule` (global, lazy `pg` Pool via `ConfigService`) and `ConfigModule` wired into the app.
+- Schema unit tests (tables, unique indexes, GIN/generated column, composite PK, enum values).
 
 ## [0.1.0] — 2026-07-19
 

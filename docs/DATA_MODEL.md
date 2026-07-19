@@ -1,6 +1,7 @@
-# Data Model (draft)
+# Data Model
 
-> Status: **draft** — to be finalized at the start of phase 1, together with the ORM choice (Prisma vs Drizzle). Keep this file in sync with actual migrations.
+> Status: **implemented** (ADR-008: Drizzle). Source of truth in code: `apps/api/src/db/schema.ts`; migrations in `apps/api/drizzle/`. Keep this file in sync with the schema.
+> FTS note: `search_vector` uses the `simple` text-search config (sources mix Russian and English; no language-specific stemming in v1 — revisit when tuning relevance on real data).
 
 ## Entity overview
 
