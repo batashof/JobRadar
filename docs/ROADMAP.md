@@ -19,8 +19,8 @@
 - [x] Final ORM choice (Prisma vs Drizzle) — record as ADR-008.
 - [x] Schema + migrations: users, search_profiles, sources, vacancies, applications, profile_matches ([DATA_MODEL.md](DATA_MODEL.md)).
 - [x] Seed data.
-- [ ] hh.ru ingestion worker: fetch, normalize, upsert.
-- [ ] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely).
+- [x] hh.ru ingestion worker: fetch, normalize, upsert. *(implemented + unit-tested; live fetch blocked from dev machine by hh geo-403 — verify from Render or add hh app token)*
+- [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(RemoteOK; verified E2E locally — 100 vacancies ingested)*
 - [ ] Deduplication v1 (heuristic, ADR-004).
 - [ ] GitHub Actions cron hitting the ingestion hook every 4 hours (ADR-006).
 

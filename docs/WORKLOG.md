@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-19 — Phase 1: ingestion workers (hh.ru + RemoteOK) over BullMQ
+
+- Wired BullMQ (`@nestjs/bullmq`) with Redis from `REDIS_URL`; `POST /ingestion/run` (bearer `INGESTION_TOKEN`, timing-safe) enqueues a job per active source; processor enforces the 4-hour politeness interval and writes `last_run_at`/`last_run_status`.
+- hh.ru worker: queries per active search profile, pagination + page delays, honest UA, 429 handling; full normalizer with tests. **Caveat:** live hh API returns geo-403 from this network (any UA) — worker is unit-tested but not E2E-verified; retry from Render's IPs or register an hh app token (dev.hh.ru). No proxies per politeness rules.
+- RemoteOK worker: JSON feed, link-back URLs per their terms, HTML-stripped descriptions. **E2E verified locally: 100 real vacancies ingested, source status `ok`; auth hook rejects requests without token (401).**
+- 26 api unit tests green. Version 0.1.3.
+- **Next step:** dedup v1 (ADR-004) and GitHub Actions cron (ADR-006); Upstash Redis + Render env vars for prod.
+
 ## 2026-07-19 — Phase 1: Neon production DB provisioned
 
 - Developer created the Neon project (twilight-boat-64185932, Frankfurt, Postgres 18); connection string stored in local `.env` as `DATABASE_URL_PROD` (gitignored).

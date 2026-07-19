@@ -1,0 +1,70 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject, Logger } from '@nestjs/common';
+import type { Job } from 'bullmq';
+import { eq } from 'drizzle-orm';
+
+import { DB, type Database } from '../db/db.module';
+import { sources } from '../db/schema';
+import { HhIngestService, type IngestResult } from './hh/hh.service';
+import { RemoteOkIngestService } from './remoteok/remoteok.service';
+import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
+
+/** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
+const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+type JobOutcome = IngestResult | { skipped: string };
+
+@Processor(INGESTION_QUEUE)
+export class IngestionProcessor extends WorkerHost {
+  private readonly logger = new Logger(IngestionProcessor.name);
+
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly hh: HhIngestService,
+    private readonly remoteok: RemoteOkIngestService,
+  ) {
+    super();
+  }
+
+  async process(job: Job<IngestJobData>): Promise<JobOutcome> {
+    const source = await this.db.query.sources.findFirst({
+      where: eq(sources.slug, job.data.slug),
+    });
+    if (!source || !source.isActive) return { skipped: 'inactive-or-unknown-source' };
+
+    const ranRecently =
+      source.lastRunAt !== null && Date.now() - source.lastRunAt.getTime() < MIN_INTERVAL_MS;
+    if (ranRecently && source.lastRunStatus === 'ok' && !job.data.force) {
+      this.logger.log(`${source.slug}: ran recently, skipping (politeness interval)`);
+      return { skipped: 'ran-recently' };
+    }
+
+    try {
+      let result: IngestResult;
+      switch (source.slug) {
+        case 'hh':
+          result = await this.hh.ingest(source);
+          break;
+        case 'remoteok':
+          result = await this.remoteok.ingest(source);
+          break;
+        default:
+          this.logger.warn(`${source.slug}: no worker implemented yet`);
+          return { skipped: 'no-worker' };
+      }
+
+      // 'empty' is an alerting signal: a healthy source should never yield zero items.
+      await this.db
+        .update(sources)
+        .set({ lastRunAt: new Date(), lastRunStatus: result.fetched === 0 ? 'empty' : 'ok' })
+        .where(eq(sources.id, source.id));
+      return result;
+    } catch (error) {
+      await this.db
+        .update(sources)
+        .set({ lastRunAt: new Date(), lastRunStatus: 'error' })
+        .where(eq(sources.id, source.id));
+      throw error;
+    }
+  }
+}
