@@ -40,9 +40,14 @@ Full rationale for each choice: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 
 ## Development
 
-Requirements: Node.js ≥ 22, pnpm ≥ 11.
+Requirements: Node.js ≥ 22, pnpm ≥ 11, Docker (Docker Desktop, OrbStack, or colima).
 
 ```bash
+# infrastructure (Postgres 17 + Redis 8)
+cp .env.example .env      # once
+docker compose up -d      # start; `docker compose ps` shows health
+docker compose down       # stop (add -v to also drop data volumes)
+
 pnpm install
 pnpm build       # builds packages/shared, apps/api, apps/web
 pnpm dev         # runs web (http://localhost:3000) and api (http://localhost:3001) in watch mode

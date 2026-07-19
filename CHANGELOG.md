@@ -5,7 +5,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 0 (remaining): Docker Compose, CI, hello-world deployments.
+- Phase 0 (remaining): CI, hello-world deployments.
+
+## [0.0.3] — 2026-07-19
+
+### Added
+
+- `docker-compose.yml` for local dev: Postgres 17 (alpine) + Redis 8 (alpine) with healthchecks and persistent volumes.
+- `.env.example` documenting `DATABASE_URL`, `REDIS_URL`, API port/CORS origin and `NEXT_PUBLIC_API_URL` (values match compose defaults).
+- README: infrastructure quick-start (docker compose up/down) in the Development section.
 
 ## [0.0.2] — 2026-07-19
 
