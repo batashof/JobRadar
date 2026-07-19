@@ -8,7 +8,7 @@
 - [x] Planning document, detailed docs, CLAUDE.md, GitHub repository.
 - [x] Monorepo scaffold: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared`, pnpm workspaces.
 - [x] Docker Compose for local dev: Postgres + Redis.
-- [ ] CI on PR: lint + typecheck + tests.
+- [x] CI on PR: lint + typecheck + tests.
 - [ ] Deploy "hello world" of **both** apps (Vercel + Railway/Fly.io) — deployment pipeline first, not last.
 
 **Exit criterion:** both apps reachable over HTTPS, CI green.

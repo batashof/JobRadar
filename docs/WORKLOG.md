@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-19 — Phase 0: CI pipeline
+
+- Added GitHub Actions workflow: single `checks` job (build → lint → typecheck → test) on `pull_request` and on pushes to `main`; pnpm version taken from `packageManager`, node_modules cached, `--frozen-lockfile`, concurrent runs on the same ref auto-cancelled.
+- Verified by watching the first run on `main` complete green.
+- Version bumped to 0.0.4.
+- **Next step:** hello-world deployments (Vercel for web, Railway/Fly.io for api) — the last phase 0 item.
+
 ## 2026-07-19 — Tooling: Homebrew reinstalled, Docker Compose verified
 
 - Reinstalled Homebrew on the dev machine: the old install (Feb 2025) predated macOS 26 and was broken; replaced with fresh Homebrew 6.0.11 (official tarball into `/opt/homebrew`, no sudo needed). Only loss from the old install: an unused duplicate `node@22` (system Node lives in `/usr/local/bin`).

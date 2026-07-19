@@ -5,7 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 0 (remaining): CI, hello-world deployments.
+- Phase 0 (remaining): hello-world deployments.
+
+## [0.0.4] — 2026-07-19
+
+### Added
+
+- GitHub Actions CI (`.github/workflows/ci.yml`): build, lint, typecheck and tests on every PR and on pushes to `main`; pnpm cache, frozen lockfile, per-ref concurrency cancellation.
 
 ## [0.0.3] — 2026-07-19
 
