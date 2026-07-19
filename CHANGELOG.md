@@ -5,7 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 0 (remaining): hello-world deployments.
+- Phase 0 (remaining): hello-world deployments (prepared; blocked on hosting accounts).
+
+## [0.0.5] — 2026-07-19
+
+### Added
+
+- `apps/api/Dockerfile` (multi-stage pnpm monorepo build, production-only bundle via `pnpm deploy`) and root `.dockerignore`; image built and smoke-tested locally.
+- `render.yaml` blueprint: API as a free-tier Docker web service on Render with `/health` health check.
+- ADR-007: API hosting on Render free tier (Railway and Fly.io no longer offer free tiers).
+
+### Changed
+
+- ARCHITECTURE, README, ROADMAP updated: API host is Render; ORM decision renumbered to ADR-008.
 
 ## [0.0.4] — 2026-07-19
 

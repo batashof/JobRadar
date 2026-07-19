@@ -1,0 +1,14 @@
+# Render blueprint (ADR-007): deploys the NestJS API as a free-tier Docker web service.
+# Import via https://dashboard.render.com → New → Blueprint, pointing at this repo.
+services:
+  - type: web
+    name: jobradar-api
+    runtime: docker
+    plan: free
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: WEB_ORIGIN
+        sync: false # set to the Vercel URL in the dashboard

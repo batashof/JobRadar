@@ -11,7 +11,7 @@
                                            ▼
 ┌──────────────┐   REST/JSON   ┌──────────────────────┐
 │  Next.js web │ ────────────► │      NestJS API      │
-│   (Vercel)   │               │  (Railway / Fly.io)  │
+│   (Vercel)   │               │       (Render)       │
 └──────────────┘               │                      │
                                │  ┌────────────────┐  │      ┌─────────────────┐
                                │  │ BullMQ workers │◄─┼─────►│ Redis (Upstash) │
@@ -45,6 +45,7 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 4 | Deduplication: heuristic first, LLM later | [004](decisions/004-dedup-heuristic-first.md) |
 | 5 | LLM scoring via free tiers with provider failover | [005](decisions/005-llm-free-tier-failover.md) |
 | 6 | External cron via GitHub Actions schedule | [006](decisions/006-github-actions-cron.md) |
+| 7 | API hosting on Render free tier (Railway/Fly.io no longer free) | [007](decisions/007-api-hosting-render.md) |
 
 ## Repository layout (monorepo)
 
@@ -76,7 +77,7 @@ Tooling: pnpm workspaces (+ Turborepo if build orchestration becomes painful). O
 | Cron | GitHub Actions schedule → HTTP hook | Free; sidesteps free-tier container sleeping (ADR-006) |
 | Email | Resend, 3000 emails/mo free | Digests + reminders; generous free tier |
 | Telegram | Bot API (phase 4) | Second digest channel; free |
-| Hosting | Vercel (web) + Railway/Fly.io (api) | Free tiers; api host must support long-running workers |
+| Hosting | Vercel (web) + Render (api) | Free tiers (ADR-007); Render free tier sleeps after 15 min — mitigated by ADR-006 cron wake-up |
 | Monitoring | Sentry free tier | Errors on both web and api; alert on empty ingestion runs |
 | CI/CD | GitHub Actions | Lint + typecheck + tests on PR; deploy on merge to main |
 

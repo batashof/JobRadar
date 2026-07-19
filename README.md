@@ -32,7 +32,7 @@ The author is a frontend developer (React, 8 years) using this project as a path
 | Queue / cache | Redis (Upstash free) + BullMQ |
 | Cron | GitHub Actions schedule |
 | Email | Resend (3000 emails/mo free) |
-| Hosting | Vercel (front) + Railway/Fly.io (back) |
+| Hosting | Vercel (front) + Render (back) |
 | Monitoring | Sentry free tier |
 | CI/CD | GitHub Actions |
 

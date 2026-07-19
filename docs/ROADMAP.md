@@ -9,13 +9,13 @@
 - [x] Monorepo scaffold: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared`, pnpm workspaces.
 - [x] Docker Compose for local dev: Postgres + Redis.
 - [x] CI on PR: lint + typecheck + tests.
-- [ ] Deploy "hello world" of **both** apps (Vercel + Railway/Fly.io) — deployment pipeline first, not last.
+- [ ] Deploy "hello world" of **both** apps (Vercel + Render, ADR-007) — deployment pipeline first, not last.
 
 **Exit criterion:** both apps reachable over HTTPS, CI green.
 
 ## Phase 1 — Data core (~2 weeks)
 
-- [ ] Final ORM choice (Prisma vs Drizzle) — record as ADR-007.
+- [ ] Final ORM choice (Prisma vs Drizzle) — record as ADR-008.
 - [ ] Schema + migrations: users, search_profiles, sources, vacancies, applications, profile_matches ([DATA_MODEL.md](DATA_MODEL.md)).
 - [ ] Seed data.
 - [ ] hh.ru ingestion worker: fetch, normalize, upsert.
