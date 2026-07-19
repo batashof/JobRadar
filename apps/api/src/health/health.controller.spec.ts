@@ -45,6 +45,7 @@ describe('HealthController', () => {
       db: 'ok',
       redis: 'ok',
       redisHost: 'localhost',
+      redisTls: false,
       ingestionTokenConfigured: true,
     });
     expect(JSON.stringify(health)).not.toContain('secret');

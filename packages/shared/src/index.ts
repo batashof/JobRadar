@@ -11,6 +11,8 @@ export interface HealthChecks {
   redis: 'ok' | 'unreachable';
   /** Hostname (no credentials) the queue is configured against; null if REDIS_URL is invalid. */
   redisHost: string | null;
+  /** Whether the redis connection uses TLS (rediss://). Managed Redis (Upstash) requires it. */
+  redisTls: boolean;
   ingestionTokenConfigured: boolean;
 }
 

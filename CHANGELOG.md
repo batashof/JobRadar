@@ -11,7 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Added
 
-- `/health` component diagnostics (`checks`): DB and Redis reachability with timeouts, configured Redis host (no credentials), whether `INGESTION_TOKEN` is set.
+- `/health` component diagnostics (`checks`): DB and Redis reachability with timeouts, configured Redis host (no credentials), TLS flag, whether `INGESTION_TOKEN` is set.
 
 ### Fixed
 

@@ -38,12 +38,14 @@ export class HealthController {
   @Get()
   async getHealth(): Promise<HealthResponse> {
     const [db, redis] = await Promise.all([this.checkDb(), this.checkRedis()]);
+    const redisConn = redisConnectionFromUrl(
+      this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
+    );
     const checks: HealthChecks = {
       db,
       redis,
-      redisHost:
-        redisConnectionFromUrl(this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379')
-          ?.host ?? null,
+      redisHost: redisConn?.host ?? null,
+      redisTls: Boolean(redisConn && 'tls' in redisConn),
       ingestionTokenConfigured: Boolean(this.config.get<string>('INGESTION_TOKEN')),
     };
 
