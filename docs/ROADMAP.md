@@ -6,7 +6,7 @@
 ## Phase 0 — Foundation (~1 week)
 
 - [x] Planning document, detailed docs, CLAUDE.md, GitHub repository.
-- [ ] Monorepo scaffold: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared`, pnpm workspaces.
+- [x] Monorepo scaffold: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared`, pnpm workspaces.
 - [ ] Docker Compose for local dev: Postgres + Redis.
 - [ ] CI on PR: lint + typecheck + tests.
 - [ ] Deploy "hello world" of **both** apps (Vercel + Railway/Fly.io) — deployment pipeline first, not last.

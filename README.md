@@ -2,7 +2,7 @@
 
 > Personal job-search service: a vacancy aggregator with a built-in application-tracking CRM.
 
-**Status:** pre-development (documentation phase) · **Version:** 0.0.1 · see [CHANGELOG.md](CHANGELOG.md)
+**Status:** phase 0 — foundation (monorepo scaffolded) · **Version:** 0.0.2 · see [CHANGELOG.md](CHANGELOG.md)
 
 ## What it is
 
@@ -37,6 +37,23 @@ The author is a frontend developer (React, 8 years) using this project as a path
 | CI/CD | GitHub Actions |
 
 Full rationale for each choice: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/decisions/](docs/decisions/).
+
+## Development
+
+Requirements: Node.js ≥ 22, pnpm ≥ 11.
+
+```bash
+pnpm install
+pnpm build       # builds packages/shared, apps/api, apps/web
+pnpm dev         # runs web (http://localhost:3000) and api (http://localhost:3001) in watch mode
+pnpm lint
+pnpm typecheck
+pnpm test
+```
+
+Note: `packages/shared` is consumed from its `dist/` output — run `pnpm build` (or `pnpm --filter @jobradar/shared build`) once before the first `pnpm dev`.
+
+Monorepo layout: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared` (shared types/constants) — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation map
 
