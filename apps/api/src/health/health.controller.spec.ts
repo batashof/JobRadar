@@ -1,27 +1,32 @@
-import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 
 import { DB } from '../db/db.module';
-import { INGESTION_QUEUE } from '../ingestion/ingestion.types';
+import { probeRedis } from '../redis';
 import { HealthController } from './health.controller';
+
+jest.mock('../redis', () => ({
+  ...jest.requireActual('../redis'),
+  probeRedis: jest.fn(),
+}));
+
+const probeRedisMock = probeRedis as jest.MockedFunction<typeof probeRedis>;
 
 describe('HealthController', () => {
   let controller: HealthController;
 
   const dbMock = { execute: jest.fn().mockResolvedValue([{ '?column?': 1 }]) };
-  const queueMock = { client: Promise.resolve({ ping: jest.fn().mockResolvedValue('PONG') }) };
   const configMock = {
     get: (key: string) =>
       ({ REDIS_URL: 'redis://localhost:6379', INGESTION_TOKEN: 'secret' })[key],
   };
 
   beforeEach(async () => {
+    probeRedisMock.mockResolvedValue({ ok: true });
     const moduleRef = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
         { provide: DB, useValue: dbMock },
-        { provide: getQueueToken(INGESTION_QUEUE), useValue: queueMock },
         { provide: ConfigService, useValue: configMock },
       ],
     }).compile();
@@ -46,12 +51,21 @@ describe('HealthController', () => {
       redis: 'ok',
       redisHost: 'localhost',
       redisTls: false,
+      redisError: null,
       ingestionTokenConfigured: true,
     });
     expect(JSON.stringify(health)).not.toContain('secret');
   });
 
-  it('degrades to unreachable when a component fails, still returning 200-shape', async () => {
+  it('surfaces the redis failure detail when the probe fails', async () => {
+    probeRedisMock.mockResolvedValue({ ok: false, error: 'WRONGPASS invalid username-password pair' });
+    const health = await controller.getHealth();
+
+    expect(health.checks?.redis).toBe('unreachable');
+    expect(health.checks?.redisError).toContain('WRONGPASS');
+  });
+
+  it('degrades db to unreachable on failure, still returning ok status', async () => {
     dbMock.execute.mockRejectedValueOnce(new Error('conn refused'));
     const health = await controller.getHealth();
 

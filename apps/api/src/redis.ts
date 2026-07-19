@@ -1,4 +1,5 @@
 import type { RedisOptions } from 'bullmq';
+import IORedis from 'ioredis';
 
 /**
  * Parses a redis:// / rediss:// URL into BullMQ connection options.
@@ -29,4 +30,31 @@ export function redisConnectionFromUrl(raw: string): RedisOptions | null {
     ...(needsTls ? { tls: {} } : {}),
     maxRetriesPerRequest: null,
   };
+}
+
+export type RedisProbeResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * One-shot reachability probe with short timeouts and no retries, so the real
+ * failure (WRONGPASS, ETIMEDOUT, ENOTFOUND, ...) surfaces instead of queueing
+ * forever like the BullMQ connection does. Error text never contains secrets.
+ */
+export async function probeRedis(options: RedisOptions): Promise<RedisProbeResult> {
+  const client = new IORedis({
+    ...options,
+    maxRetriesPerRequest: 0,
+    connectTimeout: 4000,
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    retryStrategy: () => null,
+  });
+  try {
+    await client.connect();
+    await client.ping();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message.slice(0, 160) };
+  } finally {
+    client.disconnect();
+  }
 }

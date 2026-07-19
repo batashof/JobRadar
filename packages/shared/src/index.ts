@@ -13,6 +13,8 @@ export interface HealthChecks {
   redisHost: string | null;
   /** Whether the redis connection uses TLS (rediss://). Managed Redis (Upstash) requires it. */
   redisTls: boolean;
+  /** Connection failure detail (no secrets); null when redis is ok. */
+  redisError: string | null;
   ingestionTokenConfigured: boolean;
 }
 
