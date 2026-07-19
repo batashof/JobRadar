@@ -25,18 +25,21 @@ export class IngestionController {
       .from(sources)
       .where(eq(sources.isActive, true));
 
+    const jobOptions = {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 30_000 },
+      removeOnComplete: 100,
+      removeOnFail: 500,
+    };
     for (const { slug } of active) {
       await this.queue.add(
         `ingest:${slug}`,
-        { slug, force: body?.force === true },
-        {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 30_000 },
-          removeOnComplete: 100,
-          removeOnFail: 500,
-        },
+        { kind: 'source', slug, force: body?.force === true },
+        jobOptions,
       );
     }
-    return { enqueued: active.map((s) => s.slug) };
+    // FIFO with concurrency 1 → dedup runs after all source jobs above.
+    await this.queue.add('dedup', { kind: 'dedup' }, jobOptions);
+    return { enqueued: [...active.map((s) => s.slug), 'dedup'] };
   }
 }

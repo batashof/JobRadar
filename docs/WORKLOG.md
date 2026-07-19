@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-19 — Phase 1: dedup v1 + ingestion cron
+
+- Dedup v1 per ADR-004 as pure TS (no pg_trgm needed): trigram/Dice title similarity, grouped by `company_normalized` (skipping unknown/empty), ±14-day window on published (fallback ingested), earliest-ingested stays canonical, chains compressed. Runs as a `dedup` queue job enqueued after all source jobs (FIFO, concurrency 1). 11 unit tests.
+- E2E verified: synthetic cross-source duplicate got linked (101 candidates, 1 linked, zero false positives on 100 real RemoteOK vacancies).
+- GitHub Actions ingestion cron every 4h (`17 */4 * * *`) + manual dispatch with `force`; tolerates Render cold starts (150s timeout, retries); exits as a warning-level no-op while the API lacks `INGESTION_TOKEN` (so scheduled runs aren't red before prod env is configured). Secret `INGESTION_TOKEN` set in the repo; the same value is stored as `INGESTION_TOKEN_PROD` in local `.env` — **developer: copy it to Render env vars**.
+- Fixed `.env` resolution to be cwd-independent (resolved from compiled module path).
+- Version 0.1.4. **Remaining for phase 1 exit:** Upstash Redis + Render env vars (`DATABASE_URL`, `REDIS_URL`, `INGESTION_TOKEN`), then verify ingestion + hh geo-403 from prod.
+
 ## 2026-07-19 — Phase 1: ingestion workers (hh.ru + RemoteOK) over BullMQ
 
 - Wired BullMQ (`@nestjs/bullmq`) with Redis from `REDIS_URL`; `POST /ingestion/run` (bearer `INGESTION_TOKEN`, timing-safe) enqueues a job per active source; processor enforces the 4-hour politeness interval and writes `last_run_at`/`last_run_status`.

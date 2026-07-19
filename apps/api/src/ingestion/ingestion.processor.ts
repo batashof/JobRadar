@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { sources } from '../db/schema';
+import { DedupService, type DedupResult } from '../dedup/dedup.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
@@ -12,7 +13,7 @@ import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 /** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
 const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
-type JobOutcome = IngestResult | { skipped: string };
+type JobOutcome = IngestResult | DedupResult | { skipped: string };
 
 @Processor(INGESTION_QUEUE)
 export class IngestionProcessor extends WorkerHost {
@@ -22,11 +23,16 @@ export class IngestionProcessor extends WorkerHost {
     @Inject(DB) private readonly db: Database,
     private readonly hh: HhIngestService,
     private readonly remoteok: RemoteOkIngestService,
+    private readonly dedup: DedupService,
   ) {
     super();
   }
 
   async process(job: Job<IngestJobData>): Promise<JobOutcome> {
+    if (job.data.kind === 'dedup') {
+      return this.dedup.run();
+    }
+
     const source = await this.db.query.sources.findFirst({
       where: eq(sources.slug, job.data.slug),
     });

@@ -5,7 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 1 (remaining): dedup v1, GitHub Actions cron.
+- Phase 1 (remaining): deploy verification (Render env vars, hh from prod IPs), then phase exit.
+
+## [0.1.4] — 2026-07-19
+
+### Added
+
+- Dedup v1 (ADR-004): pure-TS trigram (Dice) title similarity + same normalized company + 14-day published window; earliest-ingested vacancy stays canonical, chains compressed; runs as a queue job after every ingestion round; thresholds configurable via `DEDUP_SIMILARITY_THRESHOLD` / `DEDUP_WINDOW_DAYS`.
+- Ingestion cron (ADR-006): GitHub Actions workflow every 4 hours (+ manual dispatch with `force`), Render cold-start tolerant, no-op with a warning while the host lacks `INGESTION_TOKEN`.
+- 11 dedup unit tests.
+
+### Fixed
+
+- `.env` resolution no longer depends on the process working directory.
 
 ## [0.1.3] — 2026-07-19
 

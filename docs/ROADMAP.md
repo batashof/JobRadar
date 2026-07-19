@@ -21,8 +21,8 @@
 - [x] Seed data.
 - [x] hh.ru ingestion worker: fetch, normalize, upsert. *(implemented + unit-tested; live fetch blocked from dev machine by hh geo-403 — verify from Render or add hh app token)*
 - [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(RemoteOK; verified E2E locally — 100 vacancies ingested)*
-- [ ] Deduplication v1 (heuristic, ADR-004).
-- [ ] GitHub Actions cron hitting the ingestion hook every 4 hours (ADR-006).
+- [x] Deduplication v1 (heuristic, ADR-004). *(trigram title similarity + company + 14-day window; E2E verified locally)*
+- [x] GitHub Actions cron hitting the ingestion hook every 4 hours (ADR-006). *(runs no-op with a warning until Render env vars are set)*
 
 **Exit criterion:** vacancies from two sources appear in the DB automatically, duplicates linked, deployed.
 

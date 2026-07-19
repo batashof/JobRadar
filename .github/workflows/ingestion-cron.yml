@@ -1,0 +1,46 @@
+name: Ingestion cron
+
+# External cron (ADR-006): free-tier containers sleep, so GitHub Actions wakes
+# the API every 4 hours and triggers ingestion via the authenticated hook.
+on:
+  schedule:
+    - cron: '17 */4 * * *' # every 4h, offset from the top of the hour
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Bypass the 4-hour politeness interval
+        type: boolean
+        default: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the ingestion hook
+        env:
+          TOKEN: ${{ secrets.INGESTION_TOKEN }}
+          API_URL: https://jobradar-api-ptvp.onrender.com
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::INGESTION_TOKEN secret is not set - skipping"
+            exit 0
+          fi
+          body='{}'
+          if [ "$FORCE" = "true" ]; then body='{"force":true}'; fi
+          # -m 150: Render free tier needs 30-60s to cold-start before answering.
+          status=$(curl -s -o resp.json -w "%{http_code}" -m 150 --retry 2 --retry-delay 20 \
+            -X POST "$API_URL/ingestion/run" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$body")
+          cat resp.json || true; echo
+          if [ "$status" = "503" ]; then
+            echo "::warning::API says INGESTION_TOKEN is not configured on the host yet - treating as skipped"
+            exit 0
+          fi
+          if [ "$status" != "202" ]; then
+            echo "::error::Ingestion hook returned HTTP $status"
+            exit 1
+          fi
