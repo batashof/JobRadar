@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-19 — Phase 1: seed data
+
+- Idempotent `db:seed` (tsx): upserts the source registry by slug — `hh` (api) and `remoteok` (api, link-back note per their terms) active, `weworkremotely` (rss) registered but inactive per DATA_SOURCES.md "pick one of #2/#3".
+- Dev fixtures (user `dev@jobradar.local` + "Senior React remote" profile) seeded only when `NODE_ENV !== 'production'`.
+- Verified against local Postgres: rows present, second run adds nothing. Unit tests for seed data. Version 0.1.2.
+- **Next step:** hh.ru ingestion worker (fetch, normalize, upsert) — needs BullMQ + Redis wiring first.
+
 ## 2026-07-19 — Phase 1: ADR-008 (Drizzle) + full DB schema & migrations
 
 - **ADR-008**: Drizzle over Prisma — generated `tsvector` + GIN index expressible in schema (Prisma needs `Unsupported()` + hand-written SQL), enum arrays / composite PKs first-class, no query engine (fast cold starts on sleeping Render).

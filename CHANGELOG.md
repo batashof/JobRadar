@@ -5,7 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 1 (remaining): seed data, ingestion workers, dedup, cron.
+- Phase 1 (remaining): ingestion workers, dedup, cron.
+
+## [0.1.2] — 2026-07-19
+
+### Added
+
+- Idempotent seed (`pnpm --filter @jobradar/api db:seed`): source registry (`hh`, `remoteok` active; `weworkremotely` registered but inactive) and, outside production, a dev user with a default remote-React search profile.
+- Seed data unit tests.
 
 ## [0.1.1] — 2026-07-19
 
