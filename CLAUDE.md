@@ -63,3 +63,5 @@ Documentation must never lag behind reality:
 - Monorepo layout (once code exists): `apps/web`, `apps/api`, `packages/shared` (ADR-002 / ARCHITECTURE.md).
 - Conventional Commits for commit messages (`feat:`, `fix:`, `docs:`, `chore:`, ...).
 - Tests and lint must pass in CI before merge.
+- **Commit & push — mandatory.** After completing a coherent chunk of work, commit it (Conventional Commits; direct to `main` is fine for this solo project) and push to the remote in the same session. Do not leave finished work uncommitted; no explicit request from the developer is needed.
+- **Tests — mandatory for both apps.** Every feature or fix in `apps/web` (frontend, Vitest + React Testing Library) and `apps/api` (backend, Jest) lands together with tests covering it. New code without tests does not count as done.
