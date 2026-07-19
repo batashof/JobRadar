@@ -50,6 +50,7 @@ describe('HealthController', () => {
       db: 'ok',
       redis: 'ok',
       redisHost: 'localhost',
+      redisPort: 6379,
       redisTls: false,
       redisError: null,
       ingestionTokenConfigured: true,

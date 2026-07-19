@@ -48,6 +48,7 @@ export class HealthController {
       db,
       redis: redisProbe.ok ? 'ok' : 'unreachable',
       redisHost: redisConn?.host ?? null,
+      redisPort: redisConn?.port ?? null,
       redisTls: Boolean(redisConn && 'tls' in redisConn),
       redisError: redisProbe.ok ? null : redisProbe.error,
       ingestionTokenConfigured: Boolean(this.config.get<string>('INGESTION_TOKEN')),
