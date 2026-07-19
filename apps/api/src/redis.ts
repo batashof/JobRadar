@@ -17,12 +17,16 @@ export function redisConnectionFromUrl(raw: string): RedisOptions | null {
   }
   if (parsed.protocol !== 'redis:' && parsed.protocol !== 'rediss:') return null;
 
+  // Upstash only accepts TLS connections; a pasted redis:// URL is a common
+  // dashboard mistake that would otherwise fail silently — force TLS for it.
+  const needsTls = parsed.protocol === 'rediss:' || parsed.hostname.endsWith('.upstash.io');
+
   return {
     host: parsed.hostname,
     port: Number(parsed.port || 6379),
     username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
-    ...(parsed.protocol === 'rediss:' ? { tls: {} } : {}),
+    ...(needsTls ? { tls: {} } : {}),
     maxRetriesPerRequest: null,
   };
 }

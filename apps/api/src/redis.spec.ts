@@ -26,6 +26,11 @@ describe('redisConnectionFromUrl', () => {
     });
   });
 
+  it('forces TLS for upstash.io hosts even with a redis:// scheme', () => {
+    const conn = redisConnectionFromUrl('redis://default:x@driven-sheepdog-167792.upstash.io:6379');
+    expect(conn?.tls).toEqual({});
+  });
+
   it('returns null instead of throwing for garbage and wrong schemes', () => {
     expect(redisConnectionFromUrl('')).toBeNull();
     expect(redisConnectionFromUrl('not a url')).toBeNull();
