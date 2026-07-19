@@ -8,6 +8,7 @@ import { sources } from '../db/schema';
 import { DedupService, type DedupResult } from '../dedup/dedup.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
+import { WwrIngestService } from './wwr/wwr.service';
 import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 
 /** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
@@ -23,6 +24,7 @@ export class IngestionProcessor extends WorkerHost {
     @Inject(DB) private readonly db: Database,
     private readonly hh: HhIngestService,
     private readonly remoteok: RemoteOkIngestService,
+    private readonly wwr: WwrIngestService,
     private readonly dedup: DedupService,
   ) {
     super();
@@ -54,15 +56,20 @@ export class IngestionProcessor extends WorkerHost {
         case 'remoteok':
           result = await this.remoteok.ingest(source);
           break;
+        case 'weworkremotely':
+          result = await this.wwr.ingest(source);
+          break;
         default:
           this.logger.warn(`${source.slug}: no worker implemented yet`);
           return { skipped: 'no-worker' };
       }
 
-      // 'empty' is an alerting signal: a healthy source should never yield zero items.
+      // 'empty' is an alerting signal: a healthy source should never yield zero
+      // items — except when a conditional GET reports no changes.
+      const status = result.fetched === 0 && !result.notModified ? 'empty' : 'ok';
       await this.db
         .update(sources)
-        .set({ lastRunAt: new Date(), lastRunStatus: result.fetched === 0 ? 'empty' : 'ok' })
+        .set({ lastRunAt: new Date(), lastRunStatus: status })
         .where(eq(sources.id, source.id));
       return result;
     } catch (error) {

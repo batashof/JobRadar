@@ -10,6 +10,8 @@ import { normalizeHhItem, type HhVacancyItem, type NewVacancy } from './hh-norma
 export interface IngestResult {
   fetched: number;
   upserted: number;
+  /** Conditional GET said nothing changed — not an alerting "empty" run. */
+  notModified?: boolean;
 }
 
 interface HhSearchResponse {

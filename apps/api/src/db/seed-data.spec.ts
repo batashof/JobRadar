@@ -7,9 +7,9 @@ describe('seed data', () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it('registers the two v1.0 sources as active', () => {
+  it('registers the two v1.0 sources as active (hh deferred pending HH_API_TOKEN)', () => {
     const active = SEED_SOURCES.filter((s) => s.isActive).map((s) => s.slug);
-    expect(active).toEqual(['hh', 'remoteok']);
+    expect(active).toEqual(['remoteok', 'weworkremotely']);
   });
 
   it('uses only valid source kinds', () => {

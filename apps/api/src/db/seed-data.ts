@@ -5,9 +5,11 @@ type SourceSeed = Pick<typeof sources.$inferInsert, 'slug' | 'kind' | 'isActive'
 /** Source registry per docs/DATA_SOURCES.md. Config shapes are consumed by ingestion workers. */
 export const SEED_SOURCES: SourceSeed[] = [
   {
+    // Inactive until HH_API_TOKEN is available: hh geo-403s anonymous requests
+    // from non-CIS IPs, and dev.hh.ru registration needs a Russian phone number.
     slug: 'hh',
     kind: 'api',
-    isActive: true,
+    isActive: false,
     config: { baseUrl: 'https://api.hh.ru', endpoint: '/vacancies' },
   },
   {
@@ -18,10 +20,9 @@ export const SEED_SOURCES: SourceSeed[] = [
     config: { feedUrl: 'https://remoteok.com/api', linkBackRequired: true },
   },
   {
-    // v1.0 uses RemoteOK; WWR stays registered but inactive (DATA_SOURCES.md: pick one).
     slug: 'weworkremotely',
     kind: 'rss',
-    isActive: false,
+    isActive: true,
     config: { feedUrl: 'https://weworkremotely.com/categories/remote-programming-jobs.rss' },
   },
 ];

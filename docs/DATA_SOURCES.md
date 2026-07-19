@@ -4,7 +4,9 @@
 
 ## v1.0 sources
 
-### 1. hh.ru — official API
+### 1. hh.ru — official API — **deferred (source inactive)**
+
+> Status 2026-07-20: hh returns geo-403 for anonymous API calls from non-CIS IPs (both the dev machine and Render). Lifting it needs an application token from dev.hh.ru, whose registration requires a Russian phone number the developer doesn't have. The worker is fully implemented (incl. optional `HH_API_TOKEN`); the source stays `is_active=false` until a token is obtained. WeWorkRemotely serves as the second v1.0 source instead.
 
 | | |
 |---|---|
@@ -17,7 +19,7 @@
 | Data quality | Excellent: structured salary, employer, schedule, employment type |
 | Notes | Query per active search profile keywords; store `id` as `external_id`; respect `Retry-After` on 429 |
 
-### 2. RemoteOK — JSON feed (pick one of #2/#3 for v1.0)
+### 2. RemoteOK — JSON feed — **active in v1.0**
 
 | | |
 |---|---|
@@ -27,7 +29,7 @@
 | Data quality | Good: tags, company, position, salary sometimes present |
 | Notes | Single feed (~latest postings); filter client-side against profiles |
 
-### 3. WeWorkRemotely — RSS
+### 3. WeWorkRemotely — RSS — **active in v1.0** (replaces hh while it is deferred)
 
 | | |
 |---|---|
