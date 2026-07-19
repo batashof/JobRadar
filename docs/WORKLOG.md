@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Prod ingestion live (remoteok); hh needs app token
+
+- Remotely debugged the Render env setup purely via `/health` diagnostics (no dashboard access): `REDIS_URL` was pasted as non-TLS with a masked-asterisks password → forced TLS for `*.upstash.io` hosts in code, surfaced the real ioredis error (`WRONGPASS`), developer re-copied the password → `redis: ok`.
+- Render's `INGESTION_TOKEN` ended up being the local dev value → synced the GH Actions secret to match (single token now, noted in `.env`).
+- **Production E2E: `POST /ingestion/run` → 100 RemoteOK vacancies in Neon, source `ok`, dedup ran (0 false links).** Seeded the author's real user (batashof@gmail.com) + "Senior React remote" profile into prod so hh has a query.
+- hh.ru from Render IPs: same geo-403 as from the dev machine → `last_run_status: error`. Added optional `HH_API_TOKEN` support (Bearer + HH-User-Agent). **Developer action:** register an app at dev.hh.ru, put the token into Render env as `HH_API_TOKEN`.
+- Version 0.1.6. **Phase 1 exit:** everything deployed and working except live hh data (external policy, pending token) — phase stays open on that single caveat.
+
 ## 2026-07-20 — Fix: env-var crash on Render + health diagnostics
 
 - After the developer added env vars, the Render deploy failed in ~24s (no rebuild → bootstrap crash). Only bootstrap-time env parsing we have is `new URL(REDIS_URL)` → hardened: trim + strip pasted quotes, validate scheme, return null and log instead of throwing; app boots with queue idle.

@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../../db/db.module';
@@ -28,13 +29,28 @@ interface HhSourceConfig {
 /** Honest User-Agent per docs/DATA_SOURCES.md politeness rules. */
 const USER_AGENT = 'JobRadar/0.1 (+https://github.com/batashof/JobRadar; batashof@gmail.com)';
 
+/**
+ * hh.ru returns geo-403 for anonymous requests from many non-CIS/datacenter
+ * IPs; an application token (dev.hh.ru) lifts that. Optional by design.
+ */
+export function hhRequestHeaders(appToken?: string): Record<string, string> {
+  return {
+    'User-Agent': USER_AGENT,
+    'HH-User-Agent': USER_AGENT,
+    ...(appToken ? { Authorization: `Bearer ${appToken}` } : {}),
+  };
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
 export class HhIngestService {
   private readonly logger = new Logger(HhIngestService.name);
 
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly config: ConfigService,
+  ) {}
 
   async ingest(source: typeof sources.$inferSelect): Promise<IngestResult> {
     const config = (source.config ?? {}) as HhSourceConfig;
@@ -84,7 +100,9 @@ export class HhIngestService {
   }
 
   private async fetchPage(url: URL): Promise<HhSearchResponse> {
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    const res = await fetch(url, {
+      headers: hhRequestHeaders(this.config.get<string>('HH_API_TOKEN')),
+    });
     if (res.status === 429) {
       const retryAfter = res.headers.get('retry-after') ?? 'unknown';
       throw new Error(`hh rate limited (429), Retry-After: ${retryAfter}`);

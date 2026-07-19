@@ -1,4 +1,18 @@
 import { normalizeHhItem, type HhVacancyItem } from './hh-normalize';
+import { hhRequestHeaders } from './hh.service';
+
+describe('hhRequestHeaders', () => {
+  it('always sends honest user-agent headers', () => {
+    const headers = hhRequestHeaders();
+    expect(headers['User-Agent']).toContain('JobRadar');
+    expect(headers['HH-User-Agent']).toContain('JobRadar');
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  it('adds a bearer token when the app token is configured', () => {
+    expect(hhRequestHeaders('app-token').Authorization).toBe('Bearer app-token');
+  });
+});
 
 const SOURCE_ID = '00000000-0000-0000-0000-000000000001';
 
