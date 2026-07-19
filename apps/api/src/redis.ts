@@ -48,12 +48,19 @@ export async function probeRedis(options: RedisOptions): Promise<RedisProbeResul
     enableOfflineQueue: false,
     retryStrategy: () => null,
   });
+  // With retryStrategy=null, connect() rejects with a generic "Connection is
+  // closed." while the real cause (ECONNREFUSED, WRONGPASS, TLS failure, ...)
+  // is only emitted as an 'error' event — capture the first one.
+  let firstError: Error | undefined;
+  client.on('error', (error) => {
+    firstError ??= error;
+  });
   try {
     await client.connect();
     await client.ping();
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: (error as Error).message.slice(0, 160) };
+    return { ok: false, error: (firstError ?? (error as Error)).message.slice(0, 160) };
   } finally {
     client.disconnect();
   }
