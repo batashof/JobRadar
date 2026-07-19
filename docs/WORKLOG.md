@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Fix: env-var crash on Render + health diagnostics
+
+- After the developer added env vars, the Render deploy failed in ~24s (no rebuild → bootstrap crash). Only bootstrap-time env parsing we have is `new URL(REDIS_URL)` → hardened: trim + strip pasted quotes, validate scheme, return null and log instead of throwing; app boots with queue idle.
+- `/health` now returns `checks` (db/redis reachability with 1.5s timeouts, redis host sans credentials, ingestion-token presence) — prod is self-diagnosing without dashboard log access (Claude-in-Chrome has no access to dashboard.render.com).
+- 43 api tests green. Version 0.1.5.
+
 ## 2026-07-19 — Phase 1: dedup v1 + ingestion cron
 
 - Dedup v1 per ADR-004 as pure TS (no pg_trgm needed): trigram/Dice title similarity, grouped by `company_normalized` (skipping unknown/empty), ±14-day window on published (fallback ingested), earliest-ingested stays canonical, chains compressed. Runs as a `dedup` queue job enqueued after all source jobs (FIFO, concurrency 1). 11 unit tests.

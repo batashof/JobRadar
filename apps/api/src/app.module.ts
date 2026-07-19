@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
@@ -15,11 +15,19 @@ import { redisConnectionFromUrl } from './redis';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: [join(__dirname, '../../../.env')] }),
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: redisConnectionFromUrl(
-          config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-        ),
-      }),
+      useFactory: (config: ConfigService) => {
+        const raw = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+        const connection = redisConnectionFromUrl(raw);
+        if (!connection) {
+          // Never crash bootstrap over a malformed env var: keep /health alive
+          // and make the problem visible in logs and /health diagnostics.
+          new Logger('BullModule').error(
+            'REDIS_URL is not a valid redis:// or rediss:// URL — queue jobs will not run',
+          );
+          return { connection: { host: '127.0.0.1', port: 6379, maxRetriesPerRequest: null } };
+        }
+        return { connection };
+      },
     }),
     DbModule,
     HealthModule,

@@ -7,6 +7,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 1 (remaining): deploy verification (Render env vars, hh from prod IPs), then phase exit.
 
+## [0.1.5] — 2026-07-20
+
+### Added
+
+- `/health` component diagnostics (`checks`): DB and Redis reachability with timeouts, configured Redis host (no credentials), whether `INGESTION_TOKEN` is set.
+
+### Fixed
+
+- Malformed `REDIS_URL` (stray quotes/whitespace, wrong scheme) no longer crashes bootstrap — it is sanitized, validated, and logged; the app boots with the queue disabled instead. Fixes the failed Render deploy after env vars were added.
+
 ## [0.1.4] — 2026-07-19
 
 ### Added
