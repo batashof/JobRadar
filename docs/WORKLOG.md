@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-19 — Phase 1: Neon production DB provisioned
+
+- Developer created the Neon project (twilight-boat-64185932, Frankfurt, Postgres 18); connection string stored in local `.env` as `DATABASE_URL_PROD` (gitignored).
+- This network blocks outbound TCP 5432, so `drizzle-kit migrate`/plain `pg` can't reach Neon from here → added `db:migrate:prod` (`neon-apply.ts`) which applies migrations + source seed over HTTPS via `@neondatabase/serverless` (drizzle `neon-http` migrator). Render itself will use plain `pg` over TCP.
+- Verified: all tables exist in Neon, sources seeded (`hh`, `remoteok` active).
+- Still needed on Render (developer, later): `DATABASE_URL`, `REDIS_URL` (Upstash — account not created yet), `INGESTION_TOKEN` env vars.
+
 ## 2026-07-19 — Phase 1: seed data
 
 - Idempotent `db:seed` (tsx): upserts the source registry by slug — `hh` (api) and `remoteok` (api, link-back note per their terms) active, `weworkremotely` (rss) registered but inactive per DATA_SOURCES.md "pick one of #2/#3".
