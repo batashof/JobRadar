@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 1 — Data core.**
+> **Current phase: 2 — User & UI.**
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -19,12 +19,12 @@
 - [x] Final ORM choice (Prisma vs Drizzle) — record as ADR-008.
 - [x] Schema + migrations: users, search_profiles, sources, vacancies, applications, profile_matches ([DATA_MODEL.md](DATA_MODEL.md)).
 - [x] Seed data.
-- [x] hh.ru ingestion worker: fetch, normalize, upsert. *(implemented + unit-tested; live fetch blocked from dev machine by hh geo-403 — verify from Render or add hh app token)*
-- [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(RemoteOK; verified E2E locally — 100 vacancies ingested)*
+- [x] hh.ru ingestion worker: fetch, normalize, upsert. *(implemented incl. `HH_API_TOKEN` support; source deactivated — hh geo-403s non-CIS IPs and dev.hh.ru registration needs a Russian phone. Re-enable when a token is obtained)*
+- [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(both: RemoteOK JSON + WWR RSS, live in prod)*
 - [x] Deduplication v1 (heuristic, ADR-004). *(trigram title similarity + company + 14-day window; E2E verified locally)*
 - [x] GitHub Actions cron hitting the ingestion hook every 4 hours (ADR-006). *(runs no-op with a warning until Render env vars are set)*
 
-**Exit criterion:** vacancies from two sources appear in the DB automatically, duplicates linked, deployed.
+**Exit criterion:** vacancies from two sources appear in the DB automatically, duplicates linked, deployed. ✅ *(2026-07-20: RemoteOK + WWR live in prod, 125 vacancies, cron verified)*
 
 ## Phase 2 — User & UI (~2 weeks)
 

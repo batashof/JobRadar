@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 1 complete 🎉 (WWR replaces hh as second source)
+
+- dev.hh.ru registration turned out to require a Russian phone number (developer has none) + an application review wait → hh deferred indefinitely per DATA_SOURCES.md "pick one of #2/#3": implemented the **WeWorkRemotely RSS worker** (fast-xml-parser, `Company: Title` split, conditional GET with 304-aware status) and activated it; hh source set inactive (worker + `HH_API_TOKEN` support stay ready).
+- Local E2E: WWR 25 vacancies, dedup across 129 candidates. Prod E2E after deploy: **remoteok 100 + weworkremotely 25 vacancies in Neon, both `ok`**; hh excluded from runs.
+- **Phase 1 exit criterion met** → ROADMAP marker moved to phase 2, version 0.2.0.
+- **Next step:** phase 2 — auth + sessions, then search-profile CRUD.
+
 ## 2026-07-20 — Prod ingestion live (remoteok); hh needs app token
 
 - Remotely debugged the Render env setup purely via `/health` diagnostics (no dashboard access): `REDIS_URL` was pasted as non-TLS with a masked-asterisks password → forced TLS for `*.upstash.io` hosts in code, surfaced the real ioredis error (`WRONGPASS`), developer re-copied the password → `redis: ok`.

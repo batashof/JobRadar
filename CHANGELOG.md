@@ -5,7 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 1 (remaining): deploy verification (Render env vars, hh from prod IPs), then phase exit.
+- Phase 2 — User & UI: auth, search profile CRUD, vacancy feed with FTS, application kanban.
+
+## [0.2.0] — 2026-07-20
+
+**Phase 1 (Data core) complete**: vacancies from two sources (RemoteOK + WeWorkRemotely) land in the production DB automatically every 4 hours, dedup links duplicates, deployed on Render + Neon + Upstash.
+
+### Added
+
+- WeWorkRemotely RSS worker: feed parsing, `Company: Title` splitting, conditional GET (`If-Modified-Since`, 304-aware politeness).
+
+### Changed
+
+- hh source deactivated pending `HH_API_TOKEN` (geo-403 for non-CIS IPs; dev.hh.ru registration requires a Russian phone number). Worker and token support remain in place.
 
 ## [0.1.6] — 2026-07-20
 
