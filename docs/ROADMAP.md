@@ -21,7 +21,7 @@
 - [x] Seed data.
 - [x] ~~hh.ru ingestion worker~~ — **dropped (ADR-009)**. *(worker + `HH_API_TOKEN` implemented but never went live — hh geo-403s non-CIS IPs and dev.hh.ru needs a Russian phone; a CIS token/IP is barred by ADR-001. Inactive legacy code; Telegram replaces it as the primary source.)*
 - [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(both: RemoteOK JSON + WWR RSS, live in prod)*
-- [ ] **Telegram job-channel ingestion worker (primary source, ADR-009)**: MTProto/GramJS reads configured public channels, per-channel parse (regex first, LLM later), normalize + upsert; `t.me` deep link as the vacancy URL. Needs `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` + a stored session string (secrets).
+- [x] **Telegram job-channel ingestion worker (primary source, ADR-009)**: MTProto/GramJS reads configured public channels, per-channel parse (regex first, LLM later), normalize + upsert; `t.me` deep link as the vacancy URL. Needs `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` + a stored session string (secrets). *(worker + regex parser + `telegram:session` helper shipped; skips politely until the secrets and `sources.config.channels` are set)*
 - [x] Deduplication v1 (heuristic, ADR-004). *(trigram title similarity + company + 14-day window; E2E verified locally)*
 - [x] GitHub Actions cron hitting the ingestion hook every 4 hours (ADR-006). *(runs no-op with a warning until Render env vars are set)*
 
@@ -32,7 +32,7 @@
 - [x] Auth + sessions (email+password or GitHub/Google OAuth). *(email+password, scrypt, server-side sessions; web login/signup/logout live)*
 - [x] Search profile CRUD. *(NestJS profiles module, guarded + user-scoped; web manager UI; browser E2E verified)*
 - [x] Vacancy feed: filters, Postgres FTS, pagination. *(GET /vacancies: websearch_to_tsquery FTS + ts_rank, work-format/employment/salary filters, canonical-only, paginated; web feed browser — verified on 129 real vacancies)*
-- [ ] Feed: show **source** per vacancy + **platform filter (checkboxes)** (ADR-009). *(sources table + feed source-slug join already exist; adds a `sources` query filter and a source badge/filter UI)*
+- [x] Feed: show **source** per vacancy + **platform filter (checkboxes)** (ADR-009). *(`sources` query filter + `GET /vacancies/sources` options endpoint; labeled source badge + checkbox filter with counts in the feed — browser E2E verified)*
 - [x] Application kanban: drag-and-drop, 5 stages (+ rejected/withdrawn), ordering. *(@dnd-kit board, cross-column move persisted via reorder endpoint; save-to-board from the feed; browser E2E verified)*
 - [x] Notes on applications. *(per-card notes editor, PATCH on blur)*
 

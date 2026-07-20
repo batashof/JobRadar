@@ -1,4 +1,4 @@
-import type { VacancyFeed, VacancyQuery } from '@jobradar/shared';
+import type { SourceOption, VacancyFeed, VacancyQuery } from '@jobradar/shared';
 
 import { VacanciesController } from './vacancies.controller';
 import type { VacanciesService } from './vacancies.service';
@@ -13,11 +13,20 @@ describe('VacanciesController', () => {
       q: 'react',
       workFormat: ['remote'],
       employmentType: [],
+      sources: ['telegram'],
       page: 1,
       pageSize: 20,
     };
 
     await expect(controller.feed(query)).resolves.toBe(result);
     expect(feed).toHaveBeenCalledWith(query);
+  });
+
+  it('lists source filter options', async () => {
+    const options: SourceOption[] = [{ slug: 'remoteok', count: 90 }];
+    const listSources = jest.fn().mockResolvedValue(options);
+    const controller = new VacanciesController({ listSources } as unknown as VacanciesService);
+
+    await expect(controller.listSources()).resolves.toBe(options);
   });
 });

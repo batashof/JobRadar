@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { VacancyFeed, VacancyQuery } from '@jobradar/shared';
-import { and, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
+import type { SourceOption, VacancyFeed, VacancyQuery } from '@jobradar/shared';
+import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { sources, vacancies } from '../db/schema';
@@ -19,6 +19,7 @@ export class VacanciesService {
     if (tsQuery) conditions.push(sql`${vacancies.searchVector} @@ ${tsQuery}`);
     if (workFormat.length) conditions.push(inArray(vacancies.workFormat, workFormat));
     if (employmentType.length) conditions.push(inArray(vacancies.employmentType, employmentType));
+    if (query.sources.length) conditions.push(inArray(sources.slug, query.sources));
     if (salaryMin != null) {
       conditions.push(
         sql`(${vacancies.salaryMax} >= ${salaryMin} or ${vacancies.salaryMin} >= ${salaryMin})`,
@@ -53,9 +54,11 @@ export class VacanciesService {
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
+    // Same join as above: `where` may reference sources.slug.
     const [countRow] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(vacancies)
+      .innerJoin(sources, eq(sources.id, vacancies.sourceId))
       .where(where);
 
     return {
@@ -64,5 +67,16 @@ export class VacanciesService {
       page,
       pageSize,
     };
+  }
+
+  /** Filter options: sources that actually have canonical vacancies, busiest first. */
+  async listSources(): Promise<SourceOption[]> {
+    return this.db
+      .select({ slug: sources.slug, count: sql<number>`count(*)::int` })
+      .from(vacancies)
+      .innerJoin(sources, eq(sources.id, vacancies.sourceId))
+      .where(isNull(vacancies.canonicalVacancyId))
+      .groupBy(sources.slug)
+      .orderBy(desc(sql`count(*)`), sources.slug);
   }
 }

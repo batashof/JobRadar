@@ -6,7 +6,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 - Phase 3 — Delivery & notifications (matching, daily digest, reminders).
-- Direction change (ADR-009): hh.ru dropped as a source; **Telegram job channels** become the primary v1.0 source (MTProto). Feed to show source per vacancy + a platform filter (checkboxes). Vacancies link out to the original (no in-app apply).
+
+## [0.3.1] — 2026-07-20
+
+**ADR-009 implementation: Telegram ingestion worker + feed source filter.**
+
+### Added
+
+- **Telegram ingestion worker** (primary source, ADR-009): GramJS/MTProto reads public channels from `sources.config.channels`, regex-first parsing (title, company, salary with currency, work format, employment type, location), `external_id = <channel>:<msgId>`, `t.me` deep link as the vacancy URL. Skips politely (no alert) until `TELEGRAM_API_ID`/`TELEGRAM_API_HASH`/`TELEGRAM_SESSION` and the channel list are configured; respects FLOOD_WAIT.
+- Interactive `pnpm --filter @jobradar/api telegram:session` helper that logs in over MTProto and prints the session string to store as a secret.
+- Feed **platform filter**: `sources` query filter on `GET /vacancies`, new `GET /vacancies/sources` endpoint (per-source canonical counts), source checkboxes with counts and labeled source badges in the web feed.
+
+### Fixed
+
+- Feed hydration mismatch: vacancy dates now format with a fixed locale, so SSR and client output match.
 
 ## [0.3.0] — 2026-07-20
 

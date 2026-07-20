@@ -13,6 +13,15 @@ export const SEED_SOURCES: SourceSeed[] = [
     config: { baseUrl: 'https://api.hh.ru', endpoint: '/vacancies' },
   },
   {
+    // Primary source (ADR-009). Needs TELEGRAM_API_ID/TELEGRAM_API_HASH +
+    // TELEGRAM_SESSION env vars; the developer fills `channels` with public
+    // job-channel usernames (without @) — the worker skips while it's empty.
+    slug: 'telegram',
+    kind: 'telegram',
+    isActive: true,
+    config: { channels: [], messagesPerChannel: 50 },
+  },
+  {
     slug: 'remoteok',
     kind: 'api',
     isActive: true,

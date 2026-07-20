@@ -5,6 +5,7 @@ describe('vacancyQuerySchema (shared contract)', () => {
     expect(vacancyQuerySchema.parse({})).toEqual({
       workFormat: [],
       employmentType: [],
+      sources: [],
       page: 1,
       pageSize: 20,
     });
@@ -33,5 +34,15 @@ describe('vacancyQuerySchema (shared contract)', () => {
 
   it('trims the search query', () => {
     expect(vacancyQuerySchema.parse({ q: '  react  ' }).q).toBe('react');
+  });
+
+  it('parses comma-separated source slugs', () => {
+    const parsed = vacancyQuerySchema.parse({ sources: 'telegram,remoteok' });
+    expect(parsed.sources).toEqual(['telegram', 'remoteok']);
+  });
+
+  it('rejects malformed source slugs', () => {
+    expect(vacancyQuerySchema.safeParse({ sources: 'evil slug!' }).success).toBe(false);
+    expect(vacancyQuerySchema.safeParse({ sources: 'UPPER' }).success).toBe(false);
   });
 });

@@ -18,6 +18,7 @@
 | `url` | `https://t.me/<channel>/<message_id>` deep link — this is the "open vacancy" target; **no in-app apply**, the user responds in Telegram |
 | Rate limits | Global 4-hour politeness rule applies; respect MTProto FLOOD_WAIT; honest client, no proxies |
 | Notes | Store the session string as a secret; a run yielding zero items across all channels sets `last_run_status='empty'` and alerts (likely a broken template or ban) |
+| Setup | Generate the session string locally with `pnpm --filter @jobradar/api telegram:session` (interactive, asks phone/code/2FA). Channels live in `sources.config.channels` (usernames without `@`, `messagesPerChannel` defaults to 50). The worker skips politely (no alert) while secrets or the channel list are missing |
 
 ### 2. RemoteOK — JSON feed — **active in v1.0 (secondary)**
 

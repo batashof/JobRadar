@@ -12,6 +12,18 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
   freelance: 'Freelance',
 };
 
+/** Display names for known source slugs; unknown slugs fall back to the slug itself. */
+const SOURCE_LABELS: Record<string, string> = {
+  telegram: 'Telegram',
+  remoteok: 'RemoteOK',
+  weworkremotely: 'WeWorkRemotely',
+  hh: 'hh.ru',
+};
+
+export function sourceLabel(slug: string): string {
+  return SOURCE_LABELS[slug] ?? slug;
+}
+
 export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
   saved: 'Saved',
   applied: 'Applied',

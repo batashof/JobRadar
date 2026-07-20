@@ -2,7 +2,12 @@ packages:
   - apps/*
   - packages/*
 allowBuilds:
+  # bufferutil / utf-8-validate are optional native accelerators for ws
+  # (GramJS); es5-ext's postinstall is a message script. None are needed.
+  bufferutil: false
+  es5-ext: false
   esbuild: true
   msgpackr-extract: true
   sharp: true
   unrs-resolver: true
+  utf-8-validate: false

@@ -8,6 +8,7 @@ import { sources } from '../db/schema';
 import { DedupService, type DedupResult } from '../dedup/dedup.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
+import { TelegramIngestService } from './telegram/telegram.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 
@@ -24,6 +25,7 @@ export class IngestionProcessor extends WorkerHost {
     @Inject(DB) private readonly db: Database,
     private readonly hh: HhIngestService,
     private readonly remoteok: RemoteOkIngestService,
+    private readonly telegram: TelegramIngestService,
     private readonly wwr: WwrIngestService,
     private readonly dedup: DedupService,
   ) {
@@ -55,6 +57,9 @@ export class IngestionProcessor extends WorkerHost {
           break;
         case 'remoteok':
           result = await this.remoteok.ingest(source);
+          break;
+        case 'telegram':
+          result = await this.telegram.ingest(source);
           break;
         case 'weworkremotely':
           result = await this.wwr.ingest(source);

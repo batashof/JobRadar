@@ -7,7 +7,8 @@ export default tseslint.config(
     files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // scripts/ are one-off tsx entry points outside the nest build tsconfig.
+        projectService: { allowDefaultProject: ['scripts/*.ts'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

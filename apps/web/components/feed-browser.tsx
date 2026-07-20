@@ -3,6 +3,7 @@
 import {
   EMPLOYMENT_TYPES,
   type EmploymentType,
+  type SourceOption,
   type VacancyFeed,
   type VacancyListItem,
   WORK_FORMATS,
@@ -17,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError } from '@/lib/api';
 import { createApplication } from '@/lib/applications';
-import { EMPLOYMENT_TYPE_LABELS, WORK_FORMAT_LABELS } from '@/lib/labels';
+import { EMPLOYMENT_TYPE_LABELS, sourceLabel, WORK_FORMAT_LABELS } from '@/lib/labels';
 import { EMPTY_FILTERS, fetchFeed, type FeedFilters } from '@/lib/vacancies';
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -37,7 +38,8 @@ function salaryText(v: VacancyListItem): string | null {
 
 function publishedText(iso: string | null): string | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString(undefined, {
+  // Fixed locale: SSR and the browser must format identically (hydration).
+  return new Date(iso).toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -70,7 +72,7 @@ function VacancyCard({
             {v.title}
           </a>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="muted">{v.source}</Badge>
+            <Badge variant="muted">{sourceLabel(v.source)}</Badge>
             {tracked ? (
               <Badge variant="primary">On board ✓</Badge>
             ) : (
@@ -107,15 +109,18 @@ function VacancyCard({
 export function FeedBrowser({
   initial,
   trackedIds,
+  sourceOptions,
 }: {
   initial: VacancyFeed;
   trackedIds: string[];
+  sourceOptions: SourceOption[];
 }) {
   const [tracked, setTracked] = useState<Set<string>>(() => new Set(trackedIds));
   const [saving, setSaving] = useState<Set<string>>(() => new Set());
   const [qInput, setQInput] = useState('');
   const [workFormat, setWorkFormat] = useState<WorkFormat[]>([]);
   const [employmentType, setEmploymentType] = useState<EmploymentType[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [salaryInput, setSalaryInput] = useState('');
 
   const [filters, setFilters] = useState<FeedFilters>(EMPTY_FILTERS);
@@ -159,6 +164,7 @@ export function FeedBrowser({
       q: qInput,
       workFormat,
       employmentType,
+      sources: selectedSources,
       salaryMin: salaryMin != null && Number.isFinite(salaryMin) ? salaryMin : null,
     });
     setPage(1);
@@ -245,6 +251,24 @@ export function FeedBrowser({
                   </label>
                 ))}
               </fieldset>
+              {sourceOptions.length > 0 ? (
+                <fieldset className="flex flex-wrap items-center gap-3">
+                  <Label className="text-[var(--color-muted-foreground)]">Source:</Label>
+                  {sourceOptions.map((s) => (
+                    <label key={s.slug} className="flex items-center gap-1.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedSources.includes(s.slug)}
+                        onChange={() => setSelectedSources((prev) => toggle(prev, s.slug))}
+                      />
+                      {sourceLabel(s.slug)}
+                      <span className="text-xs text-[var(--color-muted-foreground)]">
+                        ({s.count})
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+              ) : null}
             </div>
           </form>
         </CardContent>

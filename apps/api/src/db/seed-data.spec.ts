@@ -7,9 +7,9 @@ describe('seed data', () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it('registers the two v1.0 sources as active (hh deferred pending HH_API_TOKEN)', () => {
+  it('registers the v1.0 sources as active (telegram primary, hh dropped per ADR-009)', () => {
     const active = SEED_SOURCES.filter((s) => s.isActive).map((s) => s.slug);
-    expect(active).toEqual(['remoteok', 'weworkremotely']);
+    expect(active).toEqual(['telegram', 'remoteok', 'weworkremotely']);
   });
 
   it('uses only valid source kinds', () => {

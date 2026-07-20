@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { DedupModule } from '../dedup/dedup.module';
 import { HhIngestService } from './hh/hh.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
+import { TelegramIngestService } from './telegram/telegram.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { IngestionController } from './ingestion.controller';
 import { IngestionProcessor } from './ingestion.processor';
@@ -17,6 +18,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
     IngestionProcessor,
     HhIngestService,
     RemoteOkIngestService,
+    TelegramIngestService,
     WwrIngestService,
     IngestionTokenGuard,
   ],

@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — ADR-009 implemented: Telegram worker + feed source filter (v0.3.1)
+
+- **Feed platform filter (phase-2 leftover):** shared `vacancyQuerySchema` gains a `sources` slug-list filter (shape-validated, not a closed enum — sources are DB-driven); `GET /vacancies` filters via the sources join (count query joins too); new `GET /vacancies/sources` returns per-source canonical-vacancy counts for the checkbox options. Web feed: labeled source badges (`sourceLabel`), source checkboxes with counts. Browser E2E: checking WeWorkRemotely narrowed 129 → 25 vacancies with correct badges/pagination.
+- **Telegram ingestion worker (phase-1 leftover, primary source):** GramJS/MTProto client reads `sources.config.channels` (usernames without `@`, 50 messages per channel per run), regex-first normalize — title from first line (markdown/emoji stripped), labeled company/location lines (`Компания:`/`Company:`), salary ranges with mandatory currency marker (`$`/`€`/`₽`/`руб`/`usd`/... , `k`/`к` suffixes; bare number ranges are ignored as dates/ids), work-format and employment-type keyword detection (ru+en). `external_id = <channel>:<msgId>`, `url = t.me/<channel>/<msgId>`, fallback company = `@channel`. Missing secrets or empty channel list → polite skip (warn, `notModified`, no `empty` alert); unauthorized session → error. `floodSleepThreshold: 60` honors FLOOD_WAIT. Seeded `telegram` source (active, empty channel list). Processor/module wired; local pipeline run verified the polite-skip path (`last_run_status='ok'`).
+- `pnpm --filter @jobradar/api telegram:session` — interactive helper that logs in and prints the session string; `.env.example` documents `TELEGRAM_API_ID`/`TELEGRAM_API_HASH`/`TELEGRAM_SESSION`.
+- **Fixed a feed hydration mismatch:** `toLocaleDateString(undefined, …)` produced different date formats on server vs client; pinned the locale.
+- pnpm 11 `allowBuilds` placeholders (bufferutil/es5-ext/utf-8-validate from GramJS' `ws`) resolved to `false` — optional native accelerators, not needed.
+- 110 api + 24 web tests, lint/typecheck/build clean. Version **0.3.1**.
+- **Developer TODO to go live with Telegram:** get api id/hash at my.telegram.org, run `pnpm --filter @jobradar/api telegram:session`, set the three `TELEGRAM_*` env vars on Render, and fill `sources.config.channels` for the `telegram` row in prod (plus re-seed or manual SQL).
+- **Next step:** phase 3 — vacancy↔profile matching (rules-based), then the Resend daily digest.
+
 ## 2026-07-20 — Source strategy pivot: drop hh.ru, Telegram becomes primary (ADR-009)
 
 - **Decision (ADR-009):** hh.ru is dropped for good — its API geo-403s non-CIS IPs and a dev.hh.ru token needs a Russian phone number (a CIS token/IP is barred by ADR-001). It never went live (inactive since 0.2.0); the worker + `HH_API_TOKEN` plumbing is now inactive legacy code.
