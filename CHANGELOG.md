@@ -5,8 +5,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 3 — Delivery & notifications (v1.0 release; the Resend email digest is deferred by developer decision).
-- Docs: phase 4 apply assistant designed and accepted as ADR-011 (resume PDF upload, LLM resume ↔ vacancy matching, vacancy detail page, on-demand RU briefs and cover letters, contact extraction, email apply via Gmail). Documentation only — implementation starts after v1.0.
+- Phase 4 — apply assistant (ADR-011): resume PDF upload, LLM resume ↔ vacancy matching, vacancy detail page, on-demand RU briefs and cover letters, contact extraction, email apply via Gmail.
+
+## [1.0.0] — 2026-07-20
+
+**v1.0 release: the aggregator + application CRM scoped in PRODUCT.md, live and in daily use.**
+
+### Added
+
+- Root README rewritten for the release: real stack table, shipped-scope summary, and screenshots (feed, matches, board, dashboard) in `docs/screenshots/`.
+
+### Notes
+
+- Scope shipped across 0.1.x–0.3.x: auth + sessions, search profiles, three sources (Telegram MTProto primary, RemoteOK, WeWorkRemotely) on a 4-hour cron, heuristic dedup, FTS feed with filters, rules-based matching + Matches page, kanban board with notes and follow-up reminders, Sentry on both apps.
+- The daily email digest (Resend) is deferred until after v1.0 by developer decision — matches and reminders are delivered in-app.
+- Domain: the free `job-radar-web-phi.vercel.app` subdomain is the v1.0 domain (zero-budget, ADR-001); a custom domain remains optional.
+- Sentry DSNs still need to be set in the Render/Vercel dashboards (developer TODO) — monitoring is a no-op until then.
 
 ## [0.3.4] — 2026-07-20
 

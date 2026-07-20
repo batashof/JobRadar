@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 3 — Delivery & notifications.**
+> **Current phase: 4 — Extensions (apply assistant first, ADR-011).** v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -43,9 +43,9 @@
 - [x] Vacancy ↔ profile matching (rules-based). *(scorer: hard filters + keyword/stack hits with Unicode word boundaries; materialized in `profile_matches` by a `match` queue job after each ingestion cycle and on profile create/update; `GET /matches` + web Matches page — E2E verified locally)*
 - [ ] ~~Daily email digest via Resend + unsubscribe link~~ — **deferred by developer decision (2026-07-20)**; revisit after v1.0. Matches are delivered in-app via the Matches page instead.
 - [x] Reminders: "no answer for N days — follow up" *(in-app, since the email digest is deferred: `GET /applications/reminders` (waiting stages past `remind_after_days` / 7-day default), dashboard "Follow-ups due" list, board card hints + per-card threshold input — E2E verified locally)*.
-- [ ] **Release v1.0**: domain, ~~Sentry on both apps~~ ✅ *(2026-07-20, ADR-010: `@sentry/nestjs` + `@sentry/nextjs`, DSN-gated no-op when unset; `sentryConfigured` in /health)*, README with screenshots.
+- [x] **Release v1.0**: domain *(the free `job-radar-web-phi.vercel.app` subdomain — a paid custom domain stays optional under ADR-001)*, ~~Sentry on both apps~~ ✅ *(2026-07-20, ADR-010: `@sentry/nestjs` + `@sentry/nextjs`, DSN-gated no-op when unset; `sentryConfigured` in /health)*, README with screenshots ✅ *(2026-07-20: rewritten with shipped scope, stack, and 4 screenshots)*.
 
-**Exit criterion:** v1.0 live and used daily by the author.
+**Exit criterion:** v1.0 live and used daily by the author. ✅ *(2026-07-20: v1.0.0 tagged; developer TODO — set Sentry DSNs in the Render/Vercel dashboards)*
 
 ## Phase 4 — Extensions (optional, after v1.0; order by appetite)
 

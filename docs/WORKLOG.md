@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — v1.0.0 released
+
+- **README rewritten for the release:** shipped-scope summary, real stack table (Drizzle, Telegram MTProto, no more "planned"), live links, and a Screenshots section.
+- **Screenshots** (`docs/screenshots/`): feed, matches, board, dashboard — captured from the local app (same code/data shape as prod) via headless Chrome with a dedicated `screens@jobradar.local` account seeded through the public API (profile → matches materialized, 6 applications across all stages, one backdated for the follow-up hint).
+- **Version 1.0.0**: CHANGELOG entry, all four `package.json` files bumped, CLAUDE.md current-version line fixed (was stale at 0.0.1).
+- **ROADMAP:** Release v1.0 ticked (domain = free vercel.app subdomain per ADR-001), phase 3 exit criterion met, current-phase marker moved to **4 — Extensions (apply assistant first)**.
+- **Developer TODO:** set Sentry DSNs in Render/Vercel dashboards (monitoring is a no-op until then).
+- **Next step:** phase 4 apply assistant (ADR-011) — DB schema, LLM gateway, resumes module.
+
 ## 2026-07-20 — Docs: apply assistant designed for phase 4 (ADR-011)
 
 - **ADR-011 accepted:** resume-driven apply assistant — PDF resume upload (bytea in Postgres + extracted text), in-app vacancy detail page, LLM resume ↔ vacancy matching (only rules-matched vacancies, cached permanently), on-demand Russian vacancy brief, on-demand cover letter (vacancy's language, English calibrated to the resume, short, real experience over volume), apply-contact extraction, email apply via Gmail API (OAuth `gmail.send`, user's own account, explicit confirmation before every send).
