@@ -13,6 +13,7 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { LlmModule } from './llm/llm.module';
 import { MatchingModule } from './matching/matching.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { ResumesModule } from './resumes/resumes.module';
 import { VacanciesModule } from './vacancies/vacancies.module';
 import { redisConnectionFromUrl } from './redis';
 
@@ -46,6 +47,7 @@ import { redisConnectionFromUrl } from './redis';
     LlmModule,
     MatchingModule,
     ProfilesModule,
+    ResumesModule,
     VacanciesModule,
     ApplicationsModule,
     IngestionModule,

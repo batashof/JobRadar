@@ -10,6 +10,7 @@ export * from './auth';
 export * from './matches';
 export * from './profiles';
 export * from './reminders';
+export * from './resumes';
 export * from './vacancies';
 
 /** Component diagnostics included in the health response. Never carries secrets. */
