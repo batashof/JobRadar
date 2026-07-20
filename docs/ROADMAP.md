@@ -52,7 +52,7 @@
 ### Apply assistant (resume-driven, ADR-011)
 
 - [x] Resume upload (PDF): store in Postgres (`resumes` table), extract text server-side at upload; manage on a settings/profile page. *(POST/GET/DELETE /resumes + :id/file download + :id/activate; pdf-parse extraction, magic-byte validation, 5 MB cap; web /app/resume page — E2E verified locally)*
-- [ ] Vacancy detail page: clicking a vacancy in the feed/matches opens the full stored description in-app (source link stays available); all assistant actions live here.
+- [x] Vacancy detail page: clicking a vacancy in the feed/matches opens the full stored description in-app (source link stays available); all assistant actions live here. *(GET /vacancies/:id + /app/vacancies/[id]; card titles now link internally, "Open original ↗" preserved — browser-verified locally)*
 - [ ] LLM gateway module per ADR-005 (ordered free providers, failover, caching) — shared by all features below.
 - [ ] LLM resume ↔ vacancy matching: score + short fit explanation, only for vacancies passing rules-based profile matching; cached permanently in `resume_matches` (one LLM call per resume × vacancy).
 - [ ] On-demand Russian vacancy brief (button on the detail page): employer, what they do, how well it fits; cached on the vacancy.

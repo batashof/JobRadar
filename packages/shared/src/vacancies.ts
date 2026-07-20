@@ -70,6 +70,23 @@ export interface VacancyFeed {
   pageSize: number;
 }
 
+/** Where to send an application, extracted from the vacancy text (ADR-011). */
+export const APPLY_CONTACT_KINDS = ['email', 'telegram', 'url'] as const;
+export type ApplyContactKind = (typeof APPLY_CONTACT_KINDS)[number];
+
+export interface ApplyContact {
+  kind: ApplyContactKind;
+  value: string;
+}
+
+/** Full vacancy for the in-app detail page (untruncated description, ADR-011). */
+export interface VacancyDetail extends VacancyListItem {
+  applyContact: ApplyContact | null;
+  /** Cached on-demand Russian brief; null until first generated. */
+  summaryRu: string | null;
+  ingestedAt: string;
+}
+
 /** A source available as a feed filter option (canonical-vacancy count). */
 export interface SourceOption {
   slug: string;

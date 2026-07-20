@@ -1,6 +1,7 @@
 'use client';
 
 import type { VacancyListItem } from '@jobradar/shared';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -49,14 +50,11 @@ export function VacancyCard({
     <Card>
       <CardHeader className="gap-2 pb-2">
         <div className="flex items-start justify-between gap-4">
-          <a
-            href={v.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-base font-semibold hover:underline"
-          >
+          {/* The title opens the in-app detail page (ADR-011); the original stays
+              reachable from there via "Open original". */}
+          <Link href={`/app/vacancies/${v.id}`} className="text-base font-semibold hover:underline">
             {v.title}
-          </a>
+          </Link>
           <div className="flex shrink-0 items-center gap-2">
             {leadingBadge}
             <Badge variant="muted">{sourceLabel(v.source)}</Badge>

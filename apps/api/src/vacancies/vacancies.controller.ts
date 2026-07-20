@@ -1,6 +1,7 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import {
   type SourceOption,
+  type VacancyDetail,
   type VacancyFeed,
   type VacancyQuery,
   vacancyQuerySchema,
@@ -25,5 +26,11 @@ export class VacanciesController {
   @Get('sources')
   listSources(): Promise<SourceOption[]> {
     return this.vacancies.listSources();
+  }
+
+  // Declared after the static routes so 'sources' isn't swallowed by :id.
+  @Get(':id')
+  getById(@Param('id', ParseUUIDPipe) id: string): Promise<VacancyDetail> {
+    return this.vacancies.getById(id);
   }
 }

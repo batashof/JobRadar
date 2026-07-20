@@ -1,5 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { SourceOption, VacancyFeed, VacancyQuery } from '@jobradar/shared';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  ApplyContact,
+  SourceOption,
+  VacancyDetail,
+  VacancyFeed,
+  VacancyQuery,
+} from '@jobradar/shared';
 import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
@@ -66,6 +72,41 @@ export class VacanciesService {
       total: countRow?.count ?? 0,
       page,
       pageSize,
+    };
+  }
+
+  /** Full vacancy for the in-app detail page (ADR-011). */
+  async getById(id: string): Promise<VacancyDetail> {
+    const [row] = await this.db
+      .select({
+        id: vacancies.id,
+        url: vacancies.url,
+        title: vacancies.title,
+        company: vacancies.companyRaw,
+        description: vacancies.description,
+        source: sources.slug,
+        workFormat: vacancies.workFormat,
+        employmentType: vacancies.employmentType,
+        salaryMin: vacancies.salaryMin,
+        salaryMax: vacancies.salaryMax,
+        salaryCurrency: vacancies.salaryCurrency,
+        location: vacancies.location,
+        publishedAt: vacancies.publishedAt,
+        applyContact: vacancies.applyContact,
+        summaryRu: vacancies.summaryRu,
+        ingestedAt: vacancies.ingestedAt,
+      })
+      .from(vacancies)
+      .innerJoin(sources, eq(sources.id, vacancies.sourceId))
+      .where(eq(vacancies.id, id));
+    if (!row) throw new NotFoundException('Vacancy not found');
+
+    return {
+      ...row,
+      publishedAt: row.publishedAt?.toISOString() ?? null,
+      ingestedAt: row.ingestedAt.toISOString(),
+      applyContact: (row.applyContact as ApplyContact | null) ?? null,
+      summaryRu: row.summaryRu ?? null,
     };
   }
 

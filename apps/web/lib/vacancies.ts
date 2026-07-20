@@ -1,4 +1,10 @@
-import type { EmploymentType, SourceOption, VacancyFeed, WorkFormat } from '@jobradar/shared';
+import type {
+  EmploymentType,
+  SourceOption,
+  VacancyDetail,
+  VacancyFeed,
+  WorkFormat,
+} from '@jobradar/shared';
 
 import { apiFetch } from './api';
 
@@ -32,4 +38,8 @@ export function fetchFeed(filters: FeedFilters, page: number, pageSize = 20): Pr
 
 export function fetchSources(): Promise<SourceOption[]> {
   return apiFetch<SourceOption[]>('/vacancies/sources');
+}
+
+export function fetchVacancy(id: string): Promise<VacancyDetail> {
+  return apiFetch<VacancyDetail>(`/vacancies/${id}`);
 }
