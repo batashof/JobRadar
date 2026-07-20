@@ -5,7 +5,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 2 — User & UI (in progress): search profile CRUD, vacancy feed with FTS, application kanban, web UI.
+- Phase 2 — User & UI (in progress): search profile CRUD, vacancy feed with FTS, application kanban.
+
+## [0.2.2] — 2026-07-20
+
+**Phase 2 — web foundation + auth UI.** The web app gains a real design system and a working sign-up / sign-in / sign-out flow wired to the auth backend.
+
+### Added
+
+- Tailwind CSS v4 + a small shadcn/ui-style component set (Button, Input, Label, Card) with light/dark theme tokens.
+- `/login` and `/signup` pages sharing an `AuthForm` (client-side zod validation reusing the shared schemas, API error surfacing).
+- Auth-protected `/app` area: a server layout resolves the user from the session cookie (redirects to `/login` if absent/expired); `AuthProvider` + `AppHeader` show the signed-in email and a logout button.
+- `middleware.ts` gates `/app` on session-cookie presence (real validation stays server-side, no redirect loops).
+- Same-origin `/api` proxy via Next rewrites (keeps the session cookie first-party); typed API client (`apiFetch`, `ApiError`) and `lib/auth` helpers.
+- `.claude/launch.json` for the local web dev server.
+
+### Changed
+
+- `SESSION_COOKIE_NAME` moved to `@jobradar/shared` as the single source of truth (api + web).
+- Root page redirects to `/app`; the phase-0 hello-world home page is gone.
 
 ## [0.2.1] — 2026-07-20
 

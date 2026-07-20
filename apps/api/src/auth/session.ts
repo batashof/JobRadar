@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
+import { SESSION_COOKIE_NAME } from '@jobradar/shared';
 import type { CookieOptions } from 'express';
 
-/** Name of the httpOnly cookie carrying the opaque session token. */
-export const SESSION_COOKIE = 'jr_session';
+/** Name of the httpOnly cookie carrying the opaque session token (shared with web). */
+export const SESSION_COOKIE = SESSION_COOKIE_NAME;
 
 /** Session lifetime: 30 days. Refreshed implicitly by re-login. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;

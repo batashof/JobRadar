@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 2: web foundation + auth UI
+
+- Stood up the real web app on **Tailwind v4 + a hand-rolled shadcn/ui component set** (Button/Input/Label/Card, light/dark theme tokens). Set up the `@/*` alias in vitest too.
+- Auth UI wired to the backend: `/login` + `/signup` share an `AuthForm` (client-side zod validation via the shared schemas, API error surfacing), auth-protected `/app` with a server layout that resolves the user from the session cookie (`getCurrentUser`, forwards the cookie to the API server-side) and redirects to `/login` when absent/expired; `AuthProvider` + `AppHeader` (email + logout); `middleware.ts` gates `/app` on cookie presence (no redirect loops — real check stays server-side).
+- **Same-origin `/api` proxy** via Next rewrites (`API_ORIGIN`, defaults to local :3001) keeps the session cookie first-party. `SESSION_COOKIE_NAME` moved to `@jobradar/shared` (one source for api + web).
+- **Live browser E2E** (in-app browser vs local API+web): `/` → `/app` → `/login` guard redirect ✓; signup → httpOnly cookie set through the proxy (`document.cookie` empty) → `/app` renders the header with the user's email ✓; logout → `/login` ✓; wrong-password login surfaces the 401 message ✓. 73 api + 10 web tests, lint/typecheck/build clean. Version 0.2.2.
+- **Deploy prep (developer, when deploying the web auth):** run `pnpm db:migrate:prod` (sessions table on Neon); set `API_ORIGIN=https://jobradar-api-ptvp.onrender.com` on Vercel; set `WEB_ORIGIN` + `NODE_ENV=production` on Render (so the cookie is `secure`).
+- **Next step:** search-profile CRUD (api module + web UI).
+
 ## 2026-07-20 — Phase 2: auth backend (email + password, sessions)
 
 - Decisions (developer): **email + password** auth first (self-managed in NestJS — best fit for the "real backend / guards" learning goal and the zero-budget constraint, no external auth service); **Tailwind + shadcn/ui** for the web UI (next chunk). Cross-origin cookie problem solved by proxying `/api` through the web app (Next rewrites) so the session cookie stays first-party — routing, not backend logic, so ADR-002 holds.

@@ -5,6 +5,9 @@ import { z } from 'zod';
  * apps/api (request validation). One source of truth for the shapes.
  */
 
+/** Name of the httpOnly cookie carrying the session token (used by api and web). */
+export const SESSION_COOKIE_NAME = 'jr_session';
+
 export const emailSchema = z
   .string()
   .trim()
