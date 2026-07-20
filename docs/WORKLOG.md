@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Docs: apply assistant designed for phase 4 (ADR-011)
+
+- **ADR-011 accepted:** resume-driven apply assistant — PDF resume upload (bytea in Postgres + extracted text), in-app vacancy detail page, LLM resume ↔ vacancy matching (only rules-matched vacancies, cached permanently), on-demand Russian vacancy brief, on-demand cover letter (vacancy's language, English calibrated to the resume, short, real experience over volume), apply-contact extraction, email apply via Gmail API (OAuth `gmail.send`, user's own account, explicit confirmation before every send).
+- **PRODUCT.md:** four new core concepts (Resume, Vacancy brief, Cover letter, Apply contact); the "in-app apply" rejection revised — *fully automated* applying stays rejected, user-initiated email applies are phase 4 scope.
+- **ROADMAP.md:** phase 4 restructured into "Apply assistant (ADR-011)" checklist + "Other extensions".
+- **DATA_MODEL.md:** planned phase 4 section — `resumes`, `resume_matches`, `outreach_emails` tables; `vacancies.apply_contact` / `summary_ru`, `users.gmail_refresh_token`.
+- **ARCHITECTURE.md:** ADR index caught up (9–11); planned `llm/`, `resumes/`, `outreach/` modules; LLM + Gmail rows in the stack table.
+- Docs only — no code. Nothing starts before v1.0 ships (scope discipline).
+- **Next step:** unchanged — v1.0 release (domain, README with screenshots).
+
 ## 2026-07-20 — v1.0 prep: Sentry error monitoring on both apps (v0.3.4)
 
 - **ADR-010:** Sentry on both services, free Developer plan (fits ADR-001). All DSN-gated — unset → SDK no-op, so local/CI/tests never touch Sentry; tracing and source-map upload are opt-in.

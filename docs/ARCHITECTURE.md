@@ -47,6 +47,9 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 6 | External cron via GitHub Actions schedule | [006](decisions/006-github-actions-cron.md) |
 | 7 | API hosting on Render free tier (Railway/Fly.io no longer free) | [007](decisions/007-api-hosting-render.md) |
 | 8 | ORM: Drizzle (generated tsvector, enum arrays, light runtime) | [008](decisions/008-orm-drizzle.md) |
+| 9 | Drop hh.ru; Telegram job channels as the primary source | [009](decisions/009-drop-hh-telegram-primary.md) |
+| 10 | Sentry for error monitoring on both apps | [010](decisions/010-sentry-error-monitoring.md) |
+| 11 | Resume-driven apply assistant: PDF in Postgres, LLM via ADR-005 gateway, email apply via Gmail API (phase 4) | [011](decisions/011-resume-apply-assistant.md) |
 
 ## Repository layout (monorepo)
 
@@ -78,6 +81,8 @@ Tooling: pnpm workspaces (+ Turborepo if build orchestration becomes painful). O
 | Cron | GitHub Actions schedule → HTTP hook | Free; sidesteps free-tier container sleeping (ADR-006) |
 | Email | Resend, 3000 emails/mo free | Digests + reminders; generous free tier |
 | Telegram | Bot API (phase 4) | Second digest channel; free |
+| LLM | Free tiers via internal gateway (Groq / OpenRouter / Gemini, ADR-005) | Resume matching, RU vacancy briefs, cover letters, apply emails — on-demand only, cached (phase 4, ADR-011) |
+| Email apply | Gmail API, OAuth `gmail.send` (phase 4, ADR-011) | Sends from the user's own account; free; recipient = contact extracted from the vacancy |
 | Hosting | Vercel (web) + Render (api) | Free tiers (ADR-007); Render free tier sleeps after 15 min — mitigated by ADR-006 cron wake-up |
 | Monitoring | Sentry free tier | Errors on both web and api; alert on empty ingestion runs |
 | CI/CD | GitHub Actions | Lint + typecheck + tests on PR; deploy on merge to main |
@@ -96,7 +101,12 @@ apps/api/src/
 ├── applications/   # kanban CRM: stages, notes, reminders
 ├── matching/       # vacancy ↔ profile rules
 ├── digest/         # daily email assembly, Resend delivery, unsubscribe
-└── health/         # health-check endpoint (also used as keep-alive ping)
+├── health/         # health-check endpoint (also used as keep-alive ping)
+│
+│   # phase 4 (ADR-011, planned):
+├── llm/            # ADR-005 gateway: ordered free providers, failover, caching
+├── resumes/        # PDF upload, text extraction, active-resume management
+└── outreach/       # cover letters, vacancy briefs, Gmail OAuth + email apply
 ```
 
 ## Data flow: ingestion

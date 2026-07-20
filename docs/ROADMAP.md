@@ -49,6 +49,19 @@
 
 ## Phase 4 — Extensions (optional, after v1.0; order by appetite)
 
+### Apply assistant (resume-driven, ADR-011)
+
+- [ ] Resume upload (PDF): store in Postgres (`resumes` table), extract text server-side at upload; manage on a settings/profile page.
+- [ ] Vacancy detail page: clicking a vacancy in the feed/matches opens the full stored description in-app (source link stays available); all assistant actions live here.
+- [ ] LLM gateway module per ADR-005 (ordered free providers, failover, caching) — shared by all features below.
+- [ ] LLM resume ↔ vacancy matching: score + short fit explanation, only for vacancies passing rules-based profile matching; cached permanently in `resume_matches` (one LLM call per resume × vacancy).
+- [ ] On-demand Russian vacancy brief (button on the detail page): employer, what they do, how well it fits; cached on the vacancy.
+- [ ] On-demand cover letter (button): vacancy's language, English calibrated to the resume's evident level, short and dense, foregrounds real relevant experience; editable before sending.
+- [ ] Apply-contact extraction at ingestion (email / Telegram handle / apply URL; regex first, LLM fallback later); shown on the detail page.
+- [ ] Email apply via Gmail API (OAuth, `gmail.send`, user's own account): LLM-generated subject + body, cover letter included, resume PDF attached, recipient pre-filled from the extracted contact (editable); explicit user confirmation before every send; sent applications recorded (`outreach_emails`) and reflected on the kanban.
+
+### Other extensions
+
 - [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).
 - [ ] Telegram bot as second digest channel.
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).

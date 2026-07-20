@@ -6,6 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 - Phase 3 — Delivery & notifications (v1.0 release; the Resend email digest is deferred by developer decision).
+- Docs: phase 4 apply assistant designed and accepted as ADR-011 (resume PDF upload, LLM resume ↔ vacancy matching, vacancy detail page, on-demand RU briefs and cover letters, contact extraction, email apply via Gmail). Documentation only — implementation starts after v1.0.
 
 ## [0.3.4] — 2026-07-20
 

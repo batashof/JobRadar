@@ -21,6 +21,10 @@ JobRadar is a personal job-search service that removes the two most tedious part
 | **Vacancy** | A normalized job posting. Deduplicated across sources (normalized company name + fuzzy title match; LLM matching later). |
 | **Application** | A user's engagement with a vacancy, moving through kanban stages: Saved → Applied → Screening → Tech Interview → Offer. Carries notes and reminders. |
 | **Digest** | A daily email (later also Telegram) listing new vacancies that match the search profile. |
+| **Resume** | An uploaded PDF resume with server-side extracted text. Drives LLM matching, cover-letter generation, and email applications (phase 4, ADR-011). |
+| **Vacancy brief** | A short on-demand, LLM-generated summary in Russian: who the employer is, what they do, how well the vacancy fits the user. Generated on button click, cached (phase 4, ADR-011). |
+| **Cover letter** | On-demand, LLM-generated per vacancy: written in the vacancy's language, calibrated to the English level evident in the resume, short and focused on real experience. Editable before sending (phase 4, ADR-011). |
+| **Apply contact** | An application contact (email / Telegram handle / URL) extracted from the vacancy text, shown on the vacancy page and used as the recipient of the application email (phase 4, ADR-011). |
 
 ## v1.0 scope (minimum shipped to production)
 
@@ -37,6 +41,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 ## Out of scope for v1.0 (planned later)
 
 - LLM relevance scoring and description summarization (phase 4).
+- **Apply assistant (ADR-011)**: resume PDF upload, in-app vacancy detail page, LLM resume ↔ vacancy matching, on-demand Russian vacancy brief, on-demand cover letter generation, contact extraction, email apply via Gmail (phase 4).
 - Telegram bot as a second digest channel (phase 4).
 - Browser extension for one-click manual saving (LinkedIn/Djinni) (phase 4).
 - Additional sources: HN Who's Hiring, Djinni (phase 4). *(Telegram channels moved into v1.0 as the primary source — ADR-009.)*
@@ -49,7 +54,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 - **Automated LinkedIn scraping** — see [decisions/003-no-linkedin-scraping.md](decisions/003-no-linkedin-scraping.md).
 - **Paid infrastructure** — see [decisions/001-zero-budget.md](decisions/001-zero-budget.md).
 - **hh.ru API** — dropped; needs a CIS token/IP barred by the zero-budget rule ([decisions/009-drop-hh-telegram-primary.md](decisions/009-drop-hh-telegram-primary.md)).
-- **In-app apply** — vacancies link out to the original; no automated responding on the user's behalf.
+- **Fully automated applying** — JobRadar never contacts an employer without an explicit per-vacancy user action. *(Revised by ADR-011: user-initiated, user-confirmed email applications from the vacancy page are in scope for phase 4. In v1.0 vacancies still only link out to the original.)*
 
 ## Definition of success
 

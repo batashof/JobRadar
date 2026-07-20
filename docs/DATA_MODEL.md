@@ -12,6 +12,11 @@ User 1──n Application n──1 Vacancy
 Vacancy n──1 Source
 Vacancy n──n Vacancy          (duplicate links)
 SearchProfile n──n Vacancy    (matches, materialized)
+
+Phase 4 (ADR-011, planned):
+User 1──n Resume
+Resume n──n Vacancy           (resume_matches, LLM-scored, cached)
+User 1──n OutreachEmail n──1 Vacancy
 ```
 
 ## Tables
@@ -122,6 +127,57 @@ Constraint: unique `(user_id, vacancy_id)`.
 | digested_at | timestamptz nullable | null = not yet included in a digest |
 
 PK `(profile_id, vacancy_id)`.
+
+## Phase 4 additions (ADR-011, planned — not yet implemented)
+
+> The tables and columns below are documented ahead of implementation so the apply-assistant design is fixed. Move them into the main section (and the code schema) as they land.
+
+### resumes
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| filename | text | original upload name |
+| file | bytea | the PDF itself; Postgres storage is fine for a single user (ADR-011) |
+| extracted_text | text | server-side extraction at upload; the only thing LLM prompts consume |
+| is_active | boolean default true | the resume used for matching / applications |
+| uploaded_at | timestamptz | |
+
+### resume_matches (LLM matching cache)
+
+| Column | Type | Notes |
+|---|---|---|
+| resume_id | uuid FK → resumes | |
+| vacancy_id | uuid FK → vacancies | |
+| score | real | LLM fit score |
+| explanation | text | short LLM fit explanation |
+| matched_at | timestamptz | |
+
+PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005); only vacancies passing rules-based profile matching are scored.
+
+### outreach_emails (sent applications)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| vacancy_id | uuid FK → vacancies | |
+| resume_id | uuid FK → resumes | attached PDF |
+| recipient | text | pre-filled from `vacancies.apply_contact`, user-editable |
+| subject | text | LLM-generated, user-editable |
+| body | text | LLM-generated email body incl. cover letter, user-edited final version |
+| gmail_message_id | text nullable | from the Gmail API response |
+| sent_at | timestamptz | |
+
+### New columns on existing tables
+
+| Table | Column | Type | Notes |
+|---|---|---|---|
+| vacancies | apply_contact | jsonb nullable | extracted at ingestion: `{ "kind": "email" \| "telegram" \| "url", "value": ... }` |
+| vacancies | summary_ru | text nullable | cached on-demand Russian brief (employer, what they do, fit) |
+| vacancies | summary_generated_at | timestamptz nullable | |
+| users | gmail_refresh_token | text nullable | OAuth refresh token for `gmail.send` (encrypted at rest); null = email apply disabled |
 
 ## Deduplication (v1 heuristic, ADR-004)
 
