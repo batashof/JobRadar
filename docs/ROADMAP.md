@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 2 — User & UI.**
+> **Current phase: 3 — Delivery & notifications.**
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -34,7 +34,7 @@
 - [x] Application kanban: drag-and-drop, 5 stages (+ rejected/withdrawn), ordering. *(@dnd-kit board, cross-column move persisted via reorder endpoint; save-to-board from the feed; browser E2E verified)*
 - [x] Notes on applications. *(per-card notes editor, PATCH on blur)*
 
-**Exit criterion:** the author can browse, search, and track applications in production. **All features built and verified locally; production deployment pending developer env setup (Neon `db:migrate:prod`, `API_ORIGIN` on Vercel, `WEB_ORIGIN`+`NODE_ENV=production` on Render) — phase stays open on deployment.**
+**Exit criterion:** the author can browse, search, and track applications in production. ✅ *(2026-07-20: deployed on Vercel + Render + Neon; prod E2E through the web proxy — signup→cookie→me, feed 128 vacancies, profile CRUD, 401 when unauthenticated — all green.)*
 
 ## Phase 3 — Delivery & notifications (~1–2 weeks)
 

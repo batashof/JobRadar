@@ -5,7 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 2 exit (production deployment) — pending developer env setup (Neon migration, `API_ORIGIN` on Vercel, `WEB_ORIGIN`/`NODE_ENV` on Render).
+- Phase 3 — Delivery & notifications (matching, daily digest, reminders).
+
+## [0.3.0] — 2026-07-20
+
+**Phase 2 (User & UI) complete and deployed.** The author can sign up, browse and search vacancies, manage search profiles, and track applications on a kanban board — live in production.
+
+### Added
+
+- Production deployment: sessions migration applied to Neon; web (Vercel) proxies `/api` to the API (Render) with a first-party session cookie.
+
+### Fixed
+
+- Vercel `API_ORIGIN` had a stray trailing space that broke the `/api` rewrite (baked at build time); corrected and rebuilt. Correct value: `https://jobradar-api-ptvp.onrender.com`.
 
 ## [0.2.5] — 2026-07-20
 
