@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 
 import { DB } from '../db/db.module';
+import { LlmService } from '../llm/llm.service';
 import { probeRedis } from '../redis';
 import { HealthController } from './health.controller';
 
@@ -28,6 +29,7 @@ describe('HealthController', () => {
       providers: [
         { provide: DB, useValue: dbMock },
         { provide: ConfigService, useValue: configMock },
+        { provide: LlmService, useValue: { configuredProviderNames: () => [] } },
       ],
     }).compile();
 
@@ -56,6 +58,7 @@ describe('HealthController', () => {
       ingestionTokenConfigured: true,
       telegramConfigured: false,
       sentryConfigured: false,
+      llmProviders: [],
     });
     expect(JSON.stringify(health)).not.toContain('secret');
   });

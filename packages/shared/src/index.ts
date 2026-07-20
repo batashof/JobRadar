@@ -28,6 +28,8 @@ export interface HealthChecks {
   telegramConfigured: boolean;
   /** Whether SENTRY_DSN is set, i.e. error reporting is active. */
   sentryConfigured: boolean;
+  /** Configured LLM providers in failover order (ADR-005); empty = LLM features off. */
+  llmProviders: string[];
 }
 
 /** Shape of the API health-check response (GET /health). */

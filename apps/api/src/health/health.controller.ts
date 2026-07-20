@@ -4,6 +4,7 @@ import type { HealthChecks, HealthResponse } from '@jobradar/shared';
 import { sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
+import { LlmService } from '../llm/llm.service';
 import { probeRedis, redisConnectionFromUrl } from '../redis';
 
 // Runtime require keeps package.json out of the tsc program (it would shift rootDir).
@@ -29,6 +30,7 @@ export class HealthController {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly config: ConfigService,
+    private readonly llm: LlmService,
   ) {}
 
   @Get()
@@ -58,6 +60,7 @@ export class HealthController {
           this.config.get<string>('TELEGRAM_SESSION'),
       ),
       sentryConfigured: Boolean(this.config.get<string>('SENTRY_DSN')),
+      llmProviders: this.llm.configuredProviderNames(),
     };
 
     return {
