@@ -4,22 +4,22 @@
 
 ## v1.0 sources
 
-### 1. hh.ru — official API — **deferred (source inactive)**
+### 1. Telegram job channels — MTProto — **primary source (ADR-009)**
 
-> Status 2026-07-20: hh returns geo-403 for anonymous API calls from non-CIS IPs (both the dev machine and Render). Lifting it needs an application token from dev.hh.ru, whose registration requires a Russian phone number the developer doesn't have. The worker is fully implemented (incl. optional `HH_API_TOKEN`); the source stays `is_active=false` until a token is obtained. WeWorkRemotely serves as the second v1.0 source instead.
+> Elevated from phase 4 to the primary v1.0 source: Telegram is where CIS/IT vacancies are *first* posted. Replaces hh.ru, which is dropped (ADR-009).
 
 | | |
 |---|---|
-| Kind | Official public REST API (free) |
-| Docs | https://api.hh.ru / https://github.com/hhru/api |
-| Auth | Anonymous access is enough for vacancy search; app token optional |
-| Endpoint | `GET /vacancies?text=...&search_field=...&schedule=remote...` |
-| Pagination | `page` / `per_page` (max 100), capped at 2000 items per query |
-| Rate limits | Undocumented but tolerant; stay well under by design (one run / 4h) |
-| Data quality | Excellent: structured salary, employer, schedule, employment type |
-| Notes | Query per active search profile keywords; store `id` as `external_id`; respect `Retry-After` on 429 |
+| Kind | Public channel messages read over MTProto (GramJS) |
+| Auth | `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` from my.telegram.org (free) + a persisted user **session string** (secret). The Bot API cannot read arbitrary public channels, so MTProto is required |
+| Channels | User-configurable list; each channel gets its own parsing template |
+| Parsing | Per-channel regex first (title / stack / format / contact); LLM-assisted extraction later (ADR-005). Missing fields stay null |
+| `external_id` | `<channel>:<message_id>` (stable, dedup-friendly) |
+| `url` | `https://t.me/<channel>/<message_id>` deep link — this is the "open vacancy" target; **no in-app apply**, the user responds in Telegram |
+| Rate limits | Global 4-hour politeness rule applies; respect MTProto FLOOD_WAIT; honest client, no proxies |
+| Notes | Store the session string as a secret; a run yielding zero items across all channels sets `last_run_status='empty'` and alerts (likely a broken template or ban) |
 
-### 2. RemoteOK — JSON feed — **active in v1.0**
+### 2. RemoteOK — JSON feed — **active in v1.0 (secondary)**
 
 | | |
 |---|---|
@@ -29,7 +29,7 @@
 | Data quality | Good: tags, company, position, salary sometimes present |
 | Notes | Single feed (~latest postings); filter client-side against profiles |
 
-### 3. WeWorkRemotely — RSS — **active in v1.0** (replaces hh while it is deferred)
+### 3. WeWorkRemotely — RSS — **active in v1.0 (secondary)**
 
 | | |
 |---|---|
@@ -47,16 +47,15 @@
 - Find the current month's thread (Algolia HN Search API), pull top-level comments, parse semi-structured text (location, remote, stack).
 - Hardest parsing of the friendly sources; a good candidate for LLM-assisted extraction (ADR-005).
 
-### Telegram job channels
-
-- Official Telegram Bot API / MTProto (e.g. GramJS) to read public channels.
-- Channel list is user-configurable; parse messages with per-channel regex templates, later LLM.
-
 ### Djinni
 
 - No public API → HTML parsing, gently and later. Low priority; also covered by the manual browser-extension flow.
 
 ## Explicitly excluded
+
+### hh.ru — dropped (ADR-009)
+
+Was the intended primary v1.0 source but never went live: the API geo-403s anonymous calls from non-CIS IPs, and a dev.hh.ru application token requires a Russian phone number the developer doesn't have (a paid/infra workaround is barred by ADR-001). Not part of v1.0 or any later phase. The existing worker + `HH_API_TOKEN` plumbing is inactive legacy code. Telegram replaces it as the primary source.
 
 ### LinkedIn — no automated access, ever (ADR-003)
 

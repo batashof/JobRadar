@@ -14,6 +14,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [006](006-github-actions-cron.md) | External cron via GitHub Actions | Accepted |
 | [007](007-api-hosting-render.md) | API hosting on Render free tier | Accepted |
 | [008](008-orm-drizzle.md) | ORM — Drizzle | Accepted |
+| [009](009-drop-hh-telegram-primary.md) | Drop hh.ru; Telegram job channels as the primary source | Accepted |
 
 ## Template
 

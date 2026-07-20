@@ -6,6 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 - Phase 3 — Delivery & notifications (matching, daily digest, reminders).
+- Direction change (ADR-009): hh.ru dropped as a source; **Telegram job channels** become the primary v1.0 source (MTProto). Feed to show source per vacancy + a platform filter (checkboxes). Vacancies link out to the original (no in-app apply).
 
 ## [0.3.0] — 2026-07-20
 

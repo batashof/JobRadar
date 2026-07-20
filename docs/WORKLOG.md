@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Source strategy pivot: drop hh.ru, Telegram becomes primary (ADR-009)
+
+- **Decision (ADR-009):** hh.ru is dropped for good — its API geo-403s non-CIS IPs and a dev.hh.ru token needs a Russian phone number (a CIS token/IP is barred by ADR-001). It never went live (inactive since 0.2.0); the worker + `HH_API_TOKEN` plumbing is now inactive legacy code.
+- **Telegram job channels promoted from phase 4 to the primary v1.0 source.** Read public channels via MTProto (GramJS): `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` (free, my.telegram.org) + a stored user session string; Bot API can't read arbitrary public channels. Per-channel regex parsing first, LLM later (ADR-005). `external_id = <channel>:<msgId>`, `url = t.me/<channel>/<msgId>`. RemoteOK + WeWorkRemotely stay as secondary sources.
+- **Product model confirmed: search + link out, no in-app apply.** The feed will show each vacancy's source and gain a platform filter (checkboxes); the "open vacancy" action is a link to the original (Telegram deep link).
+- **Docs updated:** ADR-009 + index, DATA_SOURCES (Telegram = source #1, hh moved to Explicitly excluded), PRODUCT (v1.0 scope 3 & 4, rejected list), ROADMAP (hh struck through, Telegram worker + feed source-filter added as open items), CHANGELOG (Unreleased). No code changes yet.
+- **Next step:** implement the Telegram ingestion worker and the feed source badge + platform filter.
+
 ## 2026-07-20 — Phase 2 production deploy
 
 - Applied migration `0001` (sessions table) to prod Neon over HTTPS (`db:migrate:prod`); verified the `sessions` columns exist. Developer set `API_ORIGIN` on Vercel and `WEB_ORIGIN`/`NODE_ENV` on Render.
