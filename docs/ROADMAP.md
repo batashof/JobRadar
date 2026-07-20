@@ -28,8 +28,8 @@
 
 ## Phase 2 — User & UI (~2 weeks)
 
-- [ ] Auth + sessions (email+password or GitHub/Google OAuth).
-- [ ] Search profile CRUD.
+- [x] Auth + sessions (email+password or GitHub/Google OAuth). *(email+password, scrypt, server-side sessions; web login/signup/logout live)*
+- [x] Search profile CRUD. *(NestJS profiles module, guarded + user-scoped; web manager UI; browser E2E verified)*
 - [ ] Vacancy feed: filters, Postgres FTS, pagination.
 - [ ] Application kanban: drag-and-drop, 5 stages (+ rejected/withdrawn), ordering.
 - [ ] Notes on applications.

@@ -5,7 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 2 — User & UI (in progress): search profile CRUD, vacancy feed with FTS, application kanban.
+- Phase 2 — User & UI (in progress): vacancy feed with FTS, application kanban.
+
+## [0.2.3] — 2026-07-20
+
+**Phase 2 — search profile CRUD.** Users can create, edit, and delete the search profiles that drive matching and digests.
+
+### Added
+
+- API `profiles` module (guarded by the session `AuthGuard`, every query scoped to the current user): `GET/POST /profiles`, `PATCH/DELETE /profiles/:id`. Cross-user access returns 404.
+- Shared zod contracts (`profileCreateSchema` with defaults, truly-partial `profileUpdateSchema`, `SearchProfile` type, `WORK_FORMATS`/`EMPLOYMENT_TYPES`) — currency uppercased, `salaryMin ≤ salaryMax` enforced.
+- Web `/app/profiles`: server-rendered list + client create/edit/delete manager, `ProfileForm`, `Badge` component. Header gains Dashboard/Profiles navigation.
+- `serverApiGet` helper for cookie-forwarding server-side reads.
 
 ## [0.2.2] — 2026-07-20
 

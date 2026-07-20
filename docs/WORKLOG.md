@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 2: search profile CRUD
+
+- API `profiles` module: `GET/POST /profiles`, `PATCH/DELETE /profiles/:id`, guarded by the session `AuthGuard`, every query scoped to `user.id` (ownership enforced — cross-user reads/patches/deletes return 404). Shared zod contracts: `profileCreateSchema` (with defaults), a *truly* partial `profileUpdateSchema` (zod keeps `.default()` under `.partial()`, so update fields are defined without defaults — otherwise a PATCH would clobber unspecified columns), plus `SearchProfile`, `WORK_FORMATS`, `EMPLOYMENT_TYPES`. Currency uppercased + 3-letter-checked, `salaryMin ≤ salaryMax` refined.
+- Web `/app/profiles`: server-rendered initial list (`serverApiGet` forwards the cookie) + client `ProfilesManager` (create/edit/delete with local state), `ProfileForm` (comma-separated tags, enum checkboxes, salary/currency), new `Badge` component; header gains Dashboard/Profiles nav.
+- **Curl E2E**: create (currency `usd`→`USD`), list, partial PATCH (rename+deactivate keeps keywords), 400 on `salaryMin>salaryMax`, 401 unauthenticated, ownership 404 for another user, delete 204 then 404. **Browser E2E**: SSR list → New profile form → created card (Remote/Full-time badges, keywords, stack, `5000–8000 USD`). 83 api + 14 web tests, lint/typecheck/build clean. Version 0.2.3.
+- **Next step:** vacancy feed — filters, Postgres FTS on `search_vector`, pagination (canonical vacancies only).
+
 ## 2026-07-20 — Phase 2: web foundation + auth UI
 
 - Stood up the real web app on **Tailwind v4 + a hand-rolled shadcn/ui component set** (Button/Input/Label/Card, light/dark theme tokens). Set up the `@/*` alias in vitest too.
