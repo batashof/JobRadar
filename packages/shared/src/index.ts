@@ -22,6 +22,8 @@ export interface HealthChecks {
   /** Connection failure detail (no secrets); null when redis is ok. */
   redisError: string | null;
   ingestionTokenConfigured: boolean;
+  /** Whether all three TELEGRAM_* env vars are present (not their values). */
+  telegramConfigured: boolean;
 }
 
 /** Shape of the API health-check response (GET /health). */

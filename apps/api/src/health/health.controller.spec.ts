@@ -54,6 +54,7 @@ describe('HealthController', () => {
       redisTls: false,
       redisError: null,
       ingestionTokenConfigured: true,
+      telegramConfigured: false,
     });
     expect(JSON.stringify(health)).not.toContain('secret');
   });

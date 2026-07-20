@@ -52,6 +52,11 @@ export class HealthController {
       redisTls: Boolean(redisConn && 'tls' in redisConn),
       redisError: redisProbe.ok ? null : redisProbe.error,
       ingestionTokenConfigured: Boolean(this.config.get<string>('INGESTION_TOKEN')),
+      telegramConfigured: Boolean(
+        this.config.get<string>('TELEGRAM_API_ID') &&
+          this.config.get<string>('TELEGRAM_API_HASH') &&
+          this.config.get<string>('TELEGRAM_SESSION'),
+      ),
     };
 
     return {
