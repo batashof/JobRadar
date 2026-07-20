@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { sources } from '../db/schema';
 import { DedupService, type DedupResult } from '../dedup/dedup.service';
+import { MatchingService, type MatchRunResult } from '../matching/matching.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { TelegramIngestService } from './telegram/telegram.service';
@@ -15,7 +16,7 @@ import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 /** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
 const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
-type JobOutcome = IngestResult | DedupResult | { skipped: string };
+type JobOutcome = IngestResult | DedupResult | MatchRunResult | { skipped: string };
 
 @Processor(INGESTION_QUEUE)
 export class IngestionProcessor extends WorkerHost {
@@ -28,6 +29,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly telegram: TelegramIngestService,
     private readonly wwr: WwrIngestService,
     private readonly dedup: DedupService,
+    private readonly matching: MatchingService,
   ) {
     super();
   }
@@ -35,6 +37,9 @@ export class IngestionProcessor extends WorkerHost {
   async process(job: Job<IngestJobData>): Promise<JobOutcome> {
     if (job.data.kind === 'dedup') {
       return this.dedup.run();
+    }
+    if (job.data.kind === 'match') {
+      return this.matching.rematchAll();
     }
 
     const source = await this.db.query.sources.findFirst({

@@ -38,8 +38,10 @@ export class IngestionController {
         jobOptions,
       );
     }
-    // FIFO with concurrency 1 → dedup runs after all source jobs above.
+    // FIFO with concurrency 1 → dedup runs after all source jobs above,
+    // then matching recomputes against the deduplicated canonical set.
     await this.queue.add('dedup', { kind: 'dedup' }, jobOptions);
-    return { enqueued: [...active.map((s) => s.slug), 'dedup'] };
+    await this.queue.add('match', { kind: 'match' }, jobOptions);
+    return { enqueued: [...active.map((s) => s.slug), 'dedup', 'match'] };
   }
 }

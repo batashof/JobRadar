@@ -10,4 +10,8 @@ export type IngestJobData =
   | {
       /** Runs after all source jobs (FIFO queue, concurrency 1). */
       kind: 'dedup';
+    }
+  | {
+      /** Runs after dedup: recomputes profile ↔ vacancy matches. */
+      kind: 'match';
     };

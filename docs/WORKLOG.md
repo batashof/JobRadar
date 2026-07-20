@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 3 started: vacancy ↔ profile matching (v0.3.2)
+
+- **Scope decision (developer):** phase 3 proceeds **without the Resend email digest** — deferred until after v1.0 (ROADMAP annotated). Matches are delivered in-app; reminders will be in-app too.
+- **Matching engine** (`apps/api/src/matching`): pure `scoreMatch` — hard filters reject on known conflicts only (work format, employment type, salary minimum compared within one currency; unknown attributes pass), then keyword/stack scoring with Unicode-aware word boundaries (`\b` fails on Cyrillic; "go" doesn't hit "google", "c++" works). Title hit = 1, description-only = 0.7; keywords are the required primary signal (0.65/0.35 blend with stack), filter-only profiles get a flat 0.25.
+- **Materialization:** `MatchingService` diffs desired vs existing `profile_matches` per profile (insert / update score / delete), preserving `matched_at`/`digested_at` on rescore; inactive profiles hold zero matches. Runs as a `match` queue job enqueued after dedup on every ingestion run, and inline on profile create/update.
+- **API:** `GET /matches` (guarded, score-ordered, paginated, `profileId` filter with ownership 404) + `GET /matches/profiles` (per-profile counts). **Web:** `/app/matches` — SSR first page, profile filter buttons, score badges, save-to-board; `VacancyCard` extracted from the feed for reuse; Matches added to the header nav.
+- **E2E (local, real data):** profile create → 29 matches materialized instantly; deactivate → 0, reactivate with narrower keywords → 26; deleted 3 rows in SQL → `POST /ingestion/run` (`match` job) restored them. Browser: Matches page renders mixed RU/EN matches sorted by score (82% → 27%), profile filter click refetches, Save → "On board ✓". 141 api + 30 web tests, lint/typecheck clean.
+- **Next step:** in-app follow-up reminders ("no answer for N days"), then v1.0 release prep (domain, Sentry, README).
+
 ## 2026-07-20 — Telegram source live in production
 
 - Prod Neon updated via `db:migrate:prod` (seed upsert now carries the `telegram` source + channels). Developer set `TELEGRAM_API_ID`/`TELEGRAM_API_HASH`/`TELEGRAM_SESSION` on Render — first attempt didn't apply (vars not visible to the service); added a presence-only `telegramConfigured` flag to `GET /health` to make that diagnosable without dashboard access, developer re-saved, flag flipped to `true`.

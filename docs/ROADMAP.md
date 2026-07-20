@@ -40,9 +40,9 @@
 
 ## Phase 3 — Delivery & notifications (~1–2 weeks)
 
-- [ ] Vacancy ↔ profile matching (rules-based).
-- [ ] Daily email digest via Resend + unsubscribe link.
-- [ ] Reminders: "no answer for N days — follow up".
+- [x] Vacancy ↔ profile matching (rules-based). *(scorer: hard filters + keyword/stack hits with Unicode word boundaries; materialized in `profile_matches` by a `match` queue job after each ingestion cycle and on profile create/update; `GET /matches` + web Matches page — E2E verified locally)*
+- [ ] ~~Daily email digest via Resend + unsubscribe link~~ — **deferred by developer decision (2026-07-20)**; revisit after v1.0. Matches are delivered in-app via the Matches page instead.
+- [ ] Reminders: "no answer for N days — follow up" *(in-app, since the email digest is deferred)*.
 - [ ] **Release v1.0**: domain, Sentry on both apps, README with screenshots.
 
 **Exit criterion:** v1.0 live and used daily by the author.

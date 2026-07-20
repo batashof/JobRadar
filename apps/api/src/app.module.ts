@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
+import { MatchingModule } from './matching/matching.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { VacanciesModule } from './vacancies/vacancies.module';
 import { redisConnectionFromUrl } from './redis';
@@ -36,6 +37,7 @@ import { redisConnectionFromUrl } from './redis';
     DbModule,
     HealthModule,
     AuthModule,
+    MatchingModule,
     ProfilesModule,
     VacanciesModule,
     ApplicationsModule,

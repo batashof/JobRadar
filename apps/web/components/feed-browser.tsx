@@ -5,17 +5,16 @@ import {
   type EmploymentType,
   type SourceOption,
   type VacancyFeed,
-  type VacancyListItem,
   WORK_FORMATS,
   type WorkFormat,
 } from '@jobradar/shared';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { VacancyCard } from '@/components/vacancy-card';
 import { ApiError } from '@/lib/api';
 import { createApplication } from '@/lib/applications';
 import { EMPLOYMENT_TYPE_LABELS, sourceLabel, WORK_FORMAT_LABELS } from '@/lib/labels';
@@ -23,87 +22,6 @@ import { EMPTY_FILTERS, fetchFeed, type FeedFilters } from '@/lib/vacancies';
 
 function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-}
-
-function salaryText(v: VacancyListItem): string | null {
-  // Some sources emit 0/0 for "no salary" — treat non-positive as absent.
-  const min = v.salaryMin && v.salaryMin > 0 ? v.salaryMin : null;
-  const max = v.salaryMax && v.salaryMax > 0 ? v.salaryMax : null;
-  if (min == null && max == null) return null;
-  const cur = v.salaryCurrency ? ` ${v.salaryCurrency}` : '';
-  if (min != null && max != null) return `${min}–${max}${cur}`;
-  if (min != null) return `from ${min}${cur}`;
-  return `up to ${max}${cur}`;
-}
-
-function publishedText(iso: string | null): string | null {
-  if (!iso) return null;
-  // Fixed locale: SSR and the browser must format identically (hydration).
-  return new Date(iso).toLocaleDateString('en-GB', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function VacancyCard({
-  v,
-  tracked,
-  saving,
-  onSave,
-}: {
-  v: VacancyListItem;
-  tracked: boolean;
-  saving: boolean;
-  onSave: (id: string) => void;
-}) {
-  const salary = salaryText(v);
-  const published = publishedText(v.publishedAt);
-  return (
-    <Card>
-      <CardHeader className="gap-2 pb-2">
-        <div className="flex items-start justify-between gap-4">
-          <a
-            href={v.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-base font-semibold hover:underline"
-          >
-            {v.title}
-          </a>
-          <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="muted">{sourceLabel(v.source)}</Badge>
-            {tracked ? (
-              <Badge variant="primary">On board ✓</Badge>
-            ) : (
-              <Button size="sm" variant="outline" disabled={saving} onClick={() => onSave(v.id)}>
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-            )}
-          </div>
-        </div>
-        <div className="text-sm text-[var(--color-muted-foreground)]">
-          {v.company}
-          {v.location ? ` · ${v.location}` : ''}
-          {published ? ` · ${published}` : ''}
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {v.workFormat ? <Badge variant="outline">{WORK_FORMAT_LABELS[v.workFormat]}</Badge> : null}
-          {v.employmentType ? (
-            <Badge variant="default">{EMPLOYMENT_TYPE_LABELS[v.employmentType]}</Badge>
-          ) : null}
-          {salary ? <Badge variant="primary">{salary}</Badge> : null}
-        </div>
-      </CardHeader>
-      {v.description ? (
-        <CardContent className="pt-0">
-          <p className="line-clamp-3 text-sm text-[var(--color-muted-foreground)]">
-            {v.description}
-          </p>
-        </CardContent>
-      ) : null}
-    </Card>
-  );
 }
 
 export function FeedBrowser({

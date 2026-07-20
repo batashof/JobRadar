@@ -4,6 +4,7 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { searchProfiles } from '../db/schema';
+import { MatchingService } from '../matching/matching.service';
 
 // Columns returned to clients (everything except the owning user_id).
 const columns = {
@@ -30,7 +31,10 @@ function definedOnly<T extends object>(obj: T): Partial<T> {
 
 @Injectable()
 export class ProfilesService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly matching: MatchingService,
+  ) {}
 
   list(userId: string) {
     return this.db
@@ -46,6 +50,8 @@ export class ProfilesService {
       .values({ ...input, userId })
       .returning(columns);
     if (!row) throw new Error('Profile insert returned no row');
+    // Matches are ready as soon as the client sees the profile.
+    await this.matching.rematchProfile(row.id);
     return row;
   }
 
@@ -56,6 +62,7 @@ export class ProfilesService {
       .where(and(eq(searchProfiles.id, id), eq(searchProfiles.userId, userId)))
       .returning(columns);
     if (!row) throw new NotFoundException('Profile not found');
+    await this.matching.rematchProfile(row.id);
     return row;
   }
 

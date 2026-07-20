@@ -5,9 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 3 — Delivery & notifications (matching, daily digest, reminders).
+- Phase 3 — Delivery & notifications (reminders, v1.0 release; the Resend email digest is deferred by developer decision).
+
+## [0.3.2] — 2026-07-20
+
+**Phase 3: rules-based vacancy ↔ profile matching, materialized and browsable.**
 
 ### Added
+
+- **Matching engine** (`apps/api/src/matching`): rules-based scorer — hard filters (work format, employment type, salary minimum within one currency) reject; keyword hits (Unicode word boundaries, RU+EN, title > description) and stack hits produce the score. Unknown vacancy attributes never reject.
+- Matches materialized in `profile_matches` via a diff (insert/update score/delete), preserving `matched_at`/`digested_at` on rescore. Recomputed by a `match` queue job after every ingestion + dedup cycle, and inline on profile create/update (inactive profiles hold no matches).
+- `GET /matches` (score-ordered, paginated, optional `profileId` filter with ownership check) and `GET /matches/profiles` (per-profile match counts); shared `matchQuerySchema`/`MatchFeed` contracts.
+- Web **Matches page** (`/app/matches`): SSR first page, profile filter buttons with counts, score badges, save-to-board, pagination; `VacancyCard` extracted from the feed for reuse.
+
+Also rolls up the post-0.3.1 Telegram go-live work:
 
 - Default Telegram channel list in the source seed (`job_react`, `geekjobs`, `remote_it_jobs` — frontend/fullstack focus, verified live): first real MTProto ingestion run brought 136 vacancies (115 canonical after dedup) into the local feed.
 - `telegramConfigured` flag in `GET /health` checks (presence-only, mirrors `ingestionTokenConfigured`) — used to diagnose missing Render secrets during the Telegram prod rollout.
