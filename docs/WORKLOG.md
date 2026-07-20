@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Telegram source live in production
+
+- Prod Neon updated via `db:migrate:prod` (seed upsert now carries the `telegram` source + channels). Developer set `TELEGRAM_API_ID`/`TELEGRAM_API_HASH`/`TELEGRAM_SESSION` on Render — first attempt didn't apply (vars not visible to the service); added a presence-only `telegramConfigured` flag to `GET /health` to make that diagnosable without dashboard access, developer re-saved, flag flipped to `true`.
+- Forced prod ingestion run: telegram scanned 150 messages → **136 vacancies upserted, 115 canonical after dedup** (`ok` status). Prod E2E through the Vercel web proxy: signup → `GET /vacancies/sources` returns telegram(115)/remoteok(108)/weworkremotely(25) → `sources=telegram` feed returns 115 with `t.me` deep links.
+- GitHub Actions cron (every 4h) now keeps Telegram fresh alongside RemoteOK/WWR — no further action needed.
+- **Next step:** phase 3 — vacancy↔profile matching, then the Resend digest.
+
 ## 2026-07-20 — Telegram source live locally: channels chosen, first real ingest
 
 - Developer obtained `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` and generated `TELEGRAM_SESSION` via `telegram:session` (all three in local `.env`; **still to be set on Render for prod**).
