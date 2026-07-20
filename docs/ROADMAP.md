@@ -31,10 +31,10 @@
 - [x] Auth + sessions (email+password or GitHub/Google OAuth). *(email+password, scrypt, server-side sessions; web login/signup/logout live)*
 - [x] Search profile CRUD. *(NestJS profiles module, guarded + user-scoped; web manager UI; browser E2E verified)*
 - [x] Vacancy feed: filters, Postgres FTS, pagination. *(GET /vacancies: websearch_to_tsquery FTS + ts_rank, work-format/employment/salary filters, canonical-only, paginated; web feed browser — verified on 129 real vacancies)*
-- [ ] Application kanban: drag-and-drop, 5 stages (+ rejected/withdrawn), ordering.
-- [ ] Notes on applications.
+- [x] Application kanban: drag-and-drop, 5 stages (+ rejected/withdrawn), ordering. *(@dnd-kit board, cross-column move persisted via reorder endpoint; save-to-board from the feed; browser E2E verified)*
+- [x] Notes on applications. *(per-card notes editor, PATCH on blur)*
 
-**Exit criterion:** the author can browse, search, and track applications in production.
+**Exit criterion:** the author can browse, search, and track applications in production. **All features built and verified locally; production deployment pending developer env setup (Neon `db:migrate:prod`, `API_ORIGIN` on Vercel, `WEB_ORIGIN`+`NODE_ENV=production` on Render) — phase stays open on deployment.**
 
 ## Phase 3 — Delivery & notifications (~1–2 weeks)
 

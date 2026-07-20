@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError } from '@/lib/api';
+import { createApplication } from '@/lib/applications';
 import { EMPLOYMENT_TYPE_LABELS, WORK_FORMAT_LABELS } from '@/lib/labels';
 import { EMPTY_FILTERS, fetchFeed, type FeedFilters } from '@/lib/vacancies';
 
@@ -43,7 +44,17 @@ function publishedText(iso: string | null): string | null {
   });
 }
 
-function VacancyCard({ v }: { v: VacancyListItem }) {
+function VacancyCard({
+  v,
+  tracked,
+  saving,
+  onSave,
+}: {
+  v: VacancyListItem;
+  tracked: boolean;
+  saving: boolean;
+  onSave: (id: string) => void;
+}) {
   const salary = salaryText(v);
   const published = publishedText(v.publishedAt);
   return (
@@ -58,7 +69,16 @@ function VacancyCard({ v }: { v: VacancyListItem }) {
           >
             {v.title}
           </a>
-          <Badge variant="muted">{v.source}</Badge>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="muted">{v.source}</Badge>
+            {tracked ? (
+              <Badge variant="primary">On board ✓</Badge>
+            ) : (
+              <Button size="sm" variant="outline" disabled={saving} onClick={() => onSave(v.id)}>
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            )}
+          </div>
         </div>
         <div className="text-sm text-[var(--color-muted-foreground)]">
           {v.company}
@@ -84,7 +104,15 @@ function VacancyCard({ v }: { v: VacancyListItem }) {
   );
 }
 
-export function FeedBrowser({ initial }: { initial: VacancyFeed }) {
+export function FeedBrowser({
+  initial,
+  trackedIds,
+}: {
+  initial: VacancyFeed;
+  trackedIds: string[];
+}) {
+  const [tracked, setTracked] = useState<Set<string>>(() => new Set(trackedIds));
+  const [saving, setSaving] = useState<Set<string>>(() => new Set());
   const [qInput, setQInput] = useState('');
   const [workFormat, setWorkFormat] = useState<WorkFormat[]>([]);
   const [employmentType, setEmploymentType] = useState<EmploymentType[]>([]);
@@ -134,6 +162,27 @@ export function FeedBrowser({ initial }: { initial: VacancyFeed }) {
       salaryMin: salaryMin != null && Number.isFinite(salaryMin) ? salaryMin : null,
     });
     setPage(1);
+  }
+
+  function handleSave(id: string) {
+    setSaving((prev) => new Set(prev).add(id));
+    createApplication(id)
+      .then(() => setTracked((prev) => new Set(prev).add(id)))
+      .catch((err: unknown) => {
+        // 409 = already on the board: treat as saved rather than an error.
+        if (err instanceof ApiError && err.status === 409) {
+          setTracked((prev) => new Set(prev).add(id));
+        } else {
+          setError('Could not save to the board.');
+        }
+      })
+      .finally(() =>
+        setSaving((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        }),
+      );
   }
 
   const totalPages = Math.max(1, Math.ceil(feed.total / feed.pageSize));
@@ -227,7 +276,12 @@ export function FeedBrowser({ initial }: { initial: VacancyFeed }) {
         <ul className="space-y-4">
           {feed.items.map((v) => (
             <li key={v.id}>
-              <VacancyCard v={v} />
+              <VacancyCard
+                v={v}
+                tracked={tracked.has(v.id)}
+                saving={saving.has(v.id)}
+                onSave={handleSave}
+              />
             </li>
           ))}
         </ul>

@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 2: application kanban + notes (all phase-2 features built)
+
+- API `applications` module (guarded, user-scoped): `GET/POST /applications`, `PATCH/DELETE /applications/:id`, `POST /applications/reorder` (batch: each affected column with its cards in order, applied in a transaction; `stage_order` = index). `applied_at` stamped via `coalesce(applied_at, now())` when a card reaches applied/screening/tech_interview/offer; unique `(user, vacancy)` → 409. Route order: `reorder` declared before `:id`.
+- Shared: `applicationCreateSchema`/`applicationUpdateSchema`/`applicationReorderSchema` (`z.uuid()`), `APPLICATION_STAGES`, `ApplicationItem` (embeds a vacancy summary).
+- Web `/app/board`: **@dnd-kit** kanban (developer chose it) — 7 columns, cross-column drag via `onDragOver` (live move) + `onDragEnd` (finalize + persist affected columns), drag handle so notes/buttons stay interactive, `DragOverlay`. Per-card notes editor (PATCH on blur), remove (optimistic). Feed gains a "Save" button (create application; 409 treated as already-saved) and shows "On board ✓" for tracked vacancies (feed page fetches applications for the tracked set).
+- **Curl E2E**: create/409-duplicate/list/reorder (appliedAt set on move to applied, source column reindexed)/notes+stage update/401/delete-204-then-404. **Browser E2E**: saved 2 vacancies from the feed → board shows them in Saved → dragged "Graphic Designer" Saved→Applied → **survived a full reload** (server fetch) → feed shows 2 "On board ✓". 98 api + 23 web tests, lint/typecheck/build clean. Version 0.2.5.
+- **Phase 2 status:** every feature built and verified locally. **Exit (deployment) is the only remaining gate** — developer TODO: `pnpm db:migrate:prod` (sessions table on Neon), `API_ORIGIN=https://jobradar-api-ptvp.onrender.com` on Vercel, `WEB_ORIGIN`+`NODE_ENV=production` on Render. Do not start phase 3 until deployed.
+
 ## 2026-07-20 — Phase 2: vacancy feed (FTS + filters + pagination)
 
 - API `GET /vacancies` (guarded): Postgres FTS via `websearch_to_tsquery('simple', q)` `@@ search_vector`, ranked by `ts_rank` (falls back to `published_at desc nulls last, ingested_at desc` when no query); filters for work format / employment type (`inArray`) and minimum salary (`salaryMax >= min OR salaryMin >= min`); **canonical only** (`canonical_vacancy_id is null`); offset pagination + `count(*)` total; description truncated to 400 chars in SQL; source slug joined in.

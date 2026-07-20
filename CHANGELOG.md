@@ -5,7 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 2 — User & UI (in progress): application kanban + notes.
+- Phase 2 exit (production deployment) — pending developer env setup (Neon migration, `API_ORIGIN` on Vercel, `WEB_ORIGIN`/`NODE_ENV` on Render).
+
+## [0.2.5] — 2026-07-20
+
+**Phase 2 — application kanban + notes.** All phase-2 features are now built and verified locally; deployment is the only remaining gate.
+
+### Added
+
+- API `applications` module (guarded, user-scoped): `GET/POST /applications`, `PATCH/DELETE /applications/:id`, and `POST /applications/reorder` (batch stage + order in a transaction). `applied_at` stamped when a card reaches applied-or-later; duplicate vacancy → 409.
+- Shared contracts: `applicationCreateSchema`, `applicationUpdateSchema`, `applicationReorderSchema`, `APPLICATION_STAGES`, `ApplicationItem`.
+- Web `/app/board`: @dnd-kit kanban with 7 stage columns, cross-column drag-and-drop persisted via the reorder endpoint, per-card notes editor (PATCH on blur) and remove.
+- Feed "Save" button adds a vacancy to the board; already-tracked vacancies show "On board ✓".
 
 ## [0.2.4] — 2026-07-20
 

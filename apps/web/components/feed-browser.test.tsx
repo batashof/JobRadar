@@ -2,12 +2,16 @@ import type { VacancyFeed, VacancyListItem } from '@jobradar/shared';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { fetchFeed } = vi.hoisted(() => ({ fetchFeed: vi.fn() }));
+const { fetchFeed, createApplication } = vi.hoisted(() => ({
+  fetchFeed: vi.fn(),
+  createApplication: vi.fn(),
+}));
 
 vi.mock('@/lib/vacancies', () => ({
   fetchFeed,
   EMPTY_FILTERS: { q: '', workFormat: [], employmentType: [], salaryMin: null },
 }));
+vi.mock('@/lib/applications', () => ({ createApplication }));
 
 import { FeedBrowser } from './feed-browser';
 
@@ -38,7 +42,7 @@ describe('FeedBrowser', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('renders the server-provided initial page without fetching', () => {
-    render(<FeedBrowser initial={feed()} />);
+    render(<FeedBrowser initial={feed()} trackedIds={[]} />);
     expect(screen.getByText('Senior React Engineer')).toBeTruthy();
     expect(screen.getByText('1 vacancy')).toBeTruthy();
     expect(fetchFeed).not.toHaveBeenCalled();
@@ -46,7 +50,7 @@ describe('FeedBrowser', () => {
 
   it('fetches with the query when the user searches', async () => {
     fetchFeed.mockResolvedValue(feed({ items: [item({ id: 'v2', title: 'Go Backend' })], total: 1 }));
-    render(<FeedBrowser initial={feed()} />);
+    render(<FeedBrowser initial={feed()} trackedIds={[]} />);
 
     fireEvent.change(screen.getByLabelText('Search vacancies'), { target: { value: 'go' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
@@ -59,11 +63,27 @@ describe('FeedBrowser', () => {
 
   it('paginates to the next page', async () => {
     fetchFeed.mockResolvedValue(feed({ page: 2, total: 40 }));
-    render(<FeedBrowser initial={feed({ total: 40 })} />);
+    render(<FeedBrowser initial={feed({ total: 40 })} trackedIds={[]} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() => expect(fetchFeed).toHaveBeenCalledTimes(1));
     expect(fetchFeed.mock.calls[0]?.[1]).toBe(2);
+  });
+
+  it('saves a vacancy to the board and marks it tracked', async () => {
+    createApplication.mockResolvedValue({ id: 'a1' });
+    render(<FeedBrowser initial={feed()} trackedIds={[]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(createApplication).toHaveBeenCalledWith('v1'));
+    await waitFor(() => expect(screen.getByText('On board ✓')).toBeTruthy());
+  });
+
+  it('shows already-tracked vacancies as on the board', () => {
+    render(<FeedBrowser initial={feed()} trackedIds={['v1']} />);
+    expect(screen.getByText('On board ✓')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
   });
 });

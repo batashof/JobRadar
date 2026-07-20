@@ -1,4 +1,4 @@
-import type { EmploymentType, WorkFormat } from '@jobradar/shared';
+import type { ApplicationStage, EmploymentType, WorkFormat } from '@jobradar/shared';
 
 export const WORK_FORMAT_LABELS: Record<WorkFormat, string> = {
   remote: 'Remote',
@@ -10,4 +10,14 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
   full_time: 'Full-time',
   part_time: 'Part-time',
   freelance: 'Freelance',
+};
+
+export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
+  saved: 'Saved',
+  applied: 'Applied',
+  screening: 'Screening',
+  tech_interview: 'Tech interview',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  withdrawn: 'Withdrawn',
 };
