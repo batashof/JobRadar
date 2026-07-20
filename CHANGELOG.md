@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 3 — Delivery & notifications (matching, daily digest, reminders).
 
+### Added
+
+- Default Telegram channel list in the source seed (`job_react`, `geekjobs`, `remote_it_jobs` — frontend/fullstack focus, verified live): first real MTProto ingestion run brought 136 vacancies (115 canonical after dedup) into the local feed.
+
 ## [0.3.1] — 2026-07-20
 
 **ADR-009 implementation: Telegram ingestion worker + feed source filter.**

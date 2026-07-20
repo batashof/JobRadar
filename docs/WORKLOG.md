@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Telegram source live locally: channels chosen, first real ingest
+
+- Developer obtained `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` and generated `TELEGRAM_SESSION` via `telegram:session` (all three in local `.env`; **still to be set on Render for prod**).
+- **Channel selection** (frontend/fullstack focus): probed candidates via `t.me` previews — `@javascript_jobs` and `@fordev` are chats (groups), not channels; `@job_frontend` is a redirect stub. Picked **`job_react`** (React/JS vacancies, ~15.7k), **`geekjobs`** (IT&Digital), **`remote_it_jobs`** (remote IT). Seeded into `sources.config.channels`.
+- **First real MTProto run:** 150 messages scanned → 136 vacancies upserted, 115 canonical after dedup. Companies extracted from labeled lines (СДЭК, Альфа-Банк, OZON, VK…), work format on 91/136; salaries rare (3) — channels seldom post them. Known noise: weekly digest posts (e.g. "Вакансии прошедшей недели") pass the length heuristic — candidate for a digest-post filter later.
+- **Browser E2E:** feed shows Telegram badges + `t.me` links; checking the Telegram source checkbox narrows 251 → 115 (Page 1 of 6); `GET /vacancies/sources` returns telegram/remoteok/weworkremotely counts; `sources=telegram,weworkremotely` totals add up.
+- **Developer TODO for prod:** set the three `TELEGRAM_*` env vars on Render and update the prod `sources` row (`update sources set config = jsonb_set(config, '{channels}', '["job_react","geekjobs","remote_it_jobs"]') where slug = 'telegram';`) or re-run the seed against prod.
+- **Next step:** phase 3 — vacancy↔profile matching, then the Resend digest.
+
 ## 2026-07-20 — ADR-009 implemented: Telegram worker + feed source filter (v0.3.1)
 
 - **Feed platform filter (phase-2 leftover):** shared `vacancyQuerySchema` gains a `sources` slug-list filter (shape-validated, not a closed enum — sources are DB-driven); `GET /vacancies` filters via the sources join (count query joins too); new `GET /vacancies/sources` returns per-source canonical-vacancy counts for the checkbox options. Web feed: labeled source badges (`sourceLabel`), source checkboxes with counts. Browser E2E: checking WeWorkRemotely narrowed 129 → 25 vacancies with correct badges/pagination.

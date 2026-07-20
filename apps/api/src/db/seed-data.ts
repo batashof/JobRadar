@@ -14,12 +14,16 @@ export const SEED_SOURCES: SourceSeed[] = [
   },
   {
     // Primary source (ADR-009). Needs TELEGRAM_API_ID/TELEGRAM_API_HASH +
-    // TELEGRAM_SESSION env vars; the developer fills `channels` with public
-    // job-channel usernames (without @) — the worker skips while it's empty.
+    // TELEGRAM_SESSION env vars; the worker skips while they're missing.
+    // Channels: public RU/IT job channels (frontend/fullstack focus),
+    // verified live 2026-07-20.
     slug: 'telegram',
     kind: 'telegram',
     isActive: true,
-    config: { channels: [], messagesPerChannel: 50 },
+    config: {
+      channels: ['job_react', 'geekjobs', 'remote_it_jobs'],
+      messagesPerChannel: 50,
+    },
   },
   {
     slug: 'remoteok',
