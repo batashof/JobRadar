@@ -7,6 +7,7 @@ export const APP_NAME = 'JobRadar';
 
 export * from './auth';
 export * from './profiles';
+export * from './vacancies';
 
 /** Component diagnostics included in the health response. Never carries secrets. */
 export interface HealthChecks {

@@ -8,6 +8,7 @@ import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { VacanciesModule } from './vacancies/vacancies.module';
 import { redisConnectionFromUrl } from './redis';
 
 @Module({
@@ -35,6 +36,7 @@ import { redisConnectionFromUrl } from './redis';
     HealthModule,
     AuthModule,
     ProfilesModule,
+    VacanciesModule,
     IngestionModule,
   ],
 })

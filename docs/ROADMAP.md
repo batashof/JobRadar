@@ -30,7 +30,7 @@
 
 - [x] Auth + sessions (email+password or GitHub/Google OAuth). *(email+password, scrypt, server-side sessions; web login/signup/logout live)*
 - [x] Search profile CRUD. *(NestJS profiles module, guarded + user-scoped; web manager UI; browser E2E verified)*
-- [ ] Vacancy feed: filters, Postgres FTS, pagination.
+- [x] Vacancy feed: filters, Postgres FTS, pagination. *(GET /vacancies: websearch_to_tsquery FTS + ts_rank, work-format/employment/salary filters, canonical-only, paginated; web feed browser — verified on 129 real vacancies)*
 - [ ] Application kanban: drag-and-drop, 5 stages (+ rejected/withdrawn), ordering.
 - [ ] Notes on applications.
 

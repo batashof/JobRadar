@@ -5,7 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 2 — User & UI (in progress): vacancy feed with FTS, application kanban.
+- Phase 2 — User & UI (in progress): application kanban + notes.
+
+## [0.2.4] — 2026-07-20
+
+**Phase 2 — vacancy feed.** Full-text search, filtering, and pagination over the aggregated vacancies.
+
+### Added
+
+- API `GET /vacancies` (guarded): Postgres full-text search via `websearch_to_tsquery` + `ts_rank` on the generated `search_vector`, filters for work format / employment type / minimum salary, canonical vacancies only, offset pagination with a total count.
+- Shared `vacancyQuerySchema` (coerces query-string values, comma-or-array enum filters, bounded `pageSize`), `VacancyListItem`/`VacancyFeed` types.
+- Web `/app/feed`: server-rendered first page + client `FeedBrowser` (search box, format/type checkboxes, min-salary, prev/next pagination) with vacancy cards linking out to the source.
+- Non-positive salaries (0/0 from some sources) are shown as "no salary" rather than "0–0".
 
 ## [0.2.3] — 2026-07-20
 

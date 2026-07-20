@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 2: vacancy feed (FTS + filters + pagination)
+
+- API `GET /vacancies` (guarded): Postgres FTS via `websearch_to_tsquery('simple', q)` `@@ search_vector`, ranked by `ts_rank` (falls back to `published_at desc nulls last, ingested_at desc` when no query); filters for work format / employment type (`inArray`) and minimum salary (`salaryMax >= min OR salaryMin >= min`); **canonical only** (`canonical_vacancy_id is null`); offset pagination + `count(*)` total; description truncated to 400 chars in SQL; source slug joined in.
+- Shared `vacancyQuerySchema` coerces raw query-string values (numeric strings, comma-joined *or* repeated enum params) with a bounded `pageSize` (≤50); `VacancyListItem`/`VacancyFeed` types.
+- Web `/app/feed`: SSR first page (`serverApiGet`) + client `FeedBrowser` (search box, format/type checkboxes, min-salary, prev/next). First fetch skipped via a ref (not state — flipping state re-triggers the effect); cards link out to the source. Non-positive salaries (0/0 from RemoteOK) shown as "no salary".
+- **Curl E2E** on 129 real local vacancies: default 129/page-1, `q=react`→10 ranked, multi-word `q=python engineer`→3, `workFormat=remote` filter, `pageSize=5&page=2` pagination, 400 on `pageSize=999`, 401 unauthenticated. **Browser E2E**: SSR feed → search "react" narrows to 10 (Page 1 of 1) → 0/0 salary hidden. 90 api + 17 web tests, lint/typecheck/build clean. Version 0.2.4.
+- **Next step:** application kanban + notes (last phase-2 item) — likely needs a drag-and-drop lib choice.
+
 ## 2026-07-20 — Phase 2: search profile CRUD
 
 - API `profiles` module: `GET/POST /profiles`, `PATCH/DELETE /profiles/:id`, guarded by the session `AuthGuard`, every query scoped to `user.id` (ownership enforced — cross-user reads/patches/deletes return 404). Shared zod contracts: `profileCreateSchema` (with defaults), a *truly* partial `profileUpdateSchema` (zod keeps `.default()` under `.partial()`, so update fields are defined without defaults — otherwise a PATCH would clobber unspecified columns), plus `SearchProfile`, `WORK_FORMATS`, `EMPLOYMENT_TYPES`. Currency uppercased + 3-letter-checked, `salaryMin ≤ salaryMax` refined.
