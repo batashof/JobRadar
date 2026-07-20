@@ -5,7 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 2 — User & UI: auth, search profile CRUD, vacancy feed with FTS, application kanban.
+- Phase 2 — User & UI (in progress): search profile CRUD, vacancy feed with FTS, application kanban, web UI.
+
+## [0.2.1] — 2026-07-20
+
+**Phase 2 — auth backend.** Email + password authentication with server-side sessions (self-managed in NestJS; no external auth service, per the zero-budget constraint).
+
+### Added
+
+- `sessions` table (opaque token, per-user, expiring) + migration `0001`.
+- Auth module: `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`.
+- Passwords hashed with scrypt (Node stdlib, memory-hard — no native dependency).
+- Session carried in an httpOnly, `SameSite=Lax` cookie (`secure` in production); `AuthGuard` + `@CurrentUser()` for protecting routes.
+- Shared zod contracts (`signupSchema`, `loginSchema`, `AuthUser`, `AuthResponse`) reused by web and validated on the API via a `ZodValidationPipe`.
+- CORS now sends credentials (cookies) for the eventual direct cross-origin case; the web app will normally proxy `/api` to keep the cookie first-party.
 
 ## [0.2.0] — 2026-07-20
 

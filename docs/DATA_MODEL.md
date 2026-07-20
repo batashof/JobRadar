@@ -6,6 +6,7 @@
 ## Entity overview
 
 ```
+User 1──n Session
 User 1──n SearchProfile
 User 1──n Application n──1 Vacancy
 Vacancy n──1 Source
@@ -27,6 +28,20 @@ SearchProfile n──n Vacancy    (matches, materialized)
 | digest_enabled | boolean default true | unsubscribe flag |
 | digest_last_sent_at | timestamptz nullable | idempotency for digest job |
 | created_at / updated_at | timestamptz | |
+
+### sessions
+
+Server-side sessions for email+password auth (opaque token in an httpOnly cookie; revocable on logout).
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| token | text unique | 256-bit opaque token stored in the client cookie |
+| user_id | uuid FK → users | cascade on user delete |
+| expires_at | timestamptz | validity checked on every guarded request |
+| created_at | timestamptz | |
+
+Index: `(user_id)`.
 
 ### search_profiles
 

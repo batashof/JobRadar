@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 2: auth backend (email + password, sessions)
+
+- Decisions (developer): **email + password** auth first (self-managed in NestJS — best fit for the "real backend / guards" learning goal and the zero-budget constraint, no external auth service); **Tailwind + shadcn/ui** for the web UI (next chunk). Cross-origin cookie problem solved by proxying `/api` through the web app (Next rewrites) so the session cookie stays first-party — routing, not backend logic, so ADR-002 holds.
+- `sessions` table (opaque 256-bit token, per-user, `expires_at`) + migration `0001`; applied to local Postgres. **Prod (Neon) migration still to run before web deploy: `pnpm db:migrate:prod`.**
+- Auth module: `signup`/`login`/`logout`/`me`. Passwords via Node stdlib **scrypt** (memory-hard, no native dep; had to raise `maxmem` above the 32 MB default for N=2^15). Session in an httpOnly `SameSite=Lax` cookie (`secure` in prod). `AuthGuard` + `@CurrentUser()` decorator. Login uses a constant-time dummy verify so timing doesn't leak whether an email exists.
+- Shared **zod** contracts in `@jobradar/shared` (reused by web later), validated on the API through a `ZodValidationPipe`.
+- Live E2E against local DB (curl + cookie jar): signup→me→logout, 401 without/after-logout cookie, 409 on duplicate email (drizzle wraps the pg error — unique-violation detected via the `cause` chain), 400 on invalid payload, 401 on wrong password. 73 api tests green, web 2, lint clean. Version 0.2.1.
+- **Next step:** web foundation — Tailwind + shadcn/ui, Next `/api` proxy rewrites, login/signup pages, session context, protected app shell.
+
 ## 2026-07-20 — Phase 1 complete 🎉 (WWR replaces hh as second source)
 
 - dev.hh.ru registration turned out to require a Russian phone number (developer has none) + an application review wait → hh deferred indefinitely per DATA_SOURCES.md "pick one of #2/#3": implemented the **WeWorkRemotely RSS worker** (fast-xml-parser, `Company: Title` split, conditional GET with 304-aware status) and activated it; hh source set inactive (worker + `HH_API_TOKEN` support stay ready).

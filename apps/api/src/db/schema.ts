@@ -71,6 +71,21 @@ export const users = pgTable('users', {
   updatedAt: updatedAt(),
 });
 
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // Opaque high-entropy token stored in the client's httpOnly cookie.
+    token: text('token').notNull().unique(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('sessions_user_id_idx').on(t.userId)],
+);
+
 export const searchProfiles = pgTable(
   'search_profiles',
   {

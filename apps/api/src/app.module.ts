@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { BullModule } from '@nestjs/bullmq';
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
@@ -31,6 +32,7 @@ import { redisConnectionFromUrl } from './redis';
     }),
     DbModule,
     HealthModule,
+    AuthModule,
     IngestionModule,
   ],
 })

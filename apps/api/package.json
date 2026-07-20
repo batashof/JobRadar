@@ -1,6 +1,6 @@
 {
   "name": "@jobradar/api",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -27,7 +27,8 @@
     "ioredis": "^5.11.1",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@neondatabase/serverless": "^1.1.0",
