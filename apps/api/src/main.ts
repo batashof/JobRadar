@@ -1,3 +1,6 @@
+// Must be the very first import so Sentry can instrument other modules on load.
+import './instrument';
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 

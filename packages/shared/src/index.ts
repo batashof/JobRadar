@@ -26,6 +26,8 @@ export interface HealthChecks {
   ingestionTokenConfigured: boolean;
   /** Whether all three TELEGRAM_* env vars are present (not their values). */
   telegramConfigured: boolean;
+  /** Whether SENTRY_DSN is set, i.e. error reporting is active. */
+  sentryConfigured: boolean;
 }
 
 /** Shape of the API health-check response (GET /health). */

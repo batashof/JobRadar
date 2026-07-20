@@ -7,6 +7,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 3 — Delivery & notifications (v1.0 release; the Resend email digest is deferred by developer decision).
 
+## [0.3.4] — 2026-07-20
+
+**v1.0 release prep: error monitoring on both apps (ADR-010).**
+
+### Added
+
+- **Sentry on `apps/api`** (`@sentry/nestjs`): `instrument.ts` initializes before any other import, `SentryModule.forRoot()` + a global `SentryGlobalFilter` capture HTTP errors, and the ingestion processor reports source-run failures via `Sentry.captureException` (queue jobs run outside the request lifecycle, so the global filter can't see them).
+- **Sentry on `apps/web`** (`@sentry/nextjs`): `instrumentation.ts` (Node + Edge), `instrumentation-client.ts` (browser), and `withSentryConfig` in `next.config.ts` (tunnel route, source-map upload when build-time credentials are present).
+- `sentryConfigured` presence flag in `GET /health` checks, mirroring `telegramConfigured`.
+
+Everything is DSN-gated: with `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` unset the SDKs are a no-op, so local dev, CI and tests never touch Sentry and the $0 budget holds (ADR-001). Tracing and source-map upload are opt-in.
+
 ## [0.3.3] — 2026-07-20
 
 **Phase 3: in-app follow-up reminders ("no answer for N days").**

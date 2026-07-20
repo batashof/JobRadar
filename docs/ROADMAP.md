@@ -43,7 +43,7 @@
 - [x] Vacancy ↔ profile matching (rules-based). *(scorer: hard filters + keyword/stack hits with Unicode word boundaries; materialized in `profile_matches` by a `match` queue job after each ingestion cycle and on profile create/update; `GET /matches` + web Matches page — E2E verified locally)*
 - [ ] ~~Daily email digest via Resend + unsubscribe link~~ — **deferred by developer decision (2026-07-20)**; revisit after v1.0. Matches are delivered in-app via the Matches page instead.
 - [x] Reminders: "no answer for N days — follow up" *(in-app, since the email digest is deferred: `GET /applications/reminders` (waiting stages past `remind_after_days` / 7-day default), dashboard "Follow-ups due" list, board card hints + per-card threshold input — E2E verified locally)*.
-- [ ] **Release v1.0**: domain, Sentry on both apps, README with screenshots.
+- [ ] **Release v1.0**: domain, ~~Sentry on both apps~~ ✅ *(2026-07-20, ADR-010: `@sentry/nestjs` + `@sentry/nextjs`, DSN-gated no-op when unset; `sentryConfigured` in /health)*, README with screenshots.
 
 **Exit criterion:** v1.0 live and used daily by the author.
 

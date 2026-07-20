@@ -1,5 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import type { Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
 
@@ -83,6 +84,10 @@ export class IngestionProcessor extends WorkerHost {
         .where(eq(sources.id, source.id));
       return result;
     } catch (error) {
+      // Queue jobs run outside any HTTP request, so the global Sentry filter
+      // never sees them — capture here so a silently failing cron source is
+      // visible. No-op when Sentry is disabled.
+      Sentry.captureException(error, { tags: { source: source.slug, job: 'ingestion' } });
       await this.db
         .update(sources)
         .set({ lastRunAt: new Date(), lastRunStatus: 'error' })

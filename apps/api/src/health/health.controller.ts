@@ -57,6 +57,7 @@ export class HealthController {
           this.config.get<string>('TELEGRAM_API_HASH') &&
           this.config.get<string>('TELEGRAM_SESSION'),
       ),
+      sentryConfigured: Boolean(this.config.get<string>('SENTRY_DSN')),
     };
 
     return {

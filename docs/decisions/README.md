@@ -15,6 +15,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [007](007-api-hosting-render.md) | API hosting on Render free tier | Accepted |
 | [008](008-orm-drizzle.md) | ORM — Drizzle | Accepted |
 | [009](009-drop-hh-telegram-primary.md) | Drop hh.ru; Telegram job channels as the primary source | Accepted |
+| [010](010-sentry-error-monitoring.md) | Sentry for error monitoring on both apps | Accepted |
 
 ## Template
 

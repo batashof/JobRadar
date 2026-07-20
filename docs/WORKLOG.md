@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — v1.0 prep: Sentry error monitoring on both apps (v0.3.4)
+
+- **ADR-010:** Sentry on both services, free Developer plan (fits ADR-001). All DSN-gated — unset → SDK no-op, so local/CI/tests never touch Sentry; tracing and source-map upload are opt-in.
+- **API** (`@sentry/nestjs`): `instrument.ts` imported first in `main.ts`; `SentryModule.forRoot()` + global `SentryGlobalFilter`. The ingestion processor's catch now calls `Sentry.captureException(err, { tags: { source, job } })` — BullMQ jobs run outside the HTTP lifecycle so the global filter can't see them (the silent-cron-failure case is the one that matters). `sentryConfigured` presence flag added to `GET /health`.
+- **Web** (`@sentry/nextjs`): `instrumentation.ts` (Node/Edge), `instrumentation-client.ts` (browser + `onRouterTransitionStart`), `withSentryConfig` in `next.config.ts` (tunnel `/monitoring`, `disableLogger`, source-map upload gated on `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN`).
+- `@sentry/cli` added to pnpm `allowBuilds` (downloads its binary for source-map upload; no-op without a token). `.env.example` documents the new vars.
+- **Verified:** api build emits `dist/instrument.js` imported first; web build clean, Sentry instrumentation compiled with no DSN (no-op). 150 api + 35 web tests green (added `ingestion.processor.spec.ts` for the capture path), typecheck/lint clean.
+- **Developer TODO for prod:** create two Sentry projects, set `SENTRY_DSN` on Render and `NEXT_PUBLIC_SENTRY_DSN` on Vercel (optionally the source-map upload trio on Vercel). Until then monitoring is simply off.
+- **Next step:** remaining v1.0 items — domain + README with screenshots.
+
 ## 2026-07-20 — Phase 3: in-app follow-up reminders (v0.3.3)
 
 - **Reminders ship in-app** (email digest deferred): shared logic in `@jobradar/shared` — waiting stages (applied/screening/tech_interview), threshold = `remind_after_days` override or 7-day default, whole days since `last_activity_at` (clamped ≥ 0).

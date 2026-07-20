@@ -4,6 +4,9 @@ packages:
 allowBuilds:
   # bufferutil / utf-8-validate are optional native accelerators for ws
   # (GramJS); es5-ext's postinstall is a message script. None are needed.
+  # @sentry/cli downloads its binary in postinstall; needed to upload source
+  # maps at build time (deminified stack traces) — no-op without an auth token.
+  '@sentry/cli': true
   bufferutil: false
   es5-ext: false
   esbuild: true

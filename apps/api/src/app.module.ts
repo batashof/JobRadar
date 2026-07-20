@@ -2,7 +2,9 @@ import { join } from 'node:path';
 
 import { BullModule } from '@nestjs/bullmq';
 import { Logger, Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { DbModule } from './db/db.module';
@@ -15,6 +17,9 @@ import { redisConnectionFromUrl } from './redis';
 
 @Module({
   imports: [
+    // Sentry first so it can hook into the modules registered after it. A no-op
+    // when SENTRY_DSN is unset (see instrument.ts).
+    SentryModule.forRoot(),
     // Local dev reads the repo-root .env (resolved from the compiled file, so it
     // works regardless of cwd); hosted envs provide real env vars.
     ConfigModule.forRoot({ isGlobal: true, envFilePath: [join(__dirname, '../../../.env')] }),
@@ -42,6 +47,11 @@ import { redisConnectionFromUrl } from './redis';
     VacanciesModule,
     ApplicationsModule,
     IngestionModule,
+  ],
+  providers: [
+    // Reports unhandled exceptions from HTTP handlers to Sentry while preserving
+    // Nest's default error responses. Inert when Sentry is disabled.
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
   ],
 })
 export class AppModule {}
