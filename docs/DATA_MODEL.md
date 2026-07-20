@@ -13,7 +13,7 @@ Vacancy n──1 Source
 Vacancy n──n Vacancy          (duplicate links)
 SearchProfile n──n Vacancy    (matches, materialized)
 
-Phase 4 (ADR-011, planned):
+Phase 4 (ADR-011):
 User 1──n Resume
 Resume n──n Vacancy           (resume_matches, LLM-scored, cached)
 User 1──n OutreachEmail n──1 Vacancy
@@ -128,9 +128,9 @@ Constraint: unique `(user_id, vacancy_id)`.
 
 PK `(profile_id, vacancy_id)`.
 
-## Phase 4 additions (ADR-011, planned — not yet implemented)
+## Phase 4 additions (ADR-011)
 
-> The tables and columns below are documented ahead of implementation so the apply-assistant design is fixed. Move them into the main section (and the code schema) as they land.
+> Schema shipped (migration `0002`); features land incrementally on top of it.
 
 ### resumes
 

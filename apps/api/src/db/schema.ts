@@ -52,6 +52,12 @@ const tsvector = customType<{ data: string }>({
   },
 });
 
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+});
+
 const createdAt = () => timestamp('created_at', { withTimezone: true }).defaultNow().notNull();
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).defaultNow().notNull();
 
@@ -67,6 +73,9 @@ export const users = pgTable('users', {
   oauthId: text('oauth_id'),
   digestEnabled: boolean('digest_enabled').notNull().default(true),
   digestLastSentAt: timestamp('digest_last_sent_at', { withTimezone: true }),
+  // OAuth refresh token for the Gmail `gmail.send` scope (ADR-011).
+  // Null = email apply disabled. Encrypted at rest by the app layer.
+  gmailRefreshToken: text('gmail_refresh_token'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -147,6 +156,12 @@ export const vacancies = pgTable(
     salaryCurrency: text('salary_currency'),
     location: text('location'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
+    // Application contact extracted from the description (ADR-011):
+    // { kind: 'email' | 'telegram' | 'url', value: string }
+    applyContact: jsonb('apply_contact').$type<{ kind: string; value: string } | null>(),
+    // On-demand Russian brief, cached after the first generation (ADR-011).
+    summaryRu: text('summary_ru'),
+    summaryGeneratedAt: timestamp('summary_generated_at', { withTimezone: true }),
     ingestedAt: timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
     canonicalVacancyId: uuid('canonical_vacancy_id').references(
       (): AnyPgColumn => vacancies.id,
@@ -181,6 +196,66 @@ export const applications = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex('applications_user_vacancy_idx').on(t.userId, t.vacancyId)],
+);
+
+export const resumes = pgTable(
+  'resumes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    // The PDF itself. Postgres storage is fine at single-user scale (ADR-011).
+    file: bytea('file').notNull(),
+    // Extracted at upload; the only thing LLM prompts consume.
+    extractedText: text('extracted_text').notNull().default(''),
+    isActive: boolean('is_active').notNull().default(true),
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('resumes_user_id_idx').on(t.userId)],
+);
+
+// LLM resume <-> vacancy matching cache: permanent, one row per resume x vacancy
+// (token discipline, ADR-005 / ADR-011).
+export const resumeMatches = pgTable(
+  'resume_matches',
+  {
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    vacancyId: uuid('vacancy_id')
+      .notNull()
+      .references(() => vacancies.id, { onDelete: 'cascade' }),
+    score: real('score').notNull(),
+    explanation: text('explanation').notNull().default(''),
+    matchedAt: timestamp('matched_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.resumeId, t.vacancyId] })],
+);
+
+// Sent application emails (ADR-011). A row is written only after Gmail accepts
+// the message; drafts live client-side until the user confirms the send.
+export const outreachEmails = pgTable(
+  'outreach_emails',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    vacancyId: uuid('vacancy_id')
+      .notNull()
+      .references(() => vacancies.id),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id),
+    recipient: text('recipient').notNull(),
+    subject: text('subject').notNull(),
+    body: text('body').notNull(),
+    gmailMessageId: text('gmail_message_id'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('outreach_emails_user_id_idx').on(t.userId)],
 );
 
 export const profileMatches = pgTable(
