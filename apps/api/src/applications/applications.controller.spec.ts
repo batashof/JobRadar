@@ -14,6 +14,15 @@ describe('ApplicationsController', () => {
     expect(list).toHaveBeenCalledWith('user-1');
   });
 
+  it('listReminders scopes to the current user', async () => {
+    const listReminders = jest.fn().mockResolvedValue([]);
+    const controller = new ApplicationsController({
+      listReminders,
+    } as unknown as ApplicationsService);
+    await controller.listReminders(user);
+    expect(listReminders).toHaveBeenCalledWith('user-1');
+  });
+
   it('create forwards user id and body', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'a1' });
     const controller = new ApplicationsController({ create } as unknown as ApplicationsService);

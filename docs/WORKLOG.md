@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 3: in-app follow-up reminders (v0.3.3)
+
+- **Reminders ship in-app** (email digest deferred): shared logic in `@jobradar/shared` — waiting stages (applied/screening/tech_interview), threshold = `remind_after_days` override or 7-day default, whole days since `last_activity_at` (clamped ≥ 0).
+- **API:** `GET /applications/reminders` — SQL filter (`last_activity_at <= now() - make_interval(days => coalesce(remind_after_days, 7))`), oldest first. **Web:** dashboard replaced its placeholder with a "Follow-ups due" list (days waited + threshold badge, link to the board); board cards show a red "No answer for N days — follow up?" hint and gain a "Remind after N days" input in the notes panel (PATCH on blur, 1–365 clamp); `destructive` Badge variant added.
+- **Fixed a pre-existing kanban hydration warning:** dnd-kit's counter-based `DndContext` id differs between SSR and client → pinned `id="application-board"`.
+- **E2E (local):** curl — created `applied` application, 0 due → SQL-backdated 9 days → 1 due → override 30 → 0 due. Browser — dashboard lists 3 overdue cards with red badges; board shows hints; setting "Remind after" to 30 via UI persisted (DB checked) and the card's hint disappeared instantly while the other two stayed. 148 api + 35 web tests, lint/build clean.
+- **Next step:** v1.0 release prep — domain, Sentry on both apps, README with screenshots.
+
 ## 2026-07-20 — Phase 3 started: vacancy ↔ profile matching (v0.3.2)
 
 - **Scope decision (developer):** phase 3 proceeds **without the Resend email digest** — deferred until after v1.0 (ROADMAP annotated). Matches are delivered in-app; reminders will be in-app too.

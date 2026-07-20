@@ -74,4 +74,37 @@ describe('KanbanBoard', () => {
       expect(updateApplication).toHaveBeenCalledWith('a1', { notes: 'Call recruiter' }),
     );
   });
+
+  it('flags overdue applications with a follow-up hint', () => {
+    const stale = {
+      ...app('a1', 'applied', 0, 'Stale Job'),
+      lastActivityAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+    };
+    render(<KanbanBoard initial={[stale, app('a2', 'saved', 0, 'Fresh Job')]} />);
+    expect(screen.getByText(/No answer for 10 days — follow up\?/)).toBeTruthy();
+    expect(screen.getAllByText(/No answer for/)).toHaveLength(1);
+  });
+
+  it('does not flag waiting cards before the threshold', () => {
+    const recent = {
+      ...app('a1', 'applied', 0, 'Recent Job'),
+      lastActivityAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    };
+    render(<KanbanBoard initial={[recent]} />);
+    expect(screen.queryByText(/No answer for/)).toBeNull();
+  });
+
+  it('saves the reminder threshold on blur', async () => {
+    updateApplication.mockResolvedValue({});
+    render(<KanbanBoard initial={[app('a1', 'applied', 0, 'A Job')]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add notes' }));
+    const field = screen.getByLabelText('Remind after days');
+    fireEvent.change(field, { target: { value: '14' } });
+    fireEvent.blur(field);
+
+    await waitFor(() =>
+      expect(updateApplication).toHaveBeenCalledWith('a1', { remindAfterDays: 14 }),
+    );
+  });
 });

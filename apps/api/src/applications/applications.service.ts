@@ -1,10 +1,12 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  ApplicationCreateInput,
-  ApplicationItem,
-  ApplicationReorderInput,
-  ApplicationStage,
-  ApplicationUpdateInput,
+import {
+  type ApplicationCreateInput,
+  type ApplicationItem,
+  type ApplicationReorderInput,
+  type ApplicationStage,
+  type ApplicationUpdateInput,
+  REMINDER_DEFAULT_DAYS,
+  REMINDER_STAGES,
 } from '@jobradar/shared';
 import { and, asc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 
@@ -71,6 +73,23 @@ export class ApplicationsService {
 
   list(userId: string): Promise<ApplicationItem[]> {
     return this.selectItems(eq(applications.userId, userId));
+  }
+
+  /**
+   * Applications waiting for an answer past their reminder threshold
+   * (per-application `remind_after_days` or the shared default), oldest first.
+   */
+  async listReminders(userId: string): Promise<ApplicationItem[]> {
+    const items = await this.selectItems(
+      and(
+        eq(applications.userId, userId),
+        inArray(applications.stage, [...REMINDER_STAGES]),
+        sql`${applications.lastActivityAt} <= now() - make_interval(days => coalesce(${applications.remindAfterDays}, ${REMINDER_DEFAULT_DAYS}))`,
+      ),
+    );
+    return items.sort(
+      (a, b) => new Date(a.lastActivityAt).getTime() - new Date(b.lastActivityAt).getTime(),
+    );
   }
 
   async create(userId: string, input: ApplicationCreateInput): Promise<ApplicationItem> {

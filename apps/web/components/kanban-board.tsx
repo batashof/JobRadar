@@ -4,6 +4,9 @@ import {
   APPLICATION_STAGES,
   type ApplicationItem,
   type ApplicationStage,
+  daysSinceActivity,
+  isReminderDue,
+  REMINDER_DEFAULT_DAYS,
 } from '@jobradar/shared';
 import {
   closestCorners,
@@ -56,14 +59,18 @@ interface CardProps {
   item: ApplicationItem;
   onNotes: (id: string, notes: string) => void;
   onDelete: (id: string) => void;
+  onRemindAfter: (id: string, days: number | null) => void;
 }
 
-function SortableCard({ item, onNotes, onDelete }: CardProps) {
+function SortableCard({ item, onNotes, onDelete, onRemindAfter }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
   const [notesOpen, setNotesOpen] = useState(false);
   const [draft, setDraft] = useState(item.notes);
+  const [remindDraft, setRemindDraft] = useState(
+    item.remindAfterDays != null ? String(item.remindAfterDays) : '',
+  );
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -71,8 +78,20 @@ function SortableCard({ item, onNotes, onDelete }: CardProps) {
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const reminderDue = isReminderDue(item, new Date());
+
   function saveNotes() {
     if (draft !== item.notes) onNotes(item.id, draft);
+  }
+
+  function saveRemindAfter() {
+    const trimmed = remindDraft.trim();
+    const parsed = trimmed === '' ? null : Math.trunc(Number(trimmed));
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 1 || parsed > 365)) {
+      setRemindDraft(item.remindAfterDays != null ? String(item.remindAfterDays) : '');
+      return;
+    }
+    if (parsed !== item.remindAfterDays) onRemindAfter(item.id, parsed);
   }
 
   return (
@@ -103,6 +122,12 @@ function SortableCard({ item, onNotes, onDelete }: CardProps) {
         </div>
       </div>
 
+      {reminderDue ? (
+        <p className="mt-2 rounded-md bg-[var(--color-destructive)]/10 px-2 py-1 text-xs font-medium text-[var(--color-destructive)]">
+          No answer for {daysSinceActivity(item, new Date())} days — follow up?
+        </p>
+      ) : null}
+
       <div className="mt-2 flex items-center gap-3 text-xs">
         <button
           type="button"
@@ -121,14 +146,32 @@ function SortableCard({ item, onNotes, onDelete }: CardProps) {
       </div>
 
       {notesOpen ? (
-        <textarea
-          className="mt-2 w-full rounded-md border border-[var(--color-input)] bg-transparent p-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
-          rows={3}
-          placeholder="Notes…"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={saveNotes}
-        />
+        <>
+          <textarea
+            className="mt-2 w-full rounded-md border border-[var(--color-input)] bg-transparent p-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+            rows={3}
+            placeholder="Notes…"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={saveNotes}
+          />
+          <label className="mt-2 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
+            Remind after
+            <input
+              type="number"
+              min={1}
+              max={365}
+              inputMode="numeric"
+              placeholder={String(REMINDER_DEFAULT_DAYS)}
+              aria-label="Remind after days"
+              className="w-16 rounded-md border border-[var(--color-input)] bg-transparent px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+              value={remindDraft}
+              onChange={(e) => setRemindDraft(e.target.value)}
+              onBlur={saveRemindAfter}
+            />
+            days
+          </label>
+        </>
       ) : null}
     </Card>
   );
@@ -143,11 +186,13 @@ function Column({
   items,
   onNotes,
   onDelete,
+  onRemindAfter,
 }: {
   stage: ApplicationStage;
   items: ApplicationItem[];
   onNotes: (id: string, notes: string) => void;
   onDelete: (id: string) => void;
+  onRemindAfter: (id: string, days: number | null) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: stage });
 
@@ -163,7 +208,13 @@ function Column({
           className="flex min-h-24 flex-1 flex-col gap-2 rounded-lg bg-[var(--color-muted)] p-2"
         >
           {items.map((item) => (
-            <SortableCard key={item.id} item={item} onNotes={onNotes} onDelete={onDelete} />
+            <SortableCard
+              key={item.id}
+              item={item}
+              onNotes={onNotes}
+              onDelete={onDelete}
+              onRemindAfter={onRemindAfter}
+            />
           ))}
         </div>
       </SortableContext>
@@ -288,6 +339,15 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
     }
   }
 
+  async function handleRemindAfter(id: string, remindAfterDays: number | null) {
+    try {
+      await updateApplication(id, { remindAfterDays });
+      setColumns((prev) => mapItem(prev, id, (i) => ({ ...i, remindAfterDays })));
+    } catch {
+      setError('Could not save the reminder threshold.');
+    }
+  }
+
   async function handleDelete(id: string) {
     const prev = columns;
     setColumns((c) => removeItem(c, id));
@@ -324,6 +384,9 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
         </Card>
       ) : (
         <DndContext
+          // Stable id: dnd-kit's default counter-based id differs between the
+          // server and client render and trips a hydration warning.
+          id="application-board"
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
@@ -339,6 +402,7 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
                 items={columns[stage]}
                 onNotes={handleNotes}
                 onDelete={handleDelete}
+                onRemindAfter={handleRemindAfter}
               />
             ))}
           </div>

@@ -11,6 +11,11 @@ export function listApplications(): Promise<ApplicationItem[]> {
   return apiFetch<ApplicationItem[]>('/applications');
 }
 
+/** Applications past their follow-up threshold (oldest activity first). */
+export function listReminders(): Promise<ApplicationItem[]> {
+  return apiFetch<ApplicationItem[]>('/applications/reminders');
+}
+
 export function createApplication(
   vacancyId: string,
   stage?: ApplicationStage,

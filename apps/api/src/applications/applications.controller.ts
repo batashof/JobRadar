@@ -35,6 +35,12 @@ export class ApplicationsController {
     return this.applications.list(user.id);
   }
 
+  /** Follow-up reminders: applications with no answer past their threshold. */
+  @Get('reminders')
+  listReminders(@CurrentUser() user: AuthUser) {
+    return this.applications.listReminders(user.id);
+  }
+
   @Post()
   @HttpCode(201)
   create(

@@ -5,7 +5,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 3 — Delivery & notifications (reminders, v1.0 release; the Resend email digest is deferred by developer decision).
+- Phase 3 — Delivery & notifications (v1.0 release; the Resend email digest is deferred by developer decision).
+
+## [0.3.3] — 2026-07-20
+
+**Phase 3: in-app follow-up reminders ("no answer for N days").**
+
+### Added
+
+- Shared reminder logic (`REMINDER_DEFAULT_DAYS = 7`, waiting stages applied/screening/tech_interview, `isReminderDue`/`daysSinceActivity` helpers) used by both apps.
+- `GET /applications/reminders`: applications in a waiting stage with no activity past `remind_after_days` (per-application override) or the default, oldest first.
+- Dashboard **"Follow-ups due"** list (real content on `/app` at last) and red **follow-up hints on board cards**; per-card "Remind after N days" input in the notes panel (PATCH on blur).
+
+### Fixed
+
+- Kanban board hydration warning: `DndContext` now uses a stable id instead of dnd-kit's render-order counter, which differed between server and client.
 
 ## [0.3.2] — 2026-07-20
 
