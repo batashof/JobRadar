@@ -2,13 +2,20 @@ import { sql } from 'drizzle-orm';
 
 import type { Database } from '../db/db.module';
 import { vacancies } from '../db/schema';
+import { extractApplyContact } from './apply-contact';
 import type { NewVacancy } from './hh/hh-normalize';
 
 /** Chunked upsert keyed on (source_id, external_id); refreshes mutable fields. */
 export async function upsertVacancies(db: Database, rows: NewVacancy[]): Promise<number> {
+  // Contact extraction happens here — the single choke point every source
+  // funnels through (ADR-011).
+  const enriched = rows.map((row) => ({
+    ...row,
+    applyContact: extractApplyContact(`${row.title}\n${row.description ?? ''}`),
+  }));
   let upserted = 0;
-  for (let i = 0; i < rows.length; i += 100) {
-    const chunk = rows.slice(i, i + 100);
+  for (let i = 0; i < enriched.length; i += 100) {
+    const chunk = enriched.slice(i, i + 100);
     await db
       .insert(vacancies)
       .values(chunk)
@@ -27,6 +34,7 @@ export async function upsertVacancies(db: Database, rows: NewVacancy[]): Promise
           salaryCurrency: sql`excluded.salary_currency`,
           location: sql`excluded.location`,
           publishedAt: sql`excluded.published_at`,
+          applyContact: sql`excluded.apply_contact`,
         },
       });
     upserted += chunk.length;

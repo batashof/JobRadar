@@ -57,7 +57,7 @@
 - [ ] LLM resume ↔ vacancy matching: score + short fit explanation, only for vacancies passing rules-based profile matching; cached permanently in `resume_matches` (one LLM call per resume × vacancy).
 - [ ] On-demand Russian vacancy brief (button on the detail page): employer, what they do, how well it fits; cached on the vacancy.
 - [ ] On-demand cover letter (button): vacancy's language, English calibrated to the resume's evident level, short and dense, foregrounds real relevant experience; editable before sending.
-- [ ] Apply-contact extraction at ingestion (email / Telegram handle / apply URL; regex first, LLM fallback later); shown on the detail page.
+- [x] Apply-contact extraction at ingestion (email / Telegram handle / apply URL; regex first, LLM fallback later); shown on the detail page. *(extractor in the upsert choke point + `backfill:contacts` script — 67/275 local vacancies got a contact; detail page renders mailto/t.me links)*
 - [ ] Email apply via Gmail API (OAuth, `gmail.send`, user's own account): LLM-generated subject + body, cover letter included, resume PDF attached, recipient pre-filled from the extracted contact (editable); explicit user confirmation before every send; sent applications recorded (`outreach_emails`) and reflected on the kanban.
 
 ### Other extensions
