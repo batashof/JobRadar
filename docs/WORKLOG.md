@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-20 — Phase 2 production deploy
+
+- Applied migration `0001` (sessions table) to prod Neon over HTTPS (`db:migrate:prod`); verified the `sessions` columns exist. Developer set `API_ORIGIN` on Vercel and `WEB_ORIGIN`/`NODE_ENV` on Render.
+- **Gotcha:** the Vercel `API_ORIGIN` had a stray trailing space, so the Next `/api` rewrite proxied to a malformed URL (`/%20/auth/me` reached the API → 404 on every `/api/*`). Next bakes `rewrites()` destinations at **build time**, so fixing the env var requires a fresh build, not just a redeploy. Re-set `API_ORIGIN` cleanly via CLI; an empty-commit trigger was auto-skipped by Vercel (no file changes), so this real commit forces the rebuild.
+- **Correct prod value:** `API_ORIGIN=https://jobradar-api-ptvp.onrender.com` (no trailing slash/space).
+
 ## 2026-07-20 — Phase 2: application kanban + notes (all phase-2 features built)
 
 - API `applications` module (guarded, user-scoped): `GET/POST /applications`, `PATCH/DELETE /applications/:id`, `POST /applications/reorder` (batch: each affected column with its cards in order, applied in a transaction; `stage_order` = index). `applied_at` stamped via `coalesce(applied_at, now())` when a card reaches applied/screening/tech_interview/offer; unique `(user, vacancy)` → 409. Route order: `reorder` declared before `:id`.
