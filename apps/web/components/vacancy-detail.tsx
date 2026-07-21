@@ -3,6 +3,7 @@
 import type { VacancyDetail } from '@jobradar/shared';
 import { useState } from 'react';
 
+import { ApplyEmailSection } from '@/components/apply-email-section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -167,6 +168,8 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
           ) : null}
         </CardContent>
       </Card>
+
+      <ApplyEmailSection detail={detail} coverLetter={letter} />
 
       <Card>
         <CardHeader>

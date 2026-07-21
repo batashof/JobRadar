@@ -1,13 +1,20 @@
 import type { VacancyDetail } from '@jobradar/shared';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { generateBrief, generateCoverLetter } = vi.hoisted(() => ({
+const { generateBrief, generateCoverLetter, fetchGmailStatus } = vi.hoisted(() => ({
   generateBrief: vi.fn(),
   generateCoverLetter: vi.fn(),
+  fetchGmailStatus: vi.fn(),
 }));
 
 vi.mock('@/lib/vacancies', () => ({ generateBrief, generateCoverLetter }));
+vi.mock('@/lib/outreach', () => ({
+  fetchGmailStatus,
+  startGmailOauth: vi.fn(),
+  draftApplyEmail: vi.fn(),
+  sendApplyEmail: vi.fn(),
+}));
 
 import { VacancyDetailView } from './vacancy-detail';
 
@@ -34,6 +41,9 @@ function detail(overrides: Partial<VacancyDetail> = {}): VacancyDetail {
 }
 
 describe('VacancyDetailView', () => {
+  beforeEach(() => {
+    fetchGmailStatus.mockResolvedValue({ configured: false, connected: false });
+  });
   afterEach(() => vi.clearAllMocks());
 
   it('renders the full description and the outbound link', () => {
