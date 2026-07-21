@@ -7,6 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
 
+## [1.2.3] — 2026-07-21
+
+### Added
+
+- **Mobile burger menu.** The app header now collapses its nav links, user email, and log-out into a hamburger toggle below the `md` breakpoint (`apps/web/components/app-header.tsx`). Tapping the burger opens a panel with the full navigation and account actions; picking a link or logging out closes it. Desktop layout is unchanged. Uses `lucide-react` Menu/X icons; the toggle exposes `aria-expanded` and a descriptive `aria-label`.
+
 ## [1.2.2] — 2026-07-21
 
 ### Added

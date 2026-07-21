@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Mobile burger menu in the app header (v1.2.3)
+
+- **Problem:** the app header laid all nav links + email + log-out in one horizontal row, which overflowed / cramped on narrow (phone) viewports.
+- **Fix:** `apps/web/components/app-header.tsx` now hides the inline nav and account block below the `md` breakpoint and shows a hamburger toggle (lucide `Menu`/`X`). Toggling reveals a stacked panel with the full nav + email + log-out; selecting a link or logging out collapses it. Local `useState`; desktop markup untouched. Accessible toggle (`aria-expanded`, `aria-label`).
+- **Tests:** new `apps/web/components/app-header.test.tsx` (5 cases) — renders all links, starts collapsed, burger opens/closes, link tap closes, mobile log-out fires. Typecheck + lint clean.
+- **Note:** header lives behind auth (`/app`) and needs the API, so browser preview was impractical; behavior is covered by the component tests.
+- **Next step:** unchanged — remaining phase-4 items by appetite.
+
 ## 2026-07-21 — Keep-alive ping for the free-tier API (v1.2.2)
 
 - **Problem:** the Render free-tier container spins down after ~15 min of inactivity, so the first request after a quiet period waits 30-60s for a cold start — the app feels slow/unresponsive.
