@@ -1,0 +1,34 @@
+name: Keep-alive ping
+
+# External keep-alive (ADR-006): the free-tier Render container spins down after
+# ~15 min of inactivity, so the first request afterwards is slow (30-60s cold
+# start). GitHub Actions pings the public /health endpoint every 10 minutes to
+# keep the instance warm. This hits our own health check only - it does not
+# touch external sources, so the scraping politeness rules do not apply.
+on:
+  schedule:
+    - cron: '*/10 * * * *' # every 10 min, safely under Render's 15-min sleep window
+  workflow_dispatch:
+
+# A slow ping should never pile up; cancel an in-flight run when a new one starts.
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the health endpoint
+        env:
+          API_URL: https://jobradar-api-ptvp.onrender.com
+        run: |
+          # -m 150: a cold Render free instance needs 30-60s to answer.
+          status=$(curl -s -o /dev/null -w "%{http_code}" -m 150 \
+            --retry 2 --retry-delay 20 "$API_URL/health")
+          echo "GET /health -> HTTP $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::Health check returned HTTP $status"
+            exit 1
+          fi

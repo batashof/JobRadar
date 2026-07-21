@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Keep-alive ping for the free-tier API (v1.2.2)
+
+- **Problem:** the Render free-tier container spins down after ~15 min of inactivity, so the first request after a quiet period waits 30-60s for a cold start — the app feels slow/unresponsive.
+- **Fix:** new `.github/workflows/keep-alive.yml` — GitHub Actions pings the public `/health` GET every 10 min (safely under the 15-min sleep window), keeping the instance warm. Extends the existing external-cron approach (ADR-006). `concurrency` cancels overlapping runs; `-m 150 --retry 2` tolerates a cold start; also `workflow_dispatch` for manual pings. No secret needed (health is public); no app code, so no tests.
+- **Note:** a warm 24/7 instance uses ~730 of Render free's 750 monthly instance-hours — fine for a single free web service. Ping touches only our own endpoint, so it does not affect scraping politeness (ADR / DATA_SOURCES).
+- **Next step:** unchanged — remaining phase-4 items by appetite.
+
 ## 2026-07-21 — Brand logo / radar mark (v1.2.1)
 
 - **Logo designed & added.** A radar-sweep mark: an indigo→violet rounded badge with three concentric arcs emanating from a bottom-left origin toward a detected "blip" (the found vacancy), plus a 45° sweep line. Self-contained gradients → identical on light/dark. Fits the product name (JobRadar) and the existing primary hue (oklch 264).

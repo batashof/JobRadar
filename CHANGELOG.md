@@ -7,6 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
 
+## [1.2.2] — 2026-07-21
+
+### Added
+
+- **Keep-alive ping (ADR-006).** A `keep-alive` GitHub Actions workflow pings the public `/health` endpoint every 10 minutes so the free-tier Render container never idles into its ~15-minute spin-down. Eliminates the 30-60s cold-start delay on the first request after a quiet period. Hits only our own health check, so scraping politeness rules do not apply; also runnable on demand via `workflow_dispatch`.
+
 ## [1.2.1] — 2026-07-21
 
 ### Added
