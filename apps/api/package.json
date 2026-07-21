@@ -1,6 +1,6 @@
 {
   "name": "@jobradar/api",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -14,7 +14,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:migrate:prod": "tsx src/db/neon-apply.ts",
     "telegram:session": "tsx scripts/telegram-session.ts",
-    "backfill:contacts": "tsx scripts/backfill-apply-contacts.ts"
+    "backfill:contacts": "tsx scripts/backfill-apply-contacts.ts",
+    "backfill:seniority": "tsx scripts/backfill-seniority.ts"
   },
   "dependencies": {
     "@jobradar/shared": "workspace:*",

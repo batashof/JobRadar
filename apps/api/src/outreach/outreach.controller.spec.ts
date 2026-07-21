@@ -1,4 +1,9 @@
-import type { AuthUser, BriefResponse, CoverLetterResponse } from '@jobradar/shared';
+import type {
+  AuthUser,
+  BriefResponse,
+  CoverLetterResponse,
+  ResumeMatchResponse,
+} from '@jobradar/shared';
 
 import { OutreachController } from './outreach.controller';
 import type { OutreachService } from './outreach.service';
@@ -29,6 +34,15 @@ describe('OutreachController', () => {
 
     await expect(controller.coverLetter(user, 'v1')).resolves.toBe(result);
     expect(coverLetter).toHaveBeenCalledWith(user.id, 'v1');
+  });
+
+  it('delegates the resume-match score', async () => {
+    const result: ResumeMatchResponse = { score: 0.72, explanation: 'React совпал', cached: true };
+    const resumeMatch = jest.fn().mockResolvedValue(result);
+    const controller = new OutreachController({ resumeMatch } as unknown as OutreachService);
+
+    await expect(controller.resumeMatch(user, 'v1')).resolves.toBe(result);
+    expect(resumeMatch).toHaveBeenCalledWith(user.id, 'v1');
   });
 
   it('delegates apply-email drafting with the cover letter', async () => {

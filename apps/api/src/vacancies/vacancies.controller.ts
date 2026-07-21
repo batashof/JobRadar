@@ -1,5 +1,6 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import {
+  type AuthUser,
   type SourceOption,
   type VacancyDetail,
   type VacancyFeed,
@@ -8,6 +9,7 @@ import {
 } from '@jobradar/shared';
 
 import { AuthGuard } from '../auth/auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { VacanciesService } from './vacancies.service';
 
@@ -18,9 +20,10 @@ export class VacanciesController {
 
   @Get()
   feed(
+    @CurrentUser() user: AuthUser,
     @Query(new ZodValidationPipe(vacancyQuerySchema)) query: VacancyQuery,
   ): Promise<VacancyFeed> {
-    return this.vacancies.feed(query);
+    return this.vacancies.feed(user.id, query);
   }
 
   @Get('sources')
@@ -30,7 +33,10 @@ export class VacanciesController {
 
   // Declared after the static routes so 'sources' isn't swallowed by :id.
   @Get(':id')
-  getById(@Param('id', ParseUUIDPipe) id: string): Promise<VacancyDetail> {
-    return this.vacancies.getById(id);
+  getById(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<VacancyDetail> {
+    return this.vacancies.getById(user.id, id);
   }
 }

@@ -2,13 +2,14 @@ import type { VacancyDetail } from '@jobradar/shared';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { generateBrief, generateCoverLetter, fetchGmailStatus } = vi.hoisted(() => ({
+const { generateBrief, generateCoverLetter, matchResume, fetchGmailStatus } = vi.hoisted(() => ({
   generateBrief: vi.fn(),
   generateCoverLetter: vi.fn(),
+  matchResume: vi.fn(),
   fetchGmailStatus: vi.fn(),
 }));
 
-vi.mock('@/lib/vacancies', () => ({ generateBrief, generateCoverLetter }));
+vi.mock('@/lib/vacancies', () => ({ generateBrief, generateCoverLetter, matchResume }));
 vi.mock('@/lib/outreach', () => ({
   fetchGmailStatus,
   startGmailOauth: vi.fn(),
@@ -113,6 +114,29 @@ describe('VacancyDetailView', () => {
 
     fireEvent.change(textarea, { target: { value: 'Edited letter' } });
     expect((textarea as HTMLTextAreaElement).value).toBe('Edited letter');
+  });
+
+  it('renders a cached resume-fit score without calling the API', () => {
+    render(
+      <VacancyDetailView
+        detail={detail({ resumeScore: 0.72, resumeExplanation: 'React совпал, нет Go.' })}
+      />,
+    );
+    expect(screen.getByText('72%')).toBeTruthy();
+    expect(screen.getByText('React совпал, нет Go.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Пересчитать' })).toBeTruthy();
+    expect(matchResume).not.toHaveBeenCalled();
+  });
+
+  it('scores the vacancy against the resume on click', async () => {
+    matchResume.mockResolvedValue({ score: 0.4, explanation: 'Частичное совпадение.', cached: false });
+    render(<VacancyDetailView detail={detail()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Оценить по резюме' }));
+
+    await waitFor(() => expect(screen.getByText('40%')).toBeTruthy());
+    expect(matchResume).toHaveBeenCalledWith('v1');
+    expect(screen.getByText('Частичное совпадение.')).toBeTruthy();
   });
 
   it('surfaces generation errors (e.g. no LLM provider configured)', async () => {

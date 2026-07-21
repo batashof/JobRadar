@@ -8,6 +8,7 @@ import {
   type AuthUser,
   type BriefResponse,
   type CoverLetterResponse,
+  type ResumeMatchResponse,
 } from '@jobradar/shared';
 
 import { AuthGuard } from '../auth/auth.guard';
@@ -36,6 +37,14 @@ export class OutreachController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CoverLetterResponse> {
     return this.outreach.coverLetter(user.id, id);
+  }
+
+  @Post(':id/resume-match')
+  resumeMatch(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ResumeMatchResponse> {
+    return this.outreach.resumeMatch(user.id, id);
   }
 
   @Post(':id/apply-email/draft')

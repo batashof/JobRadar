@@ -154,7 +154,7 @@ PK `(profile_id, vacancy_id)`.
 | explanation | text | short LLM fit explanation |
 | matched_at | timestamptz | |
 
-PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005); only vacancies passing rules-based profile matching are scored.
+PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005). Populated two ways: the capped background batch over profile-matched vacancies (ADR-011), and on-demand when the user scores a single vacancy from its detail page (ADR-012).
 
 ### outreach_emails (sent applications)
 
@@ -175,6 +175,7 @@ PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at mos
 | Table | Column | Type | Notes |
 |---|---|---|---|
 | vacancies | apply_contact | jsonb nullable | extracted at ingestion: `{ "kind": "email" \| "telegram" \| "url", "value": ... }` |
+| vacancies | seniority | text nullable | coarse level detected at ingestion (ADR-012): `intern \| junior \| middle \| senior \| lead`; null = unstated. Powers the feed's soft resume-driven level filter |
 | vacancies | summary_ru | text nullable | cached on-demand Russian brief (employer, what they do, fit) |
 | vacancies | summary_generated_at | timestamptz nullable | |
 | users | gmail_refresh_token | text nullable | OAuth refresh token for `gmail.send` (encrypted at rest); null = email apply disabled |

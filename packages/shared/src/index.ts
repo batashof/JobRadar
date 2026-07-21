@@ -12,6 +12,7 @@ export * from './outreach';
 export * from './profiles';
 export * from './reminders';
 export * from './resumes';
+export * from './seniority';
 export * from './vacancies';
 
 /** Component diagnostics included in the health response. Never carries secrets. */

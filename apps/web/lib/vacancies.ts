@@ -2,6 +2,7 @@ import type {
   BriefResponse,
   CoverLetterResponse,
   EmploymentType,
+  ResumeMatchResponse,
   SourceOption,
   VacancyDetail,
   VacancyFeed,
@@ -16,6 +17,8 @@ export interface FeedFilters {
   employmentType: EmploymentType[];
   sources: string[];
   salaryMin: number | null;
+  /** Hide roles clearly below the active resume's level (ADR-012). */
+  resumeFit: boolean;
 }
 
 export const EMPTY_FILTERS: FeedFilters = {
@@ -24,6 +27,7 @@ export const EMPTY_FILTERS: FeedFilters = {
   employmentType: [],
   sources: [],
   salaryMin: null,
+  resumeFit: false,
 };
 
 export function fetchFeed(filters: FeedFilters, page: number, pageSize = 20): Promise<VacancyFeed> {
@@ -33,6 +37,7 @@ export function fetchFeed(filters: FeedFilters, page: number, pageSize = 20): Pr
   if (filters.employmentType.length) params.set('employmentType', filters.employmentType.join(','));
   if (filters.sources.length) params.set('sources', filters.sources.join(','));
   if (filters.salaryMin != null) params.set('salaryMin', String(filters.salaryMin));
+  if (filters.resumeFit) params.set('resumeFit', 'true');
   params.set('page', String(page));
   params.set('pageSize', String(pageSize));
   return apiFetch<VacancyFeed>(`/vacancies?${params.toString()}`);
@@ -54,4 +59,8 @@ export function generateBrief(id: string, force = false): Promise<BriefResponse>
 
 export function generateCoverLetter(id: string): Promise<CoverLetterResponse> {
   return apiFetch<CoverLetterResponse>(`/vacancies/${id}/cover-letter`, { method: 'POST' });
+}
+
+export function matchResume(id: string): Promise<ResumeMatchResponse> {
+  return apiFetch<ResumeMatchResponse>(`/vacancies/${id}/resume-match`, { method: 'POST' });
 }

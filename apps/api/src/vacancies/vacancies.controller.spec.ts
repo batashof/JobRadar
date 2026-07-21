@@ -1,10 +1,12 @@
-import type { SourceOption, VacancyDetail, VacancyFeed, VacancyQuery } from '@jobradar/shared';
+import type { AuthUser, SourceOption, VacancyDetail, VacancyFeed, VacancyQuery } from '@jobradar/shared';
 
 import { VacanciesController } from './vacancies.controller';
 import type { VacanciesService } from './vacancies.service';
 
+const USER: AuthUser = { id: 'u1', email: 'u@acme.dev', digestEnabled: false };
+
 describe('VacanciesController', () => {
-  it('delegates the parsed query to the service', async () => {
+  it('delegates the parsed query to the service, scoped to the user', async () => {
     const result: VacancyFeed = { items: [], total: 0, page: 1, pageSize: 20 };
     const feed = jest.fn().mockResolvedValue(result);
     const controller = new VacanciesController({ feed } as unknown as VacanciesService);
@@ -14,15 +16,16 @@ describe('VacanciesController', () => {
       workFormat: ['remote'],
       employmentType: [],
       sources: ['telegram'],
+      resumeFit: false,
       page: 1,
       pageSize: 20,
     };
 
-    await expect(controller.feed(query)).resolves.toBe(result);
-    expect(feed).toHaveBeenCalledWith(query);
+    await expect(controller.feed(USER, query)).resolves.toBe(result);
+    expect(feed).toHaveBeenCalledWith(USER.id, query);
   });
 
-  it('returns the vacancy detail by id', async () => {
+  it('returns the vacancy detail by id, scoped to the user', async () => {
     const detail = {
       id: 'v1',
       title: 'Senior React',
@@ -33,8 +36,8 @@ describe('VacanciesController', () => {
     const getById = jest.fn().mockResolvedValue(detail);
     const controller = new VacanciesController({ getById } as unknown as VacanciesService);
 
-    await expect(controller.getById('v1')).resolves.toBe(detail);
-    expect(getById).toHaveBeenCalledWith('v1');
+    await expect(controller.getById(USER, 'v1')).resolves.toBe(detail);
+    expect(getById).toHaveBeenCalledWith(USER.id, 'v1');
   });
 
   it('lists source filter options', async () => {

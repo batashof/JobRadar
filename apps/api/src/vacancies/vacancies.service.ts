@@ -1,22 +1,31 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  ApplyContact,
-  SourceOption,
-  VacancyDetail,
-  VacancyFeed,
-  VacancyQuery,
+import {
+  type ApplyContact,
+  detectSeniority,
+  levelsBelowResume,
+  type SeniorityLevel,
+  type SourceOption,
+  type VacancyDetail,
+  type VacancyFeed,
+  type VacancyQuery,
 } from '@jobradar/shared';
-import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { sources, vacancies } from '../db/schema';
+import { resumeMatches, resumes, sources, vacancies } from '../db/schema';
+
+// Placeholder id for the resume-match left join when the user has no active
+// resume — matches nothing, so every resumeScore comes back null.
+const NO_RESUME = '00000000-0000-0000-0000-000000000000';
 
 @Injectable()
 export class VacanciesService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async feed(query: VacancyQuery): Promise<VacancyFeed> {
-    const { q, workFormat, employmentType, salaryMin, page, pageSize } = query;
+  async feed(userId: string, query: VacancyQuery): Promise<VacancyFeed> {
+    const { q, workFormat, employmentType, salaryMin, resumeFit, page, pageSize } = query;
+
+    const resume = await this.activeResume(userId);
 
     // Feed operates on canonical vacancies only (duplicates are collapsed).
     const conditions: SQL[] = [isNull(vacancies.canonicalVacancyId)];
@@ -30,6 +39,18 @@ export class VacanciesService {
       conditions.push(
         sql`(${vacancies.salaryMax} >= ${salaryMin} or ${vacancies.salaryMin} >= ${salaryMin})`,
       );
+    }
+
+    // Soft resume-level filter (ADR-012): drop vacancies two or more grades
+    // below the resume. Rows with an unknown level always pass, so the feed
+    // never over-empties.
+    const resumeLevel = resume ? detectSeniority(resume.text) : null;
+    if (resumeFit && resumeLevel) {
+      const tooJunior = levelsBelowResume(resumeLevel);
+      if (tooJunior.length > 0) {
+        const clause = or(isNull(vacancies.seniority), notInArray(vacancies.seniority, tooJunior));
+        if (clause) conditions.push(clause);
+      }
     }
 
     const where = and(...conditions);
@@ -52,9 +73,19 @@ export class VacanciesService {
         salaryCurrency: vacancies.salaryCurrency,
         location: vacancies.location,
         publishedAt: vacancies.publishedAt,
+        seniority: vacancies.seniority,
+        resumeScore: resumeMatches.score,
+        resumeExplanation: resumeMatches.explanation,
       })
       .from(vacancies)
       .innerJoin(sources, eq(sources.id, vacancies.sourceId))
+      .leftJoin(
+        resumeMatches,
+        and(
+          eq(resumeMatches.vacancyId, vacancies.id),
+          eq(resumeMatches.resumeId, resume?.id ?? NO_RESUME),
+        ),
+      )
       .where(where)
       .orderBy(orderBy)
       .limit(pageSize)
@@ -68,15 +99,23 @@ export class VacanciesService {
       .where(where);
 
     return {
-      items: items.map((v) => ({ ...v, publishedAt: v.publishedAt?.toISOString() ?? null })),
+      items: items.map((v) => ({
+        ...v,
+        seniority: (v.seniority as SeniorityLevel | null) ?? null,
+        resumeScore: v.resumeScore ?? null,
+        resumeExplanation: v.resumeExplanation || null,
+        publishedAt: v.publishedAt?.toISOString() ?? null,
+      })),
       total: countRow?.count ?? 0,
       page,
       pageSize,
     };
   }
 
-  /** Full vacancy for the in-app detail page (ADR-011). */
-  async getById(id: string): Promise<VacancyDetail> {
+  /** Full vacancy for the in-app detail page (ADR-011); carries the cached resume score. */
+  async getById(userId: string, id: string): Promise<VacancyDetail> {
+    const resume = await this.activeResume(userId);
+
     const [row] = await this.db
       .select({
         id: vacancies.id,
@@ -92,12 +131,22 @@ export class VacanciesService {
         salaryCurrency: vacancies.salaryCurrency,
         location: vacancies.location,
         publishedAt: vacancies.publishedAt,
+        seniority: vacancies.seniority,
         applyContact: vacancies.applyContact,
         summaryRu: vacancies.summaryRu,
         ingestedAt: vacancies.ingestedAt,
+        resumeScore: resumeMatches.score,
+        resumeExplanation: resumeMatches.explanation,
       })
       .from(vacancies)
       .innerJoin(sources, eq(sources.id, vacancies.sourceId))
+      .leftJoin(
+        resumeMatches,
+        and(
+          eq(resumeMatches.vacancyId, vacancies.id),
+          eq(resumeMatches.resumeId, resume?.id ?? NO_RESUME),
+        ),
+      )
       .where(eq(vacancies.id, id));
     if (!row) throw new NotFoundException('Vacancy not found');
 
@@ -105,8 +154,11 @@ export class VacanciesService {
       ...row,
       publishedAt: row.publishedAt?.toISOString() ?? null,
       ingestedAt: row.ingestedAt.toISOString(),
+      seniority: (row.seniority as SeniorityLevel | null) ?? null,
       applyContact: (row.applyContact as ApplyContact | null) ?? null,
       summaryRu: row.summaryRu ?? null,
+      resumeScore: row.resumeScore ?? null,
+      resumeExplanation: row.resumeExplanation || null,
     };
   }
 
@@ -119,5 +171,16 @@ export class VacanciesService {
       .where(isNull(vacancies.canonicalVacancyId))
       .groupBy(sources.slug)
       .orderBy(desc(sql`count(*)`), sources.slug);
+  }
+
+  /** The caller's active resume (id + extracted text), or null. */
+  private async activeResume(userId: string): Promise<{ id: string; text: string } | null> {
+    const [row] = await this.db
+      .select({ id: resumes.id, text: resumes.extractedText })
+      .from(resumes)
+      .where(and(eq(resumes.userId, userId), eq(resumes.isActive, true)))
+      .orderBy(desc(resumes.uploadedAt))
+      .limit(1);
+    return row ?? null;
   }
 }

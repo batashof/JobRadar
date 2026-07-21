@@ -5,7 +5,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 remainder: Telegram digest bot, browser extension, more sources, funnel stats, calendar sync.
+- Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
+
+## [1.2.0] — 2026-07-21
+
+**Feed-centric, resume-driven relevance (ADR-012).** The resume — not hand-tuned keyword profiles — now drives what's worth applying to, and it all lives in the Feed.
+
+### Added
+
+- **Resume-fit on the vacancy page**: "Насколько подходит мне" scores the active resume against the vacancy through the LLM gateway, cached permanently in `resume_matches` (one call per resume × vacancy). Shown as a colour-banded circular gauge (red <40% < amber <70% < green) with a short RU rationale; the cached score also appears as a `CV NN%` badge on feed cards. `POST /vacancies/:id/resume-match`. Live-verified 2026-07-21.
+- **Soft resume-driven seniority filter in the Feed**: a coarse level (`intern | junior | middle | senior | lead`) is detected at ingestion (keyword rules, no LLM) into `vacancies.seniority`; a feed toggle (shown only with an active resume) hides roles two or more grades below the resume. Lenient by design — unknown levels always pass and detection biases to the highest match, so the feed never over-empties. Filtered in SQL across the whole feed. Migration `0004` + idempotent `backfill:seniority` script (`--prod` over Neon HTTPS; 124/275 classified locally).
+
+### Changed
+
+- **Removed the Matches page** and its nav entry; the Feed is the single browse surface. Search profiles and the rules-based `profile_matches` job are kept running in the background (no user-facing view for now).
+- `GET /vacancies` is now user-scoped: it left-joins the caller's cached resume score and accepts `resumeFit=true`.
 
 ### Fixed
 

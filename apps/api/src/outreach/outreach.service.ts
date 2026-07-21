@@ -6,12 +6,14 @@ import type {
   ApplyEmailSendResult,
   BriefResponse,
   CoverLetterResponse,
+  ResumeMatchResponse,
 } from '@jobradar/shared';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { applications, outreachEmails, users, vacancies } from '../db/schema';
+import { applications, outreachEmails, resumeMatches, users, vacancies } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
+import { buildResumeMatchPrompt, parseResumeMatchReply } from '../matching/resume-match';
 import { ResumesService } from '../resumes/resumes.service';
 import { GmailService } from './gmail.service';
 import {
@@ -76,6 +78,51 @@ export class OutreachService {
     const prompt = buildCoverLetterPrompt(vacancy, resume.extractedText);
     const result = await this.llm.complete({ ...prompt, maxTokens: 600, temperature: 0.5 });
     return { coverLetter: result.text };
+  }
+
+  /**
+   * On-demand LLM resume-fit score for one vacancy (ADR-012). Cached permanently
+   * in `resume_matches` (one call per resume × vacancy) — a repeat click is free.
+   */
+  async resumeMatch(userId: string, vacancyId: string): Promise<ResumeMatchResponse> {
+    const vacancy = await this.loadVacancy(vacancyId);
+
+    const resume = await this.resumes.getActive(userId);
+    if (!resume) {
+      throw new BadRequestException('Upload a resume first — the score is built from it');
+    }
+    if (!resume.extractedText) {
+      throw new BadRequestException(
+        'No text could be extracted from the active resume — upload a text-based PDF',
+      );
+    }
+
+    const [cached] = await this.db
+      .select({ score: resumeMatches.score, explanation: resumeMatches.explanation })
+      .from(resumeMatches)
+      .where(and(eq(resumeMatches.resumeId, resume.id), eq(resumeMatches.vacancyId, vacancyId)));
+    if (cached) {
+      return { score: cached.score, explanation: cached.explanation, cached: true };
+    }
+
+    const prompt = buildResumeMatchPrompt(vacancy, resume.extractedText);
+    const result = await this.llm.complete({ ...prompt, maxTokens: 300, temperature: 0.2 });
+    const parsed = parseResumeMatchReply(result.text);
+    if (!parsed) {
+      throw new BadRequestException('Could not score this vacancy — please try again');
+    }
+
+    await this.db
+      .insert(resumeMatches)
+      .values({
+        resumeId: resume.id,
+        vacancyId,
+        score: parsed.score,
+        explanation: parsed.explanation,
+      })
+      .onConflictDoNothing();
+
+    return { score: parsed.score, explanation: parsed.explanation, cached: false };
   }
 
   /**

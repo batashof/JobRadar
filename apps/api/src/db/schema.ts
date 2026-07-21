@@ -159,6 +159,9 @@ export const vacancies = pgTable(
     // Application contact extracted from the description (ADR-011):
     // { kind: 'email' | 'telegram' | 'url', value: string }
     applyContact: jsonb('apply_contact').$type<{ kind: string; value: string } | null>(),
+    // Coarse level detected at ingestion for the resume-driven feed filter
+    // (ADR-012): 'intern' | 'junior' | 'middle' | 'senior' | 'lead' | null.
+    seniority: text('seniority'),
     // On-demand Russian brief, cached after the first generation (ADR-011).
     summaryRu: text('summary_ru'),
     summaryGeneratedAt: timestamp('summary_generated_at', { withTimezone: true }),

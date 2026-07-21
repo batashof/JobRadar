@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Feed-centric resume relevance; Matches removed (v1.2.0, ADR-012)
+
+- **ADR-012 accepted:** the resume drives relevance, and it all lives in the Feed. The confusing, usually-empty Matches page (keyword-profile matching) is gone; Profiles + the `profile_matches` job stay running in the background (developer chose "keep as-is" over deleting).
+- **A — on-demand resume-fit on the vacancy page:** "Насколько подходит мне" → `POST /vacancies/:id/resume-match` scores the active resume via the LLM gateway, cached in `resume_matches` (repeat = free). Rendered as a colour-banded circular `ScoreGauge` (red/amber/green) + RU rationale; cached `CV %` badge also shows on feed cards.
+- **B — soft seniority filter:** `detectSeniority` (shared, rules-only, EN+RU keywords, highest-match-wins) runs at the ingestion choke point into new `vacancies.seniority`. Feed toggle (only with an active resume) hides roles ≥2 grades below the resume; unknown level always passes → never over-empties. Filtered in SQL across the whole feed. Migration `0004` + `backfill:seniority` (124/275 local).
+- **Live-verified locally (Gemini/Groq configured):** feed `resumeFit=true` 251 → 239 (senior resume hides 7 intern + 5 junior); React-Native vacancy vs frontend-no-RN resume → **40%** with an accurate "critical React Native gap" explanation; second call `cached=true`; gauge renders in-browser; no Matches nav; no console errors.
+- **Tests/build green:** 218 api + 58 web (Matches tests removed, gauge/toggle/match-section tests added), lint/typecheck clean, web prod build clean (no `/app/matches` route).
+- **Version 1.2.0**: CHANGELOG + all four `package.json` + CLAUDE.md line. Docs synced (ADR-012, DATA_MODEL `seniority`, ADR index, ROADMAP).
+- **Prod TODO (developer):** apply migration `0004` on Neon (`db:migrate:prod`) + run `backfill:seniority --prod`; the Google 403 on Gmail connect is the OAuth "Testing" mode — add `batashof@gmail.com` as a Test user in the Cloud Console consent screen.
+- **Next step:** live Gmail send once the test-user is added; remaining phase-4 items by appetite.
+
 ## 2026-07-21 — Live LLM E2E green (Gemini); default Gemini model fixed
 
 - **Keys provisioned by the developer** (Groq + Gemini locally; Sentry skipped for now). Groq turned out to geo-block this network (403 "Access denied") — the ADR-005 failover switched to Gemini exactly as designed; Groq remains first in line for Render (US egress).

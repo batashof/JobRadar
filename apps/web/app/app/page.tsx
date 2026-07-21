@@ -14,7 +14,8 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="text-[var(--color-muted-foreground)]">
-          Browse the feed, check your matches, and keep applications moving on the board.
+          Browse the feed, score vacancies against your resume, and keep applications moving on the
+          board.
         </p>
       </div>
       <FunnelStats stats={stats} />

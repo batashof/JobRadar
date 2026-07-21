@@ -6,9 +6,17 @@ describe('vacancyQuerySchema (shared contract)', () => {
       workFormat: [],
       employmentType: [],
       sources: [],
+      resumeFit: false,
       page: 1,
       pageSize: 20,
     });
+  });
+
+  it('enables resumeFit only for the literal "true"/"1" flag', () => {
+    expect(vacancyQuerySchema.parse({ resumeFit: 'true' }).resumeFit).toBe(true);
+    expect(vacancyQuerySchema.parse({ resumeFit: '1' }).resumeFit).toBe(true);
+    expect(vacancyQuerySchema.parse({ resumeFit: 'false' }).resumeFit).toBe(false);
+    expect(vacancyQuerySchema.parse({ resumeFit: 'anything' }).resumeFit).toBe(false);
   });
 
   it('coerces numeric strings for page, pageSize and salaryMin', () => {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { EMPLOYMENT_TYPES, type EmploymentType, WORK_FORMATS, type WorkFormat } from './profiles';
+import type { SeniorityLevel } from './seniority';
 
 /**
  * Vacancy feed contracts. The query schema coerces raw query-string values
@@ -35,6 +36,9 @@ export const vacancyQuerySchema = z.object({
   employmentType: csvEnum(EMPLOYMENT_TYPES),
   sources: csvSlugs,
   salaryMin: z.coerce.number().int().nonnegative().optional(),
+  // Hide roles clearly below the active resume's level (ADR-012). A string flag
+  // from the query string: only the literal "true"/"1" enables it.
+  resumeFit: z.preprocess((v) => v === 'true' || v === true || v === '1', z.boolean().default(false)),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce
     .number()
@@ -61,6 +65,12 @@ export interface VacancyListItem {
   salaryCurrency: string | null;
   location: string | null;
   publishedAt: string | null;
+  /** Coarse level detected at ingestion (ADR-012); null when unstated. */
+  seniority?: SeniorityLevel | null;
+  /** LLM resume-fit score in [0, 1] for the caller's active resume; null if not yet scored. */
+  resumeScore?: number | null;
+  /** Short RU rationale that accompanies `resumeScore`; null when unscored. */
+  resumeExplanation?: string | null;
 }
 
 export interface VacancyFeed {
@@ -98,6 +108,16 @@ export interface BriefResponse {
 /** POST /vacancies/:id/cover-letter — generated from the active resume (ADR-011). */
 export interface CoverLetterResponse {
   coverLetter: string;
+}
+
+/** POST /vacancies/:id/resume-match — on-demand LLM resume-fit score (ADR-012). */
+export interface ResumeMatchResponse {
+  /** Fit score in [0, 1]. */
+  score: number;
+  /** Short RU rationale: main overlap and the main gap. */
+  explanation: string;
+  /** True when served from `resume_matches` instead of a fresh LLM call. */
+  cached: boolean;
 }
 
 /** A source available as a feed filter option (canonical-vacancy count). */

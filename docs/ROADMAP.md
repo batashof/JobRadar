@@ -53,12 +53,18 @@
 
 - [x] Resume upload (PDF): store in Postgres (`resumes` table), extract text server-side at upload; manage on a settings/profile page. *(POST/GET/DELETE /resumes + :id/file download + :id/activate; pdf-parse extraction, magic-byte validation, 5 MB cap; web /app/resume page — E2E verified locally)*
 - [x] Vacancy detail page: clicking a vacancy in the feed/matches opens the full stored description in-app (source link stays available); all assistant actions live here. *(GET /vacancies/:id + /app/vacancies/[id]; card titles now link internally, "Open original ↗" preserved — browser-verified locally)*
-- [ ] LLM gateway module per ADR-005 (ordered free providers, failover, caching) — shared by all features below.
+- [x] LLM gateway module per ADR-005 (ordered free providers, failover, caching) — shared by all features below. *(`llm/` gateway: Groq → OpenRouter → Gemini, failover, 503 when keyless; `llmProviders` in /health — live-verified 2026-07-21)*
 - [x] LLM resume ↔ vacancy matching: score + short fit explanation, only for vacancies passing rules-based profile matching; cached permanently in `resume_matches` (one LLM call per resume × vacancy). *(budget-capped run — 10/cycle — rides the `match` job and is manually triggerable via POST /matches/resume-score; CV % badge + RU explanation on the Matches page; skips cleanly without an LLM key)*
 - [x] On-demand Russian vacancy brief (button on the detail page): employer, what they do, how well it fits; cached on the vacancy. *(POST /vacancies/:id/brief, cached in `summary_ru`, `?force=true` regenerates; fit section uses the active resume when present. Live LLM run still needs a free API key in env — degrades to a friendly 503 until then, browser-verified)*
 - [x] On-demand cover letter (button): vacancy's language, English calibrated to the resume's evident level, short and dense, foregrounds real relevant experience; editable before sending. *(POST /vacancies/:id/cover-letter, prompt pins language/level/length/honesty rules; editable textarea on the detail page; same LLM-key caveat)*
 - [x] Apply-contact extraction at ingestion (email / Telegram handle / apply URL; regex first, LLM fallback later); shown on the detail page. *(extractor in the upsert choke point + `backfill:contacts` script — 67/275 local vacancies got a contact; detail page renders mailto/t.me links)*
 - [x] Email apply via Gmail API (OAuth, `gmail.send`, user's own account): LLM-generated subject + body, cover letter included, resume PDF attached, recipient pre-filled from the extracted contact (editable); explicit user confirmation before every send; sent applications recorded (`outreach_emails`) and reflected on the kanban. *(OAuth connect flow with HMAC-signed state + AES-GCM-encrypted refresh token; draft → edit → confirm UI; needs `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in env — a live send awaits those creds, UI degrades to "not configured" until then)*
+
+### Feed-centric resume relevance (ADR-012)
+
+- [x] Removed the Matches page; the Feed is the single browse surface (Profiles + rules-based matching kept in the background). *(nav/page/component removed; dashboard copy updated)*
+- [x] On-demand resume-fit on the vacancy page: LLM score cached in `resume_matches`, colour-banded circular gauge + RU rationale; cached `CV %` badge on feed cards. *(A — live-verified 2026-07-21: React-Native vacancy vs frontend resume → 40% with an accurate gap explanation)*
+- [x] Soft resume-driven seniority filter in the feed: `vacancies.seniority` detected at ingestion (rules, no LLM), toggle hides roles ≥2 grades below the resume; unknown level always passes. *(B — live-verified: senior resume 251 → 239)*
 
 ### Other extensions
 

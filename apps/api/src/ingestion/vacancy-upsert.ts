@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { detectSeniority } from '@jobradar/shared';
 
 import type { Database } from '../db/db.module';
 import { vacancies } from '../db/schema';
@@ -7,12 +8,16 @@ import type { NewVacancy } from './hh/hh-normalize';
 
 /** Chunked upsert keyed on (source_id, external_id); refreshes mutable fields. */
 export async function upsertVacancies(db: Database, rows: NewVacancy[]): Promise<number> {
-  // Contact extraction happens here — the single choke point every source
-  // funnels through (ADR-011).
-  const enriched = rows.map((row) => ({
-    ...row,
-    applyContact: extractApplyContact(`${row.title}\n${row.description ?? ''}`),
-  }));
+  // Contact extraction and seniority classification happen here — the single
+  // choke point every source funnels through (ADR-011 / ADR-012).
+  const enriched = rows.map((row) => {
+    const text = `${row.title}\n${row.description ?? ''}`;
+    return {
+      ...row,
+      applyContact: extractApplyContact(text),
+      seniority: detectSeniority(text),
+    };
+  });
   let upserted = 0;
   for (let i = 0; i < enriched.length; i += 100) {
     const chunk = enriched.slice(i, i + 100);
@@ -35,6 +40,7 @@ export async function upsertVacancies(db: Database, rows: NewVacancy[]): Promise
           location: sql`excluded.location`,
           publishedAt: sql`excluded.published_at`,
           applyContact: sql`excluded.apply_contact`,
+          seniority: sql`excluded.seniority`,
         },
       });
     upserted += chunk.length;

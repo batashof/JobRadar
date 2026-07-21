@@ -17,6 +17,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [009](009-drop-hh-telegram-primary.md) | Drop hh.ru; Telegram job channels as the primary source | Accepted |
 | [010](010-sentry-error-monitoring.md) | Sentry for error monitoring on both apps | Accepted |
 | [011](011-resume-apply-assistant.md) | Resume-driven apply assistant (upload, LLM matching, cover letters, Gmail apply) | Accepted |
+| [012](012-feed-resume-relevance.md) | Feed-centric resume-driven relevance (remove Matches page, on-demand fit gauge, soft seniority filter) | Accepted |
 
 ## Template
 

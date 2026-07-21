@@ -28,10 +28,12 @@ export function FeedBrowser({
   initial,
   trackedIds,
   sourceOptions,
+  hasResume,
 }: {
   initial: VacancyFeed;
   trackedIds: string[];
   sourceOptions: SourceOption[];
+  hasResume: boolean;
 }) {
   const [tracked, setTracked] = useState<Set<string>>(() => new Set(trackedIds));
   const [saving, setSaving] = useState<Set<string>>(() => new Set());
@@ -78,13 +80,20 @@ export function FeedBrowser({
   function applyFilters(event: FormEvent) {
     event.preventDefault();
     const salaryMin = salaryInput.trim() ? Math.trunc(Number(salaryInput)) : null;
-    setFilters({
+    setFilters((prev) => ({
       q: qInput,
       workFormat,
       employmentType,
       sources: selectedSources,
       salaryMin: salaryMin != null && Number.isFinite(salaryMin) ? salaryMin : null,
-    });
+      // The resume toggle applies on its own; keep its current state on submit.
+      resumeFit: prev.resumeFit,
+    }));
+    setPage(1);
+  }
+
+  function toggleResumeFit(next: boolean) {
+    setFilters((prev) => ({ ...prev, resumeFit: next }));
     setPage(1);
   }
 
@@ -142,6 +151,19 @@ export function FeedBrowser({
                 <Button type="submit">Search</Button>
               </div>
             </div>
+            {hasResume ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={filters.resumeFit}
+                  onChange={(e) => toggleResumeFit(e.target.checked)}
+                />
+                Hide roles below my level
+                <span className="text-xs text-[var(--color-muted-foreground)]">
+                  (based on your active resume)
+                </span>
+              </label>
+            ) : null}
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               <fieldset className="flex flex-wrap items-center gap-3">
                 <Label className="text-[var(--color-muted-foreground)]">Format:</Label>

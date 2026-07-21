@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { scoreColor } from '@/components/ui/score-gauge';
 import { EMPLOYMENT_TYPE_LABELS, sourceLabel, WORK_FORMAT_LABELS } from '@/lib/labels';
 
 export function salaryText(v: VacancyListItem): string | null {
@@ -57,6 +58,15 @@ export function VacancyCard({
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             {leadingBadge}
+            {v.resumeScore != null ? (
+              <span
+                className="rounded-md border px-1.5 py-0.5 text-xs font-semibold tabular-nums"
+                style={{ color: scoreColor(v.resumeScore), borderColor: scoreColor(v.resumeScore) }}
+                title="Resume fit"
+              >
+                CV {Math.round(v.resumeScore * 100)}%
+              </span>
+            ) : null}
             <Badge variant="muted">{sourceLabel(v.source)}</Badge>
             {tracked ? (
               <Badge variant="primary">On board ✓</Badge>

@@ -7,9 +7,10 @@ import { ApplyEmailSection } from '@/components/apply-email-section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScoreGauge } from '@/components/ui/score-gauge';
 import { publishedText, salaryText } from '@/components/vacancy-card';
 import { EMPLOYMENT_TYPE_LABELS, sourceLabel, WORK_FORMAT_LABELS } from '@/lib/labels';
-import { generateBrief, generateCoverLetter } from '@/lib/vacancies';
+import { generateBrief, generateCoverLetter, matchResume } from '@/lib/vacancies';
 
 function contactHref(detail: VacancyDetail): string | null {
   const contact = detail.applyContact;
@@ -38,6 +39,14 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
   const [letterBusy, setLetterBusy] = useState(false);
   const [letterError, setLetterError] = useState<string | null>(null);
 
+  const [match, setMatch] = useState<{ score: number; explanation: string } | null>(
+    detail.resumeScore != null
+      ? { score: detail.resumeScore, explanation: detail.resumeExplanation ?? '' }
+      : null,
+  );
+  const [matchBusy, setMatchBusy] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+
   async function handleBrief(force: boolean) {
     setBriefBusy(true);
     setBriefError(null);
@@ -48,6 +57,19 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
       setBriefError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setBriefBusy(false);
+    }
+  }
+
+  async function handleMatch() {
+    setMatchBusy(true);
+    setMatchError(null);
+    try {
+      const res = await matchResume(detail.id);
+      setMatch({ score: res.score, explanation: res.explanation });
+    } catch (err) {
+      setMatchError(err instanceof Error ? err.message : 'Scoring failed');
+    } finally {
+      setMatchBusy(false);
     }
   }
 
@@ -111,6 +133,35 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <CardTitle>Насколько подходит мне</CardTitle>
+          <Button variant="outline" size="sm" disabled={matchBusy} onClick={() => void handleMatch()}>
+            {matchBusy ? 'Оценка…' : match ? 'Пересчитать' : 'Оценить по резюме'}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {matchError ? (
+            <p role="alert" className="text-sm text-[var(--color-destructive)]">
+              {matchError}
+            </p>
+          ) : null}
+          {match ? (
+            <div className="flex items-center gap-4">
+              <ScoreGauge value={match.score} />
+              {match.explanation ? (
+                <p className="flex-1 text-sm leading-relaxed">{match.explanation}</p>
+              ) : null}
+            </div>
+          ) : !matchError ? (
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              Насколько ваше активное резюме подходит под эту вакансию — процент и краткое пояснение
+              по кнопке.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-4">
