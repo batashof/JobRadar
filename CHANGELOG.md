@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
 
+## [1.4.1] — 2026-07-21
+
+**More Telegram job channels.** Broadened Telegram coverage from 3 to 6 channels after probing candidates for reachability, post frequency and vacancy-vs-noise ratio.
+
+### Changed
+
+- **Telegram sources.** Added `rabotafrontend` (frontend), `golang_jobs` (Go/backend) and `qa_jobs` (QA) to the existing `job_react` / `geekjobs` / `remote_it_jobs`. Candidates that were resume feeds, spam/discussion chats, dead archives or non-dev boards (marketing, gamedev, HR) were rejected during probing. Applied to prod via `db:migrate:prod`; `seed-data` test now guards channel usernames.
+
 ## [1.4.0] — 2026-07-21
 
 **Mock interview (ADR-013, interview-prep increment 2).** A text-chat rehearsal with an AI interviewer at `/app/interview/mock`, completing the interview-prep module.

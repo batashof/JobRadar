@@ -12,6 +12,17 @@ describe('seed data', () => {
     expect(active).toEqual(['telegram', 'remoteok', 'weworkremotely']);
   });
 
+  it('configures telegram channels as clean, unique usernames without @', () => {
+    const telegram = SEED_SOURCES.find((s) => s.slug === 'telegram');
+    const channels = (telegram?.config as { channels?: string[] } | undefined)?.channels ?? [];
+    expect(channels.length).toBeGreaterThan(0);
+    expect(new Set(channels).size).toBe(channels.length);
+    for (const channel of channels) {
+      expect(channel).not.toContain('@');
+      expect(channel).toMatch(/^[a-z0-9_]+$/i);
+    }
+  });
+
   it('uses only valid source kinds', () => {
     for (const source of SEED_SOURCES) {
       expect(sourceKindEnum.enumValues).toContain(source.kind);

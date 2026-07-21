@@ -15,13 +15,24 @@ export const SEED_SOURCES: SourceSeed[] = [
   {
     // Primary source (ADR-009). Needs TELEGRAM_API_ID/TELEGRAM_API_HASH +
     // TELEGRAM_SESSION env vars; the worker skips while they're missing.
-    // Channels: public RU/IT job channels (frontend/fullstack focus),
-    // verified live 2026-07-20.
+    // Channels: public RU/IT dev job channels. Each candidate is probed for
+    // reachability, post frequency and vacancy-vs-noise ratio before being
+    // added; resume feeds, spam chats and non-dev boards are rejected.
+    // Verified live 2026-07-21: react/general (job_react, geekjobs,
+    // remote_it_jobs) + frontend (rabotafrontend), Go/backend (golang_jobs)
+    // and QA (qa_jobs).
     slug: 'telegram',
     kind: 'telegram',
     isActive: true,
     config: {
-      channels: ['job_react', 'geekjobs', 'remote_it_jobs'],
+      channels: [
+        'job_react',
+        'geekjobs',
+        'remote_it_jobs',
+        'rabotafrontend',
+        'golang_jobs',
+        'qa_jobs',
+      ],
       messagesPerChannel: 50,
     },
   },

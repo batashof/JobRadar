@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — More Telegram job channels (v1.4.1)
+
+- **Broadened Telegram coverage 3 → 6 channels.** Added `rabotafrontend` (frontend), `golang_jobs` (Go/backend) and `qa_jobs` (QA) alongside `job_react` / `geekjobs` / `remote_it_jobs`.
+- **Chosen by probing, not by lists.** Wrote a throwaway MTProto probe (existing session) over ~16 candidates measuring reachability, posts/day and vacancy-vs-noise ratio, then sampled post titles. Rejected: dead archives (`remotedevjobs`, `jobjs` — newest posts from 2022), resume feeds (`python_jobs`, `nodejs_jobs`), spam/discussion chats (`reactjs_jobs`, `javascript_jobs`, `devops_jobs`), generic non-dev boards (`distantsiya`, `remocate`, `devjobs` = marketing/HR/gamedev) and invalid usernames. Frequency alone was misleading — content sampling was decisive.
+- **Applied to prod** via `db:migrate:prod` (neon-apply upserts `sources.config`); verified all 6 channels present in prod. Local `seed-data.ts` updated; new `seed-data.spec` case guards clean, unique, `@`-free usernames. api tests green.
+- **Next step:** watch a cron run to confirm the new channels yield vacancies without noise spikes.
+
 ## 2026-07-21 — Mock interview (v1.4.0, ADR-013 increment 2)
 
 - **Shipped the mock interview**, completing the interview-prep module (ADR-013). Text-chat rehearsal with an LLM interviewer at `/app/interview/mock`.
