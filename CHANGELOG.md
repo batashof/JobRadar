@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+- **Interview-prep module planned (ADR-013).** Resume-driven prep plan with progress tracking, generated theory/behavioural/coding questions with on-demand model answers, LLM-reviewed live-coding (no code execution), and a text-chat mock interview with a feedback report. Standalone, reuses the existing LLM gateway + resumes; no new service/infra. Docs only so far (ADR-013, PRODUCT/ARCHITECTURE/DATA_MODEL/ROADMAP) — schema and code to follow.
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
 
 ## [1.2.3] — 2026-07-21

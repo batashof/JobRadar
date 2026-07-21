@@ -17,6 +17,13 @@ Phase 4 (ADR-011):
 User 1──n Resume
 Resume n──n Vacancy           (resume_matches, LLM-scored, cached)
 User 1──n OutreachEmail n──1 Vacancy
+
+Phase 4 (ADR-013 — interview prep):
+User 1──n InterviewPlan n──1 Resume
+InterviewPlan 1──n InterviewTopicProgress
+User 1──n InterviewQuestion (n──1 InterviewPlan, nullable)
+InterviewQuestion 1──n InterviewAnswer
+User 1──n InterviewSession (n──1 InterviewPlan, nullable)
 ```
 
 ## Tables
@@ -179,6 +186,89 @@ PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at mos
 | vacancies | summary_ru | text nullable | cached on-demand Russian brief (employer, what they do, fit) |
 | vacancies | summary_generated_at | timestamptz nullable | |
 | users | gmail_refresh_token | text nullable | OAuth refresh token for `gmail.send` (encrypted at rest); null = email apply disabled |
+
+## Phase 4 additions (ADR-013 — interview prep)
+
+> Planned (migration to follow). Standalone, resume-driven; all content is LLM-generated on-demand and cached (ADR-005 discipline). No code execution, no voice (ADR-013).
+
+### interview_plans
+
+A resume-driven study roadmap. One active plan per user; older ones kept as history.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| resume_id | uuid FK → resumes | the resume the plan was generated from |
+| target_role | text nullable | e.g. "Senior Frontend" |
+| target_seniority | text nullable | `intern \| junior \| middle \| senior \| lead` |
+| focus | text[] nullable | stack / areas to emphasise |
+| structure | jsonb | LLM plan: `sections[]` → `topics[]`, each topic `{ key, title, why }`; `key` is stable and referenced by progress/questions |
+| is_active | boolean default true | the current plan |
+| created_at / updated_at | timestamptz | |
+
+Index: `(user_id, is_active)`.
+
+### interview_topic_progress
+
+Per-topic progress within a plan (kept out of `structure` so the plan stays stable and progress is queryable).
+
+| Column | Type | Notes |
+|---|---|---|
+| plan_id | uuid FK → interview_plans | cascade on plan delete |
+| topic_key | text | matches a `topics[].key` in the plan's `structure` |
+| status | enum | `todo` / `in_progress` / `done` |
+| confidence | smallint nullable | user self-rating 1–5 |
+| updated_at | timestamptz | |
+
+PK `(plan_id, topic_key)`.
+
+### interview_questions
+
+Generated, cached questions and coding tasks.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| plan_id | uuid FK → interview_plans, nullable | topic context; null = ad-hoc |
+| topic | text | topic label (usually a plan `topic_key`/title) |
+| kind | enum | `theory` / `behavioral` / `coding` |
+| difficulty | text nullable | `junior` / `middle` / `senior` |
+| prompt | text | the question or live-coding task statement |
+| model_answer | text nullable | reference answer — generated only when the user reveals it, then cached |
+| created_at | timestamptz | |
+
+### interview_answers
+
+A user attempt (written answer or pasted live-coding solution) and its LLM review.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| question_id | uuid FK → interview_questions | |
+| user_id | uuid FK → users | |
+| answer | text | the user's written answer / submitted solution (code is reviewed, not executed) |
+| review | jsonb | structured LLM feedback: correctness, complexity, edge cases, style, suggestions |
+| score | real nullable | LLM score |
+| created_at | timestamptz | |
+
+### interview_sessions
+
+A text-chat mock interview and its final feedback report.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| plan_id | uuid FK → interview_plans, nullable | |
+| target_role | text nullable | |
+| target_seniority | text nullable | |
+| status | enum | `in_progress` / `completed` / `abandoned` |
+| transcript | jsonb | ordered turns: `{ role: "interviewer" \| "candidate", content, at }` |
+| feedback | jsonb nullable | final report: strengths, gaps, per-area notes, recommendation |
+| started_at | timestamptz | |
+| ended_at | timestamptz nullable | |
 
 ## Deduplication (v1 heuristic, ADR-004)
 

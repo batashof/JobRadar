@@ -50,6 +50,8 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 9 | Drop hh.ru; Telegram job channels as the primary source | [009](decisions/009-drop-hh-telegram-primary.md) |
 | 10 | Sentry for error monitoring on both apps | [010](decisions/010-sentry-error-monitoring.md) |
 | 11 | Resume-driven apply assistant: PDF in Postgres, LLM via ADR-005 gateway, email apply via Gmail API (phase 4) | [011](decisions/011-resume-apply-assistant.md) |
+| 12 | Feed-centric resume-driven relevance (remove Matches page, on-demand fit gauge, soft seniority filter) | [012](decisions/012-feed-resume-relevance.md) |
+| 13 | Interview-prep module: resume-driven plan, generated Q&A, LLM-reviewed live-coding, text mock interview (phase 4) | [013](decisions/013-interview-prep-module.md) |
 
 ## Repository layout (monorepo)
 
@@ -81,7 +83,7 @@ Tooling: pnpm workspaces (+ Turborepo if build orchestration becomes painful). O
 | Cron | GitHub Actions schedule → HTTP hook | Free; sidesteps free-tier container sleeping (ADR-006) |
 | Email | Resend, 3000 emails/mo free | Digests + reminders; generous free tier |
 | Telegram | Bot API (phase 4) | Second digest channel; free |
-| LLM | Free tiers via internal gateway (Groq / OpenRouter / Gemini, ADR-005) | Resume matching, RU vacancy briefs, cover letters, apply emails — on-demand only, cached (phase 4, ADR-011) |
+| LLM | Free tiers via internal gateway (Groq / OpenRouter / Gemini, ADR-005) | Resume matching, RU vacancy briefs, cover letters, apply emails (ADR-011); interview-prep plans, Q&A, live-coding review, mock interview (ADR-013) — all on-demand only, cached (phase 4) |
 | Email apply | Gmail API, OAuth `gmail.send` (phase 4, ADR-011) | Sends from the user's own account; free; recipient = contact extracted from the vacancy |
 | Hosting | Vercel (web) + Render (api) | Free tiers (ADR-007); Render free tier sleeps after 15 min — mitigated by ADR-006 cron wake-up |
 | Monitoring | Sentry free tier | Errors on both web and api; alert on empty ingestion runs |
@@ -106,7 +108,10 @@ apps/api/src/
 │   # phase 4 (ADR-011):
 ├── llm/            # ADR-005 gateway: ordered free providers, failover
 ├── resumes/        # PDF upload, text extraction, active-resume management
-└── outreach/       # vacancy briefs, cover letters, Gmail OAuth + email apply
+├── outreach/       # vacancy briefs, cover letters, Gmail OAuth + email apply
+│
+│   # phase 4 (ADR-013):
+└── interview/      # resume-driven prep plans, generated Q&A, LLM-reviewed live-coding, text mock interview
 ```
 
 ## Data flow: ingestion

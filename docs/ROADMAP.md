@@ -66,6 +66,17 @@
 - [x] On-demand resume-fit on the vacancy page: LLM score cached in `resume_matches`, colour-banded circular gauge + RU rationale; cached `CV %` badge on feed cards. *(A — live-verified 2026-07-21: React-Native vacancy vs frontend resume → 40% with an accurate gap explanation)*
 - [x] Soft resume-driven seniority filter in the feed: `vacancies.seniority` detected at ingestion (rules, no LLM), toggle hides roles ≥2 grades below the resume; unknown level always passes. *(B — live-verified: senior resume 251 → 239)*
 
+### Interview prep (resume-driven, ADR-013)
+
+Standalone prep module inside JobRadar (no new service/infra): `interview/` on the API, `/app/interview` on the web, all generation on-demand + cached through the ADR-005 LLM gateway.
+
+- [ ] Schema: `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers`, `interview_sessions` ([DATA_MODEL.md](DATA_MODEL.md)) + migration.
+- [ ] Prep-plan generation from the active resume (+ optional target role / seniority / focus): LLM builds sections → topics; stored once, regenerate on explicit action.
+- [ ] Per-topic progress tracking (todo / in_progress / done + self-confidence); the plan doubles as a persistent checklist.
+- [ ] Question generation per topic (theory / behavioural / coding, chosen difficulty); model answers generated on-demand and cached.
+- [ ] Live-coding tasks: in-app editor, LLM reviews the submitted solution (correctness, complexity, edge cases, style) with a score — **no code execution** (ADR-001).
+- [ ] Mock interview: turn-based text chat, LLM interviewer calibrated to resume + target role; written feedback report on completion; transcript persisted.
+
 ### Other extensions
 
 - [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).

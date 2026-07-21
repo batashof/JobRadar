@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Interview-prep module planned (ADR-013, docs only)
+
+- **Decision (ADR-013):** add a large **interview-prep module** as a phase-4 extension *inside* JobRadar rather than a separate app — the developer explicitly did not want to stand up new infrastructure. Reuses the existing monorepo, NestJS/Next apps, Neon Postgres, the ADR-005 LLM gateway, and resumes-in-Postgres (ADR-011). No new service, no new external dependency.
+- **Shape (clarified with the developer):** **standalone, resume-driven** (not tied to a vacancy/kanban card); live-coding is **LLM-reviewed, not executed** (no sandbox — ADR-001); mock interview is **text chat**, not voice. Five sub-features: resume-driven prep plan, per-topic progress tracking, generated theory/behavioural/coding questions with on-demand model answers, LLM-reviewed live-coding, text mock interview with a feedback report. All generation on-demand + cached (token discipline, ADR-005).
+- **Docs synced:** new ADR-013 + ADR index; PRODUCT.md (4 new core concepts + out-of-scope entry); ARCHITECTURE.md (`interview/` module, LLM stack row, and back-filled the missing ADR-012 row in the decisions table); DATA_MODEL.md (entity diagram + 5 new tables: `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers`, `interview_sessions`); ROADMAP.md (new phase-4 "Interview prep" checklist); CHANGELOG Unreleased.
+- **No version bump / no code:** planning + documentation only; nothing shipped, so the app version stays 1.2.3.
+- **Next step:** implement the schema + migration first (DATA_MODEL tables), then build sub-features by appetite starting with prep-plan generation.
+
 ## 2026-07-21 — Mobile burger menu in the app header (v1.2.3)
 
 - **Problem:** the app header laid all nav links + email + log-out in one horizontal row, which overflowed / cramped on narrow (phone) viewports.

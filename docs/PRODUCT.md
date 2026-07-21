@@ -25,6 +25,10 @@ JobRadar is a personal job-search service that removes the two most tedious part
 | **Vacancy brief** | A short on-demand, LLM-generated summary in Russian: who the employer is, what they do, how well the vacancy fits the user. Generated on button click, cached (phase 4, ADR-011). |
 | **Cover letter** | On-demand, LLM-generated per vacancy: written in the vacancy's language, calibrated to the English level evident in the resume, short and focused on real experience. Editable before sending (phase 4, ADR-011). |
 | **Apply contact** | An application contact (email / Telegram handle / URL) extracted from the vacancy text, shown on the vacancy page and used as the recipient of the application email (phase 4, ADR-011). |
+| **Prep plan** | A resume-driven interview-prep roadmap: LLM-generated sections → topics, with per-topic progress tracking. Standalone, not tied to a specific vacancy (phase 4, ADR-013). |
+| **Interview question** | An LLM-generated question for a prep topic — theory, behavioural, or coding — at a chosen difficulty; model answer generated on demand and cached (phase 4, ADR-013). |
+| **Live-coding task** | A coding question the user solves in-app; the LLM reviews the submitted solution (correctness, complexity, edge cases, style) — the code is not executed (phase 4, ADR-013). |
+| **Mock interview** | A turn-based text-chat rehearsal where the LLM plays the interviewer, calibrated to the resume + target role, and produces a written feedback report at the end (phase 4, ADR-013). |
 
 ## v1.0 scope (minimum shipped to production)
 
@@ -46,6 +50,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 - Browser extension for one-click manual saving (LinkedIn/Djinni) (phase 4).
 - Additional sources: HN Who's Hiring, Djinni (phase 4). *(Telegram channels moved into v1.0 as the primary source — ADR-009.)*
 - Funnel statistics (application → interview → offer conversion) (phase 4).
+- **Interview-prep module (ADR-013)**: resume-driven prep plan with progress tracking, generated theory/behavioural/coding questions with on-demand model answers, LLM-reviewed live-coding (no code execution), and a text-chat mock interview with a feedback report (phase 4).
 - Google Calendar interview sync (phase 4).
 - Multi-tenancy, billing (Stripe test mode), landing page (phase 5).
 
