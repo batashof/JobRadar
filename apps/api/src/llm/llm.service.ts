@@ -35,7 +35,9 @@ const PROVIDERS: ProviderDef[] = [
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     keyEnv: 'GEMINI_API_KEY',
     modelEnv: 'GEMINI_MODEL',
-    defaultModel: 'gemini-2.0-flash',
+    // Evergreen alias — pinned models age out of the free tier (2.0-flash has
+    // no free quota anymore; 2.5-flash is closed to new users).
+    defaultModel: 'gemini-flash-latest',
   },
 ];
 

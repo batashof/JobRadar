@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Live LLM E2E green (Gemini); default Gemini model fixed
+
+- **Keys provisioned by the developer** (Groq + Gemini locally; Sentry skipped for now). Groq turned out to geo-block this network (403 "Access denied") — the ADR-005 failover switched to Gemini exactly as designed; Groq remains first in line for Render (US egress).
+- **Gemini model churn:** `gemini-2.0-flash` now returns free-tier 429 (zero quota) and `gemini-2.5-*` is "no longer available to new users" — code default switched to the evergreen `gemini-flash-latest` alias; local `.env` pins `GEMINI_MODEL=gemini-3.1-flash-lite` (verified working; the alias saw transient 503s under load).
+- **Live E2E, all green:** RU brief (fresh → cached), Russian cover letter grounded in the test resume (real facts, vacancy's language, signed with the candidate name), resume scoring `{scored: 10, remaining: 21}` with well-differentiated scores (95% React match / 40% React-Native gap / 20% junior role) and RU explanations rendered on the Matches page.
+- **Remaining to verify live:** Gmail connect + send (needs the developer's own Google login → 2-minute manual browser step), and the same env vars on Render.
+
 ## 2026-07-21 — Phase 4: apply assistant shipped (v1.1.0, ADR-011)
 
 - **The whole ADR-011 block landed in one day**, committed feature-by-feature (schema → LLM gateway → resumes → detail page → contacts → brief/letter → Gmail → resume matching):

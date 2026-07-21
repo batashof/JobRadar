@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, funnel stats, calendar sync.
 
+### Fixed
+
+- Default Gemini model is now the evergreen `gemini-flash-latest` alias (pinned `gemini-2.0-flash` has no free-tier quota anymore and `gemini-2.5-flash` is closed to new users). Live E2E 2026-07-21: brief + cover letter + resume scoring verified end-to-end on `gemini-3.1-flash-lite` (Groq geo-blocks this network with 403 — the gateway failover handled it as designed; Groq still works from Render).
+
 ## [1.1.0] — 2026-07-21
 
 **Phase 4: the apply assistant (ADR-011) — from a matched vacancy to a sent application without leaving the app.**
