@@ -4,6 +4,7 @@ import { APP_NAME } from '@jobradar/shared';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/ui/logo';
 import { useAuth } from '@/lib/auth-context';
 
 const NAV = [
@@ -21,8 +22,8 @@ export function AppHeader() {
     <header className="border-b border-[var(--color-border)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <nav className="flex items-center gap-5">
-          <Link href="/app" className="font-semibold">
-            {APP_NAME}
+          <Link href="/app" aria-label={`${APP_NAME} home`}>
+            <Logo size={26} />
           </Link>
           {NAV.map((item) => (
             <Link

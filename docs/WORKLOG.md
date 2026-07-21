@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Brand logo / radar mark (v1.2.1)
+
+- **Logo designed & added.** A radar-sweep mark: an indigo→violet rounded badge with three concentric arcs emanating from a bottom-left origin toward a detected "blip" (the found vacancy), plus a 45° sweep line. Self-contained gradients → identical on light/dark. Fits the product name (JobRadar) and the existing primary hue (oklch 264).
+- **Delivery:** reusable `Logo` / `LogoMark` component (`apps/web/components/ui/logo.tsx`, per-instance gradient ids via `useId`, optional wordmark), wired into the app-header brand link (26px) and the login/signup screen (36px, above the card). Also `public/logo.svg` (static asset) and `app/icon.svg` (Next auto-detected favicon).
+- **Verified:** login page renders mark + wordmark in-browser; favicon served `200 image/svg+xml` and linked in `<head>`; no console errors. Tests 62 web passing (added `logo.test.tsx`: size, per-instance gradient uniqueness, wordmark toggle); lint + typecheck clean.
+- **Version 1.2.1**: CHANGELOG + all four `package.json` + CLAUDE.md line.
+- **Next step:** unchanged — remaining phase-4 items by appetite.
+
 ## 2026-07-21 — Feed-centric resume relevance; Matches removed (v1.2.0, ADR-012)
 
 - **ADR-012 accepted:** the resume drives relevance, and it all lives in the Feed. The confusing, usually-empty Matches page (keyword-profile matching) is gone; Profiles + the `profile_matches` job stay running in the background (developer chose "keep as-is" over deleting).

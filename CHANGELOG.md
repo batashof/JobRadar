@@ -7,6 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
 
+## [1.2.1] — 2026-07-21
+
+### Added
+
+- **Brand logo.** A self-contained radar mark (indigo→violet badge, concentric sweep arcs emanating from the origin toward a detected "blip") that reads the same on light and dark backgrounds. Ships as a reusable `<Logo>` / `<LogoMark>` component (`apps/web/components/ui/logo.tsx`, per-instance gradient ids via `useId`), the app-header brand link, the login/signup header, a static `public/logo.svg`, and the browser favicon (`app/icon.svg`).
+
 ## [1.2.0] — 2026-07-21
 
 **Feed-centric, resume-driven relevance (ADR-012).** The resume — not hand-tuned keyword profiles — now drives what's worth applying to, and it all lives in the Feed.

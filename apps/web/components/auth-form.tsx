@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/ui/logo';
 import { ApiError } from '@/lib/api';
 import { login, signup } from '@/lib/auth';
 
@@ -75,7 +76,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
+      <Logo size={36} />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{t.title}</CardTitle>
