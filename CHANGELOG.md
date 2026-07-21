@@ -5,7 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 — apply assistant (ADR-011): resume PDF upload, LLM resume ↔ vacancy matching, vacancy detail page, on-demand RU briefs and cover letters, contact extraction, email apply via Gmail.
+- Phase 4 remainder: Telegram digest bot, browser extension, more sources, funnel stats, calendar sync.
+
+## [1.1.0] — 2026-07-21
+
+**Phase 4: the apply assistant (ADR-011) — from a matched vacancy to a sent application without leaving the app.**
+
+### Added
+
+- **LLM gateway** (`llm/`, ADR-005): Groq → OpenRouter → Gemini free tiers via their OpenAI-compatible endpoints, failover on any error, friendly 503 when no key is set; `llmProviders` in `/health`.
+- **Resumes**: PDF upload (5 MB cap, magic-byte check), server-side text extraction (pdf-parse v2), single active resume, download, delete (409 if referenced by sent applications); `/app/resume` page + Resume nav item.
+- **Vacancy detail page** (`/app/vacancies/[id]`): full stored description in-app; card titles link internally, "Open original ↗" preserved.
+- **Apply-contact extraction** at the upsert choke point (email → Telegram handle on contact-ish lines / t.me link → apply URL) + idempotent `backfill:contacts` script (`--prod` runs over Neon HTTPS); contact rendered as mailto/t.me on the detail page. Backfilled: 67/275 locally, 68/276 in prod.
+- **On-demand Russian brief**: `POST /vacancies/:id/brief`, cached in `summary_ru` (`?force=true` regenerates); fit section uses the active resume.
+- **On-demand cover letter**: `POST /vacancies/:id/cover-letter` — vacancy's language, English capped at the level evident in the resume, 120–180 words, real experience over volume; editable textarea.
+- **Email apply via Gmail**: OAuth connect (HMAC-signed state, AES-256-GCM-encrypted refresh token), LLM-drafted subject+body around the edited cover letter, recipient pre-filled from the extracted contact, resume PDF attached, **explicit confirmation before every send**; sends recorded in `outreach_emails` and reflected on the kanban (saved → applied).
+- **LLM resume ↔ vacancy matching**: budget-capped (10/run) scoring of rules-matched vacancies, permanent `resume_matches` cache, piggybacks on the ingestion match job + `POST /matches/resume-score`; "CV NN%" badge and Russian fit explanation on Matches.
+
+### Notes
+
+- DB migration `0002` (resumes, resume_matches, outreach_emails, vacancy/user columns) applied locally and to prod Neon.
+- Developer TODO to activate the LLM/Gmail paths in prod: set `GROQ_API_KEY` (or OpenRouter/Gemini) and `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_OAUTH_REDIRECT` on Render. Everything degrades gracefully until then.
+- Tests: 203 api + 55 web.
 
 ## [1.0.0] — 2026-07-20
 

@@ -2,6 +2,19 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Phase 4: apply assistant shipped (v1.1.0, ADR-011)
+
+- **The whole ADR-011 block landed in one day**, committed feature-by-feature (schema → LLM gateway → resumes → detail page → contacts → brief/letter → Gmail → resume matching):
+  - `llm/` gateway (ADR-005): Groq → OpenRouter → Gemini, failover, 503 when keyless; `llmProviders` in /health.
+  - `resumes/`: PDF upload (bytea + pdf-parse text extraction), active-resume management, `/app/resume` UI.
+  - Vacancy detail page `/app/vacancies/[id]` (full description in-app; card titles now link internally).
+  - Apply-contact extractor in the upsert choke point + `backfill:contacts` (`--prod` over Neon HTTPS): 67/275 local, 68/276 prod.
+  - `outreach/`: cached RU brief (`summary_ru`), resume-calibrated cover letter, Gmail OAuth (signed state, AES-GCM refresh token), draft → edit → **explicit confirm** → send with the resume PDF attached; `outreach_emails` recorded, kanban moves saved → applied.
+  - Resume ↔ vacancy LLM matching: 10/run cap on the ingestion match job + `POST /matches/resume-score`; CV % badge + RU explanation on Matches.
+- **Migration 0002 applied to local and prod Neon**; both prod builds verified locally; 203 api + 55 web tests, lint/typecheck green.
+- **Developer TODO for prod:** set `GROQ_API_KEY` (or another free-tier LLM key) and `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_OAUTH_REDIRECT` (`https://jobradar-api-ptvp.onrender.com/gmail/oauth/callback`) on Render, plus the still-pending Sentry DSNs. Everything degrades gracefully until then.
+- **Next step:** live-run the LLM/Gmail paths once keys exist; then the remaining phase 4 items by appetite.
+
 ## 2026-07-20 — v1.0.0 released
 
 - **README rewritten for the release:** shipped-scope summary, real stack table (Drizzle, Telegram MTProto, no more "planned"), live links, and a Screenshots section.

@@ -103,10 +103,10 @@ apps/api/src/
 ├── digest/         # daily email assembly, Resend delivery, unsubscribe
 ├── health/         # health-check endpoint (also used as keep-alive ping)
 │
-│   # phase 4 (ADR-011, planned):
-├── llm/            # ADR-005 gateway: ordered free providers, failover, caching
+│   # phase 4 (ADR-011):
+├── llm/            # ADR-005 gateway: ordered free providers, failover
 ├── resumes/        # PDF upload, text extraction, active-resume management
-└── outreach/       # cover letters, vacancy briefs, Gmail OAuth + email apply
+└── outreach/       # vacancy briefs, cover letters, Gmail OAuth + email apply
 ```
 
 ## Data flow: ingestion
