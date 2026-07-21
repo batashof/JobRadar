@@ -187,6 +187,9 @@ export const applications = pgTable(
       .notNull()
       .references(() => vacancies.id),
     stage: applicationStageEnum('stage').notNull().default('saved'),
+    // Furthest non-terminal stage ever reached — survives rejected/withdrawn
+    // moves so the funnel keeps counting them (never terminal by invariant).
+    furthestStage: applicationStageEnum('furthest_stage').notNull().default('saved'),
     stageOrder: integer('stage_order').notNull().default(0),
     notes: text('notes').notNull().default(''),
     appliedAt: timestamp('applied_at', { withTimezone: true }),

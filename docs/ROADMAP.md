@@ -66,7 +66,7 @@
 - [ ] Telegram bot as second digest channel.
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
 - [ ] More sources: HN Who's Hiring, Djinni. *(Telegram channels promoted to a v1.0 primary source — ADR-009.)*
-- [ ] Funnel statistics: applied → screening → interview → offer conversion.
+- [x] Funnel statistics: applied → screening → interview → offer conversion. *(`furthest_stage` column tracks the deepest non-terminal stage each application ever reached, so rejected/withdrawn cards still count through their peak; `GET /applications/stats` + dashboard Funnel card with per-step conversion — E2E verified)*
 - [ ] Google Calendar sync for interviews (OAuth).
 
 ## Phase 5 — Hypothetical monetization (only if real external users appear)

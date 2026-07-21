@@ -67,3 +67,49 @@ export interface ApplicationItem {
   createdAt: string;
   vacancy: ApplicationVacancy;
 }
+
+/** Funnel steps in order (phase 4 stats): applied → screening → tech → offer. */
+export const FUNNEL_STAGES = ['applied', 'screening', 'tech_interview', 'offer'] as const;
+export type FunnelStage = (typeof FUNNEL_STAGES)[number];
+
+export interface FunnelStep {
+  stage: FunnelStage;
+  /** Applications whose furthest reached stage is this one or later. */
+  reached: number;
+  /** reached / previous step's reached; null for the first step and on 0/0. */
+  conversion: number | null;
+}
+
+/** GET /applications/stats */
+export interface ApplicationStats {
+  total: number;
+  /** Current column sizes on the board. */
+  byStage: Partial<Record<ApplicationStage, number>>;
+  funnel: FunnelStep[];
+}
+
+/**
+ * Builds the funnel from "furthest stage reached" counts. `furthestCounts`
+ * holds non-terminal stages only (the tracker never stores a terminal stage as
+ * furthest), so a card rejected after screening still counts through screening.
+ */
+export function computeFunnel(
+  furthestCounts: Partial<Record<ApplicationStage, number>>,
+): FunnelStep[] {
+  const order: ApplicationStage[] = ['saved', ...FUNNEL_STAGES];
+  const rank = (stage: ApplicationStage): number => order.indexOf(stage);
+
+  const steps: FunnelStep[] = [];
+  let previous: number | null = null;
+  for (const stage of FUNNEL_STAGES) {
+    const reached = Object.entries(furthestCounts).reduce(
+      (sum, [s, count]) =>
+        rank(s as ApplicationStage) >= rank(stage) ? sum + (count ?? 0) : sum,
+      0,
+    );
+    const conversion = previous == null || previous === 0 ? null : reached / previous;
+    steps.push({ stage, reached, conversion });
+    previous = reached;
+  }
+  return steps;
+}

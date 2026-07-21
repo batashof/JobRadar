@@ -7,7 +7,7 @@ import type {
   BriefResponse,
   CoverLetterResponse,
 } from '@jobradar/shared';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { applications, outreachEmails, users, vacancies } from '../db/schema';
@@ -163,15 +163,27 @@ export class OutreachService {
       .where(and(eq(applications.userId, userId), eq(applications.vacancyId, vacancyId)));
 
     if (!existing) {
-      await this.db
-        .insert(applications)
-        .values({ userId, vacancyId, stage: 'applied', appliedAt: now, lastActivityAt: now });
+      await this.db.insert(applications).values({
+        userId,
+        vacancyId,
+        stage: 'applied',
+        furthestStage: 'applied',
+        appliedAt: now,
+        lastActivityAt: now,
+      });
       return;
     }
     if (existing.stage === 'saved') {
       await this.db
         .update(applications)
-        .set({ stage: 'applied', appliedAt: now, lastActivityAt: now, updatedAt: now })
+        .set({
+          stage: 'applied',
+          // 'applied' is the funnel floor; anything further was already recorded.
+          furthestStage: sql`greatest(${applications.furthestStage}, 'applied'::application_stage)`,
+          appliedAt: now,
+          lastActivityAt: now,
+          updatedAt: now,
+        })
         .where(eq(applications.id, existing.id));
       return;
     }

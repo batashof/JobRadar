@@ -41,6 +41,12 @@ export class ApplicationsController {
     return this.applications.listReminders(user.id);
   }
 
+  /** Board totals + applied → offer funnel conversion. */
+  @Get('stats')
+  stats(@CurrentUser() user: AuthUser) {
+    return this.applications.stats(user.id);
+  }
+
   @Post()
   @HttpCode(201)
   create(

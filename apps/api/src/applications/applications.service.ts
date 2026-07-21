@@ -4,7 +4,9 @@ import {
   type ApplicationItem,
   type ApplicationReorderInput,
   type ApplicationStage,
+  type ApplicationStats,
   type ApplicationUpdateInput,
+  computeFunnel,
   REMINDER_DEFAULT_DAYS,
   REMINDER_STAGES,
 } from '@jobradar/shared';
@@ -15,6 +17,17 @@ import { applications, sources, vacancies } from '../db/schema';
 
 // Stages that imply the application was actually sent (used to stamp applied_at).
 const APPLIED_STAGES = ['applied', 'screening', 'tech_interview', 'offer'];
+const TERMINAL_STAGES = ['rejected', 'withdrawn'];
+
+/**
+ * Advances furthest_stage when moving to a non-terminal stage further along the
+ * funnel. Relies on the enum's definition order (saved < … < offer) and on the
+ * invariant that furthest_stage itself is never terminal.
+ */
+function advanceFurthestSql(stage: ApplicationStage): SQL {
+  const next = sql`cast(${stage} as application_stage)`;
+  return sql`case when ${next} <= 'offer'::application_stage and ${next} > ${applications.furthestStage} then ${next} else ${applications.furthestStage} end`;
+}
 
 function isUniqueViolation(err: unknown): boolean {
   for (let e: unknown = err; e instanceof Error; e = e.cause) {
@@ -92,6 +105,33 @@ export class ApplicationsService {
     );
   }
 
+  /** Board totals + funnel conversion built from furthest-reached stages. */
+  async stats(userId: string): Promise<ApplicationStats> {
+    const [byStageRows, byFurthestRows] = await Promise.all([
+      this.db
+        .select({ stage: applications.stage, count: sql<number>`count(*)::int` })
+        .from(applications)
+        .where(eq(applications.userId, userId))
+        .groupBy(applications.stage),
+      this.db
+        .select({ stage: applications.furthestStage, count: sql<number>`count(*)::int` })
+        .from(applications)
+        .where(eq(applications.userId, userId))
+        .groupBy(applications.furthestStage),
+    ]);
+
+    const byStage: ApplicationStats['byStage'] = {};
+    let total = 0;
+    for (const row of byStageRows) {
+      byStage[row.stage] = row.count;
+      total += row.count;
+    }
+    const furthestCounts: Partial<Record<ApplicationStage, number>> = {};
+    for (const row of byFurthestRows) furthestCounts[row.stage] = row.count;
+
+    return { total, byStage, funnel: computeFunnel(furthestCounts) };
+  }
+
   async create(userId: string, input: ApplicationCreateInput): Promise<ApplicationItem> {
     const stage: ApplicationStage = input.stage ?? 'saved';
     // Append to the end of its column.
@@ -111,6 +151,7 @@ export class ApplicationsService {
           userId,
           vacancyId: input.vacancyId,
           stage,
+          furthestStage: TERMINAL_STAGES.includes(stage) ? 'saved' : stage,
           stageOrder: nextOrder ?? 0,
           appliedAt: APPLIED_STAGES.includes(stage) ? new Date() : null,
         })
@@ -141,6 +182,7 @@ export class ApplicationsService {
     if (input.remindAfterDays !== undefined) set.remindAfterDays = input.remindAfterDays;
     if (input.stage !== undefined) {
       set.stage = input.stage;
+      set.furthestStage = advanceFurthestSql(input.stage);
       set.lastActivityAt = new Date();
       if (APPLIED_STAGES.includes(input.stage)) {
         set.appliedAt = sql`coalesce(${applications.appliedAt}, now())`;
@@ -179,6 +221,7 @@ export class ApplicationsService {
             .update(applications)
             .set({
               stage: column.stage,
+              furthestStage: advanceFurthestSql(column.stage),
               stageOrder: i,
               lastActivityAt: new Date(),
               updatedAt: new Date(),
