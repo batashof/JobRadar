@@ -29,6 +29,18 @@ export interface MatchListItem {
   profileName: string;
   score: number;
   matchedAt: string;
+  /** LLM resume ↔ vacancy fit in [0, 1]; null until scored (ADR-011). */
+  resumeScore: number | null;
+  /** Short fit explanation in Russian; null until scored. */
+  resumeExplanation: string | null;
+}
+
+/** POST /matches/resume-score — result of a budget-capped LLM scoring run. */
+export interface ResumeMatchRunResult {
+  /** Vacancies scored in this run. */
+  scored: number;
+  /** Candidates still waiting for a future run (token budget, ADR-005). */
+  remaining: number;
 }
 
 export interface MatchFeed {

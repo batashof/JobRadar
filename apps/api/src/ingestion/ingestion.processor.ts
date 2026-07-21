@@ -2,12 +2,14 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import type { Job } from 'bullmq';
+import type { ResumeMatchRunResult } from '@jobradar/shared';
 import { eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { sources } from '../db/schema';
 import { DedupService, type DedupResult } from '../dedup/dedup.service';
 import { MatchingService, type MatchRunResult } from '../matching/matching.service';
+import { ResumeMatchingService } from '../matching/resume-matching.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { TelegramIngestService } from './telegram/telegram.service';
@@ -17,7 +19,12 @@ import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 /** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
 const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
-type JobOutcome = IngestResult | DedupResult | MatchRunResult | { skipped: string };
+type JobOutcome =
+  | IngestResult
+  | DedupResult
+  | MatchRunResult
+  | (MatchRunResult & { resumeMatching: ResumeMatchRunResult })
+  | { skipped: string };
 
 @Processor(INGESTION_QUEUE)
 export class IngestionProcessor extends WorkerHost {
@@ -31,6 +38,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly wwr: WwrIngestService,
     private readonly dedup: DedupService,
     private readonly matching: MatchingService,
+    private readonly resumeMatching: ResumeMatchingService,
   ) {
     super();
   }
@@ -40,7 +48,16 @@ export class IngestionProcessor extends WorkerHost {
       return this.dedup.run();
     }
     if (job.data.kind === 'match') {
-      return this.matching.rematchAll();
+      const result = await this.matching.rematchAll();
+      // LLM pass rides the same job: budget-capped, cached, and a no-op
+      // without an LLM key — never fails the rules-based matching (ADR-011).
+      try {
+        const resumeRun = await this.resumeMatching.scorePending();
+        return { ...result, resumeMatching: resumeRun };
+      } catch (err) {
+        this.logger.warn(`resume matching failed (non-fatal): ${String(err)}`);
+        return result;
+      }
     }
 
     const source = await this.db.query.sources.findFirst({

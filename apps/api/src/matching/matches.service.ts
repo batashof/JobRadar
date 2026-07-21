@@ -3,7 +3,14 @@ import type { MatchFeed, MatchProfileOption, MatchQuery } from '@jobradar/shared
 import { and, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { profileMatches, searchProfiles, sources, vacancies } from '../db/schema';
+import {
+  profileMatches,
+  resumeMatches,
+  resumes,
+  searchProfiles,
+  sources,
+  vacancies,
+} from '../db/schema';
 
 /** Read side of profile matching: serves materialized matches per user. */
 @Injectable()
@@ -30,12 +37,21 @@ export class MatchesService {
     if (profileId) conditions.push(eq(profileMatches.profileId, profileId));
     const where = and(...conditions);
 
+    // LLM resume scores ride along when the user has an active resume (ADR-011).
+    const [activeResume] = await this.db
+      .select({ id: resumes.id })
+      .from(resumes)
+      .where(and(eq(resumes.userId, userId), eq(resumes.isActive, true)))
+      .limit(1);
+
     const rows = await this.db
       .select({
         profileId: profileMatches.profileId,
         profileName: searchProfiles.name,
         score: profileMatches.score,
         matchedAt: profileMatches.matchedAt,
+        resumeScore: resumeMatches.score,
+        resumeExplanation: resumeMatches.explanation,
         id: vacancies.id,
         url: vacancies.url,
         title: vacancies.title,
@@ -54,6 +70,13 @@ export class MatchesService {
       .innerJoin(searchProfiles, eq(searchProfiles.id, profileMatches.profileId))
       .innerJoin(vacancies, eq(vacancies.id, profileMatches.vacancyId))
       .innerJoin(sources, eq(sources.id, vacancies.sourceId))
+      .leftJoin(
+        resumeMatches,
+        and(
+          eq(resumeMatches.vacancyId, vacancies.id),
+          eq(resumeMatches.resumeId, activeResume?.id ?? '00000000-0000-0000-0000-000000000000'),
+        ),
+      )
       .where(where)
       .orderBy(
         desc(profileMatches.score),
@@ -77,6 +100,8 @@ export class MatchesService {
         profileName: r.profileName,
         score: r.score,
         matchedAt: r.matchedAt.toISOString(),
+        resumeScore: r.resumeScore ?? null,
+        resumeExplanation: r.resumeExplanation || null,
         vacancy: {
           id: r.id,
           url: r.url,

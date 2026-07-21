@@ -30,6 +30,7 @@ describe('IngestionProcessor error handling', () => {
       { ingest: jest.fn() } as never, // wwr
       { run: jest.fn() } as never, // dedup
       { rematchAll: jest.fn() } as never, // matching
+      { scorePending: jest.fn().mockResolvedValue({ scored: 0, remaining: 0 }) } as never, // resume matching
     );
     return { processor, set };
   };

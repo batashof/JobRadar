@@ -155,7 +155,7 @@ export function MatchesBrowser({
           ) : (
             <ul className="space-y-4">
               {feed.items.map((m) => (
-                <li key={`${m.profileId}:${m.vacancy.id}`}>
+                <li key={`${m.profileId}:${m.vacancy.id}`} className="space-y-1">
                   <VacancyCard
                     v={m.vacancy}
                     tracked={tracked.has(m.vacancy.id)}
@@ -164,10 +164,18 @@ export function MatchesBrowser({
                     leadingBadge={
                       <>
                         <Badge variant="primary">{scoreText(m.score)}</Badge>
+                        {m.resumeScore != null ? (
+                          <Badge variant="default">CV {Math.round(m.resumeScore * 100)}%</Badge>
+                        ) : null}
                         {showProfileName ? <Badge variant="outline">{m.profileName}</Badge> : null}
                       </>
                     }
                   />
+                  {m.resumeExplanation ? (
+                    <p className="px-1 text-xs text-[var(--color-muted-foreground)]">
+                      {m.resumeExplanation}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>

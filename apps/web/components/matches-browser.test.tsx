@@ -43,6 +43,8 @@ function match(overrides: Partial<MatchListItem> = {}): MatchListItem {
     profileName: 'Senior React remote',
     score: 0.87,
     matchedAt: '2026-07-20T00:00:00.000Z',
+    resumeScore: null,
+    resumeExplanation: null,
     ...overrides,
   };
 }
