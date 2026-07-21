@@ -3,6 +3,7 @@ import type {
   InterviewAnswerReview,
   InterviewPlanDetail,
   InterviewQuestionItem,
+  InterviewSessionDetail,
 } from '@jobradar/shared';
 
 import { InterviewController } from './interview.controller';
@@ -76,5 +77,36 @@ describe('InterviewController', () => {
       review,
     );
     expect(reviewAnswer).toHaveBeenCalledWith(user.id, 'q1', 'my solution');
+  });
+
+  it('delegates mock-interview start, active lookup, reply and finish', async () => {
+    const detail = { id: 's1', status: 'in_progress' } as InterviewSessionDetail;
+    const startSession = jest.fn().mockResolvedValue(detail);
+    const getActiveSession = jest.fn().mockResolvedValue(detail);
+    const getSession = jest.fn().mockResolvedValue(detail);
+    const reply = jest.fn().mockResolvedValue(detail);
+    const finishSession = jest.fn().mockResolvedValue(detail);
+    const controller = new InterviewController({
+      startSession,
+      getActiveSession,
+      getSession,
+      reply,
+      finishSession,
+    } as unknown as InterviewService);
+
+    await controller.startSession(user, { targetRole: 'Senior Frontend' });
+    expect(startSession).toHaveBeenCalledWith(user.id, { targetRole: 'Senior Frontend' });
+
+    await controller.getActiveSession(user);
+    expect(getActiveSession).toHaveBeenCalledWith(user.id);
+
+    await controller.getSession(user, 's1');
+    expect(getSession).toHaveBeenCalledWith(user.id, 's1');
+
+    await controller.reply(user, 's1', { answer: 'my answer' });
+    expect(reply).toHaveBeenCalledWith(user.id, 's1', 'my answer');
+
+    await controller.finishSession(user, 's1');
+    expect(finishSession).toHaveBeenCalledWith(user.id, 's1');
   });
 });

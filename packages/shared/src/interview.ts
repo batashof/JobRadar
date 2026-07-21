@@ -137,3 +137,54 @@ export interface InterviewModelAnswerResponse {
   modelAnswer: string;
   cached: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Mock interview (text chat) — interview_sessions
+// ---------------------------------------------------------------------------
+
+export const INTERVIEW_SESSION_STATUSES = ['in_progress', 'completed', 'abandoned'] as const;
+export type InterviewSessionStatus = (typeof INTERVIEW_SESSION_STATUSES)[number];
+
+export type InterviewTurnRole = 'interviewer' | 'candidate';
+
+export interface InterviewTurn {
+  role: InterviewTurnRole;
+  content: string;
+  at: string;
+}
+
+/** Final written feedback produced when the session ends. */
+export interface InterviewFeedback {
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  /** One line on readiness, e.g. what to work on before the real interview. */
+  recommendation: string;
+  /** Overall performance, 0..1. */
+  score: number;
+}
+
+export interface InterviewSessionDetail {
+  id: string;
+  targetRole: string | null;
+  targetSeniority: InterviewSeniority | null;
+  status: InterviewSessionStatus;
+  transcript: InterviewTurn[];
+  feedback: InterviewFeedback | null;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+/** POST /interview/sessions — start a mock interview (interviewer opens). */
+export const startSessionSchema = z.object({
+  targetRole: z.string().trim().max(120).optional(),
+  targetSeniority: z.enum(INTERVIEW_SENIORITIES).optional(),
+  planId: z.string().uuid().optional(),
+});
+export type StartSessionInput = z.infer<typeof startSessionSchema>;
+
+/** POST /interview/sessions/:id/reply — the candidate's answer. */
+export const sessionReplySchema = z.object({
+  answer: z.string().trim().min(1).max(8000),
+});
+export type SessionReplyInput = z.infer<typeof sessionReplySchema>;

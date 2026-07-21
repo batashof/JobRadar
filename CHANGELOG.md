@@ -5,8 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Interview-prep module remainder: text-chat mock interview (`interview_sessions`) with a feedback report (ADR-013).
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
+
+## [1.4.0] — 2026-07-21
+
+**Mock interview (ADR-013, interview-prep increment 2).** A text-chat rehearsal with an AI interviewer at `/app/interview/mock`, completing the interview-prep module.
+
+### Added
+
+- **Mock interview.** `POST /interview/sessions` starts a session — the LLM interviewer opens with a question grounded in the active resume and optional target role/seniority. `POST /interview/sessions/:id/reply` records the candidate's answer and returns the interviewer's reactive follow-up; the full turn-by-turn `transcript` is persisted in `interview_sessions`. `POST /interview/sessions/:id/finish` ends the interview and generates a written feedback report (summary, strengths, gaps, recommendation, 0–100 score). `GET /interview/sessions/active` resumes an in-progress session.
+- **Chat UI.** `/app/interview/mock`: start form, interviewer/candidate chat bubbles, an answer box, "Finish & get feedback", and a feedback card with a score gauge. Linked from the prep-plan workspace.
+- **Schema.** Migration `0006`: `interview_sessions` table + `interview_session_status` enum — completing the ADR-013 data model.
 
 ## [1.3.0] — 2026-07-21
 

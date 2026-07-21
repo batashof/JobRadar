@@ -19,9 +19,14 @@ import {
   type InterviewModelAnswerResponse,
   type InterviewPlanDetail,
   type InterviewQuestionItem,
+  type InterviewSessionDetail,
   type InterviewTopicProgressItem,
   type ReviewAnswerInput,
   reviewAnswerSchema,
+  type SessionReplyInput,
+  sessionReplySchema,
+  type StartSessionInput,
+  startSessionSchema,
   type UpdateTopicProgressInput,
   updateTopicProgressSchema,
 } from '@jobradar/shared';
@@ -91,5 +96,45 @@ export class InterviewController {
     @Body(new ZodValidationPipe(reviewAnswerSchema)) body: ReviewAnswerInput,
   ): Promise<InterviewAnswerReview> {
     return this.interview.reviewAnswer(user.id, id, body.answer);
+  }
+
+  // Mock interview (text chat) --------------------------------------------
+
+  @Get('sessions/active')
+  getActiveSession(@CurrentUser() user: AuthUser): Promise<InterviewSessionDetail | null> {
+    return this.interview.getActiveSession(user.id);
+  }
+
+  @Get('sessions/:id')
+  getSession(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<InterviewSessionDetail> {
+    return this.interview.getSession(user.id, id);
+  }
+
+  @Post('sessions')
+  startSession(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(startSessionSchema)) body: StartSessionInput,
+  ): Promise<InterviewSessionDetail> {
+    return this.interview.startSession(user.id, body);
+  }
+
+  @Post('sessions/:id/reply')
+  reply(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(sessionReplySchema)) body: SessionReplyInput,
+  ): Promise<InterviewSessionDetail> {
+    return this.interview.reply(user.id, id, body.answer);
+  }
+
+  @Post('sessions/:id/finish')
+  finishSession(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<InterviewSessionDetail> {
+    return this.interview.finishSession(user.id, id);
   }
 }

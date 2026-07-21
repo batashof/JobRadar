@@ -2,6 +2,18 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Mock interview (v1.4.0, ADR-013 increment 2)
+
+- **Shipped the mock interview**, completing the interview-prep module (ADR-013). Text-chat rehearsal with an LLM interviewer at `/app/interview/mock`.
+- **Backend:** `interview_sessions` endpoints on the existing controller — `POST /interview/sessions` (interviewer opens, grounded in the active resume + optional target role/seniority, derivable from a plan), `POST .../:id/reply` (records the candidate turn, returns the interviewer's reactive follow-up; full `transcript` persisted), `POST .../:id/finish` (LLM feedback report: summary/strengths/gaps/recommendation + 0–100 score; status → completed), `GET .../active` (resume an in-progress session). Turn-based via serialised transcript in the prompt (LlmService stays system+user). New prompts in `prompts.ts`: `buildInterviewerPrompt`, `cleanInterviewerReply`, `buildFeedbackPrompt`, `parseFeedbackReply`.
+- **Schema:** migration `0006` — `interview_sessions` (jsonb `transcript`/`feedback`, `plan_id` set-null) + `interview_session_status` enum.
+- **Web:** `interview-mock.tsx` (start form, interviewer/candidate chat bubbles, answer box, finish → feedback card with `ScoreGauge`), `/app/interview/mock` page, `Mock interview →` link from the prep workspace, session client fns in `lib/interview.ts`.
+- **Tests:** api 245 (+7: interviewer/feedback prompt parsers, session controller delegation), web 74 (+3: interview-mock start/reply/finish). Lint/typecheck clean both apps.
+- **Live-verified locally (Groq/Gemini):** as the demo user with a resume — interviewer opened with a resume-grounded question ("your Webpack→Vite migration"), reacted to the answer and asked a relevant follow-up (design systems / micro-frontends), finish produced an 85% report grounded in what was said. No console errors.
+- **Version 1.4.0:** CHANGELOG + all four `package.json` + CLAUDE.md line. Docs synced (ROADMAP mock-interview ticked + module marked complete, DATA_MODEL status).
+- **Prod TODO (developer):** apply migrations `0005` + `0006` on Neon (`db:migrate:prod`).
+- **Next step:** interview-prep module is feature-complete; remaining phase-4 items (Telegram bot, browser extension, more sources, calendar sync) by appetite.
+
 ## 2026-07-21 — Interview-prep module, first increment (v1.3.0, ADR-013)
 
 - **Shipped the interview-prep module (ADR-013), increment 1:** standalone, resume-driven, at `/app/interview` — reuses the LLM gateway (ADR-005) + resumes, no new service/infra.

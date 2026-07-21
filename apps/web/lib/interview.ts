@@ -5,7 +5,9 @@ import type {
   InterviewModelAnswerResponse,
   InterviewPlanDetail,
   InterviewQuestionItem,
+  InterviewSessionDetail,
   InterviewTopicProgressItem,
+  StartSessionInput,
   UpdateTopicProgressInput,
 } from '@jobradar/shared';
 
@@ -60,5 +62,30 @@ export function reviewAnswer(questionId: string, answer: string): Promise<Interv
   return apiFetch<InterviewAnswerReview>(`/interview/questions/${questionId}/review`, {
     method: 'POST',
     body: JSON.stringify({ answer }),
+  });
+}
+
+// Mock interview (text chat) --------------------------------------------------
+
+export function startSession(input: StartSessionInput): Promise<InterviewSessionDetail> {
+  return apiFetch<InterviewSessionDetail>('/interview/sessions', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function replyToSession(
+  sessionId: string,
+  answer: string,
+): Promise<InterviewSessionDetail> {
+  return apiFetch<InterviewSessionDetail>(`/interview/sessions/${sessionId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ answer }),
+  });
+}
+
+export function finishSession(sessionId: string): Promise<InterviewSessionDetail> {
+  return apiFetch<InterviewSessionDetail>(`/interview/sessions/${sessionId}/finish`, {
+    method: 'POST',
   });
 }

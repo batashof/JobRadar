@@ -1,7 +1,13 @@
+import type { InterviewTurn } from '@jobradar/shared';
+
 import {
+  buildFeedbackPrompt,
+  buildInterviewerPrompt,
   buildPlanPrompt,
   buildQuestionsPrompt,
   buildReviewPrompt,
+  cleanInterviewerReply,
+  parseFeedbackReply,
   parsePlanReply,
   parseQuestionsReply,
   parseReviewReply,
@@ -154,5 +160,69 @@ describe('buildReviewPrompt / parseReviewReply', () => {
     expect(over!.score).toBe(1);
     expect(parseReviewReply('nonsense')).toBeNull();
     expect(parseReviewReply('{"score": "abc"}')).toBeNull();
+  });
+});
+
+describe('buildInterviewerPrompt', () => {
+  it('opens the interview when the transcript is empty', () => {
+    const { system, user } = buildInterviewerPrompt(
+      { targetRole: 'Senior Frontend', targetSeniority: 'senior' },
+      'React dev',
+      [],
+    );
+    expect(system).toContain('Senior Frontend');
+    expect(system).toContain('senior');
+    expect(user).toContain('ask your first question');
+    expect(user).toContain('React dev');
+  });
+
+  it('renders the transcript and asks for the next message', () => {
+    const transcript: InterviewTurn[] = [
+      { role: 'interviewer', content: 'What is a closure?', at: '2026-07-21T00:00:00.000Z' },
+      { role: 'candidate', content: 'A function with captured scope.', at: '2026-07-21T00:01:00.000Z' },
+    ];
+    const { user } = buildInterviewerPrompt({}, 'resume', transcript);
+    expect(user).toContain('Interviewer: What is a closure?');
+    expect(user).toContain('Candidate: A function with captured scope.');
+    expect(user).toContain('next interviewer message');
+  });
+});
+
+describe('cleanInterviewerReply', () => {
+  it('strips a stray leading role label', () => {
+    expect(cleanInterviewerReply('Interviewer: Tell me about React.')).toBe('Tell me about React.');
+    expect(cleanInterviewerReply('  Tell me about React.  ')).toBe('Tell me about React.');
+  });
+});
+
+describe('buildFeedbackPrompt / parseFeedbackReply', () => {
+  it('asks for JSON feedback over the transcript', () => {
+    const { system, user } = buildFeedbackPrompt({ targetRole: 'Senior Frontend' }, [
+      { role: 'interviewer', content: 'Q', at: 'x' },
+      { role: 'candidate', content: 'A', at: 'y' },
+    ]);
+    expect(system).toContain('feedback');
+    expect(system).toContain('score');
+    expect(user).toContain('Candidate: A');
+  });
+
+  it('parses feedback and normalises the score', () => {
+    const reply = JSON.stringify({
+      score: 70,
+      summary: 'Solid fundamentals',
+      strengths: ['React depth', ''],
+      gaps: ['System design'],
+      recommendation: 'Practise architecture',
+    });
+    const parsed = parseFeedbackReply(reply);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.score).toBeCloseTo(0.7);
+    expect(parsed!.strengths).toEqual(['React depth']);
+    expect(parsed!.recommendation).toBe('Practise architecture');
+  });
+
+  it('returns null on garbage', () => {
+    expect(parseFeedbackReply('no json')).toBeNull();
+    expect(parseFeedbackReply('{"score": 50}')).toBeNull(); // no summary/recommendation
   });
 });

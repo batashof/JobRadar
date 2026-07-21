@@ -16,7 +16,12 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { InterviewPlanStructure, InterviewReview } from '@jobradar/shared';
+import type {
+  InterviewFeedback,
+  InterviewPlanStructure,
+  InterviewReview,
+  InterviewTurn,
+} from '@jobradar/shared';
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -55,6 +60,12 @@ export const interviewQuestionKindEnum = pgEnum('interview_question_kind', [
   'theory',
   'behavioral',
   'coding',
+]);
+
+export const interviewSessionStatusEnum = pgEnum('interview_session_status', [
+  'in_progress',
+  'completed',
+  'abandoned',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -376,4 +387,28 @@ export const interviewAnswers = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('interview_answers_question_id_idx').on(t.questionId)],
+);
+
+// A text-chat mock interview and its final feedback report (ADR-013). The
+// interviewer is the LLM; `transcript` holds the turn-by-turn conversation.
+export const interviewSessions = pgTable(
+  'interview_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    planId: uuid('plan_id').references(() => interviewPlans.id, { onDelete: 'set null' }),
+    targetRole: text('target_role'),
+    targetSeniority: text('target_seniority'),
+    status: interviewSessionStatusEnum('status').notNull().default('in_progress'),
+    transcript: jsonb('transcript')
+      .notNull()
+      .$type<InterviewTurn[]>()
+      .default(sql`'[]'::jsonb`),
+    feedback: jsonb('feedback').$type<InterviewFeedback>(),
+    startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+  },
+  (t) => [index('interview_sessions_user_id_idx').on(t.userId)],
 );

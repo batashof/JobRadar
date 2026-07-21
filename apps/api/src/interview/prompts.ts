@@ -4,14 +4,17 @@
  * truncated here (token discipline, ADR-005).
  */
 import type {
+  InterviewFeedback,
   InterviewPlanStructure,
   InterviewPlanTopic,
   InterviewQuestionKind,
   InterviewReview,
+  InterviewTurn,
 } from '@jobradar/shared';
 
 export const RESUME_TEXT_LIMIT = 5000;
 export const ANSWER_TEXT_LIMIT = 12000;
+export const TURN_TEXT_LIMIT = 1500;
 
 export function truncate(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit)}…`;
@@ -247,6 +250,110 @@ export function parseReviewReply(text: string): { score: number; review: Intervi
     };
     if (!review.verdict && !review.correctness) return null;
     return { score, review };
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mock interview (text chat)
+// ---------------------------------------------------------------------------
+
+export interface SessionTarget {
+  targetRole?: string | null;
+  targetSeniority?: string | null;
+}
+
+/** Serialises the transcript so far into a plain-text conversation log. */
+function renderTranscript(transcript: InterviewTurn[]): string {
+  if (transcript.length === 0) return 'The interview is just starting.';
+  return transcript
+    .map((t) => `${t.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${truncate(t.content, TURN_TEXT_LIMIT)}`)
+    .join('\n\n');
+}
+
+/** Interviewer's next message given the transcript so far. */
+export function buildInterviewerPrompt(
+  target: SessionTarget,
+  resumeText: string,
+  transcript: InterviewTurn[],
+): { system: string; user: string } {
+  const role = target.targetRole || 'the role the resume fits';
+  const system = [
+    `You are a technical interviewer running a realistic mock interview for ${role}${
+      target.targetSeniority ? ` (${target.targetSeniority} level)` : ''
+    }.`,
+    'Rules:',
+    '- Ask ONE question at a time. First briefly acknowledge or probe the previous answer, then ask the next question.',
+    '- Base questions on the resume and the role; go progressively deeper. Mix theory, experience, and problem-solving.',
+    '- Stay in character: no scores, no feedback, no meta commentary — that comes only at the very end.',
+    '- Write in the language of the resume. Output ONLY your next message, with no "Interviewer:" prefix.',
+    '- Keep each message short (1–4 sentences).',
+  ].join('\n');
+
+  const user = [
+    `Candidate resume:\n${truncate(resumeText, RESUME_TEXT_LIMIT)}`,
+    `\nConversation so far:\n${renderTranscript(transcript)}`,
+    transcript.length === 0
+      ? '\nGreet the candidate in one line and ask your first question.'
+      : '\nGive your next interviewer message.',
+  ].join('\n');
+
+  return { system, user };
+}
+
+/** Strips a stray leading role label the model may add despite instructions. */
+export function cleanInterviewerReply(text: string): string {
+  return text.trim().replace(/^(Interviewer|Interviewer's message)\s*:\s*/i, '');
+}
+
+/** Final feedback report over the whole transcript. */
+export function buildFeedbackPrompt(
+  target: SessionTarget,
+  transcript: InterviewTurn[],
+): { system: string; user: string } {
+  const role = target.targetRole || 'the target role';
+  const system = [
+    `You are the interviewer, now writing honest post-interview feedback for a mock interview for ${role}.`,
+    'Reply with ONE JSON object and nothing else:',
+    '{"score":<integer 0-100>,"summary":"...","strengths":["..."],"gaps":["..."],"recommendation":"..."}',
+    '- score: overall performance for the target level.',
+    '- summary: 1–2 sentences. strengths/gaps: 1–4 concrete items each, grounded in what was actually said.',
+    '- recommendation: one line on what to work on before the real interview.',
+    '- Be specific and honest; never invent answers the candidate did not give. Write in the language of the transcript.',
+    '- JSON only, no prose or markdown.',
+  ].join('\n');
+
+  const user = [
+    `Interview transcript:\n${renderTranscript(transcript)}`,
+    '\nWrite the feedback now.',
+  ].join('\n');
+
+  return { system, user };
+}
+
+/** Parses the feedback reply; score is normalised to [0, 1]. Null on garbage. */
+export function parseFeedbackReply(text: string): InterviewFeedback | null {
+  const json = extractJsonObject(text);
+  if (!json) return null;
+  try {
+    const p = JSON.parse(json) as Record<string, unknown>;
+    const rawScore = typeof p.score === 'number' ? p.score : Number(p.score);
+    if (!Number.isFinite(rawScore)) return null;
+    const score = Math.min(100, Math.max(0, rawScore)) / 100;
+    const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+    const list = (v: unknown): string[] =>
+      Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean) : [];
+    const summary = str(p.summary);
+    const recommendation = str(p.recommendation);
+    if (!summary && !recommendation) return null;
+    return {
+      summary,
+      strengths: list(p.strengths),
+      gaps: list(p.gaps),
+      recommendation,
+      score,
+    };
   } catch {
     return null;
   }

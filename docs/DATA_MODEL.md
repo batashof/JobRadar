@@ -189,7 +189,7 @@ PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at mos
 
 ## Phase 4 additions (ADR-013 — interview prep)
 
-> `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers` shipped (migration `0005`, v1.3.0). `interview_sessions` (mock interview) is planned. Standalone, resume-driven; all content is LLM-generated on-demand and cached (ADR-005 discipline). No code execution, no voice (ADR-013).
+> Shipped: `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers` (migration `0005`, v1.3.0); `interview_sessions` (migration `0006`, v1.4.0 — mock interview). Standalone, resume-driven; all content is LLM-generated on-demand and cached (ADR-005 discipline). No code execution, no voice (ADR-013).
 
 ### interview_plans
 

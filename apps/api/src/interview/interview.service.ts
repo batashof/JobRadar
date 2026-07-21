@@ -3,13 +3,18 @@ import type {
   GeneratePlanInput,
   GenerateQuestionsInput,
   InterviewAnswerReview,
+  InterviewFeedback,
   InterviewModelAnswerResponse,
   InterviewPlanDetail,
   InterviewPlanStructure,
   InterviewQuestionItem,
   InterviewQuestionKind,
   InterviewSeniority,
+  InterviewSessionDetail,
+  InterviewSessionStatus,
   InterviewTopicProgressItem,
+  InterviewTurn,
+  StartSessionInput,
   UpdateTopicProgressInput,
 } from '@jobradar/shared';
 import { and, desc, eq } from 'drizzle-orm';
@@ -19,15 +24,20 @@ import {
   interviewAnswers,
   interviewPlans,
   interviewQuestions,
+  interviewSessions,
   interviewTopicProgress,
 } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
 import { ResumesService } from '../resumes/resumes.service';
 import {
+  buildFeedbackPrompt,
+  buildInterviewerPrompt,
   buildModelAnswerPrompt,
   buildPlanPrompt,
   buildQuestionsPrompt,
   buildReviewPrompt,
+  cleanInterviewerReply,
+  parseFeedbackReply,
   parsePlanReply,
   parseQuestionsReply,
   parseReviewReply,
@@ -51,6 +61,17 @@ interface QuestionRow {
   prompt: string;
   modelAnswer: string | null;
   createdAt: Date;
+}
+
+interface SessionRow {
+  id: string;
+  targetRole: string | null;
+  targetSeniority: string | null;
+  status: InterviewSessionStatus;
+  transcript: InterviewTurn[];
+  feedback: InterviewFeedback | null;
+  startedAt: Date;
+  endedAt: Date | null;
 }
 
 @Injectable()
@@ -274,8 +295,146 @@ export class InterviewService {
   }
 
   // -------------------------------------------------------------------------
+  // Mock interview (text chat)
+  // -------------------------------------------------------------------------
+
+  /** The user's latest in-progress mock interview, or null. */
+  async getActiveSession(userId: string): Promise<InterviewSessionDetail | null> {
+    const [row] = await this.db
+      .select(sessionColumns)
+      .from(interviewSessions)
+      .where(and(eq(interviewSessions.userId, userId), eq(interviewSessions.status, 'in_progress')))
+      .orderBy(desc(interviewSessions.startedAt))
+      .limit(1);
+    return row ? toSessionDetail(row) : null;
+  }
+
+  async getSession(userId: string, id: string): Promise<InterviewSessionDetail> {
+    return toSessionDetail(await this.loadOwnedSession(userId, id));
+  }
+
+  /** Starts a mock interview; the interviewer opens with the first message. */
+  async startSession(userId: string, input: StartSessionInput): Promise<InterviewSessionDetail> {
+    const resume = await this.resumes.getActive(userId);
+    if (!resume) {
+      throw new BadRequestException('Upload a resume first — the interview is based on it');
+    }
+    if (!resume.extractedText) {
+      throw new BadRequestException(
+        'No text could be extracted from the active resume — upload a text-based PDF',
+      );
+    }
+
+    let targetRole = input.targetRole ?? null;
+    let targetSeniority = input.targetSeniority ?? null;
+    if (input.planId) {
+      const plan = await this.loadOwnedPlan(userId, input.planId);
+      targetRole ??= plan.targetRole;
+      targetSeniority ??= plan.targetSeniority as InterviewSeniority | null;
+    }
+
+    const prompt = buildInterviewerPrompt({ targetRole, targetSeniority }, resume.extractedText, []);
+    const result = await this.llm.complete({ ...prompt, maxTokens: 400, temperature: 0.6 });
+    const opening: InterviewTurn = {
+      role: 'interviewer',
+      content: cleanInterviewerReply(result.text),
+      at: new Date().toISOString(),
+    };
+
+    const [row] = await this.db
+      .insert(interviewSessions)
+      .values({
+        userId,
+        planId: input.planId ?? null,
+        targetRole,
+        targetSeniority,
+        transcript: [opening],
+      })
+      .returning(sessionColumns);
+    if (!row) throw new Error('Interview session insert returned no row');
+    return toSessionDetail(row);
+  }
+
+  /** Records the candidate's answer and returns the interviewer's next message. */
+  async reply(userId: string, id: string, answer: string): Promise<InterviewSessionDetail> {
+    const session = await this.loadOwnedSession(userId, id);
+    if (session.status !== 'in_progress') {
+      throw new BadRequestException('This interview has already ended');
+    }
+    const resume = await this.resumes.getActive(userId);
+    if (!resume?.extractedText) {
+      throw new BadRequestException('The active resume is no longer available');
+    }
+
+    const now = new Date().toISOString();
+    const withCandidate: InterviewTurn[] = [
+      ...session.transcript,
+      { role: 'candidate', content: answer, at: now },
+    ];
+
+    const prompt = buildInterviewerPrompt(
+      { targetRole: session.targetRole, targetSeniority: session.targetSeniority },
+      resume.extractedText,
+      withCandidate,
+    );
+    const result = await this.llm.complete({ ...prompt, maxTokens: 400, temperature: 0.6 });
+    const transcript: InterviewTurn[] = [
+      ...withCandidate,
+      {
+        role: 'interviewer',
+        content: cleanInterviewerReply(result.text),
+        at: new Date().toISOString(),
+      },
+    ];
+
+    const [row] = await this.db
+      .update(interviewSessions)
+      .set({ transcript })
+      .where(eq(interviewSessions.id, id))
+      .returning(sessionColumns);
+    if (!row) throw new Error('Interview session update returned no row');
+    return toSessionDetail(row);
+  }
+
+  /** Ends the interview and produces the written feedback report. */
+  async finishSession(userId: string, id: string): Promise<InterviewSessionDetail> {
+    const session = await this.loadOwnedSession(userId, id);
+    if (session.status !== 'in_progress') return toSessionDetail(session);
+    if (!session.transcript.some((t) => t.role === 'candidate')) {
+      throw new BadRequestException('Answer at least one question before ending the interview');
+    }
+
+    const prompt = buildFeedbackPrompt(
+      { targetRole: session.targetRole, targetSeniority: session.targetSeniority },
+      session.transcript,
+    );
+    const result = await this.llm.complete({ ...prompt, maxTokens: 700, temperature: 0.3 });
+    const feedback = parseFeedbackReply(result.text);
+    if (!feedback) {
+      throw new BadRequestException('Could not generate feedback — please try again');
+    }
+
+    const [row] = await this.db
+      .update(interviewSessions)
+      .set({ status: 'completed', feedback, endedAt: new Date() })
+      .where(eq(interviewSessions.id, id))
+      .returning(sessionColumns);
+    if (!row) throw new Error('Interview session update returned no row');
+    return toSessionDetail(row);
+  }
+
+  // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
+
+  private async loadOwnedSession(userId: string, id: string): Promise<SessionRow> {
+    const [session] = await this.db
+      .select(sessionColumns)
+      .from(interviewSessions)
+      .where(and(eq(interviewSessions.id, id), eq(interviewSessions.userId, userId)));
+    if (!session) throw new NotFoundException('Interview session not found');
+    return session;
+  }
 
   private async loadProgress(planId: string): Promise<InterviewTopicProgressItem[]> {
     const rows = await this.db
@@ -328,6 +487,30 @@ const questionColumns = {
   modelAnswer: interviewQuestions.modelAnswer,
   createdAt: interviewQuestions.createdAt,
 };
+
+const sessionColumns = {
+  id: interviewSessions.id,
+  targetRole: interviewSessions.targetRole,
+  targetSeniority: interviewSessions.targetSeniority,
+  status: interviewSessions.status,
+  transcript: interviewSessions.transcript,
+  feedback: interviewSessions.feedback,
+  startedAt: interviewSessions.startedAt,
+  endedAt: interviewSessions.endedAt,
+};
+
+function toSessionDetail(row: SessionRow): InterviewSessionDetail {
+  return {
+    id: row.id,
+    targetRole: row.targetRole,
+    targetSeniority: row.targetSeniority as InterviewSeniority | null,
+    status: row.status,
+    transcript: row.transcript ?? [],
+    feedback: row.feedback,
+    startedAt: row.startedAt.toISOString(),
+    endedAt: row.endedAt ? row.endedAt.toISOString() : null,
+  };
+}
 
 function toPlanDetail(plan: PlanRow, progress: InterviewTopicProgressItem[]): InterviewPlanDetail {
   return {

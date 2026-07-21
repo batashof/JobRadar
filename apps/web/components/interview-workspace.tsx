@@ -13,6 +13,7 @@ import {
   type InterviewSeniority,
   type InterviewTopicStatus,
 } from '@jobradar/shared';
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -50,12 +51,20 @@ export function InterviewWorkspace({ initialPlan }: { initialPlan: InterviewPlan
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Interview prep</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          A resume-driven study plan, generated questions, and live-coding practice reviewed by
-          the assistant.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Interview prep</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            A resume-driven study plan, generated questions, and live-coding practice reviewed by
+            the assistant.
+          </p>
+        </div>
+        <Link
+          href="/app/interview/mock"
+          className="shrink-0 text-sm font-medium text-[var(--color-primary)] hover:underline"
+        >
+          Mock interview →
+        </Link>
       </header>
 
       {plan ? (
