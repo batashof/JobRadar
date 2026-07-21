@@ -68,14 +68,14 @@
 
 ### Interview prep (resume-driven, ADR-013)
 
-Standalone prep module inside JobRadar (no new service/infra): `interview/` on the API, `/app/interview` on the web, all generation on-demand + cached through the ADR-005 LLM gateway.
+Standalone prep module inside JobRadar (no new service/infra): `interview/` on the API, `/app/interview` on the web, all generation on-demand + cached through the ADR-005 LLM gateway. *(First increment shipped 2026-07-21, v1.3.0 — plan, progress, questions, live-coding review. Mock interview is next.)*
 
-- [ ] Schema: `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers`, `interview_sessions` ([DATA_MODEL.md](DATA_MODEL.md)) + migration.
-- [ ] Prep-plan generation from the active resume (+ optional target role / seniority / focus): LLM builds sections → topics; stored once, regenerate on explicit action.
-- [ ] Per-topic progress tracking (todo / in_progress / done + self-confidence); the plan doubles as a persistent checklist.
-- [ ] Question generation per topic (theory / behavioural / coding, chosen difficulty); model answers generated on-demand and cached.
-- [ ] Live-coding tasks: in-app editor, LLM reviews the submitted solution (correctness, complexity, edge cases, style) with a score — **no code execution** (ADR-001).
-- [ ] Mock interview: turn-based text chat, LLM interviewer calibrated to resume + target role; written feedback report on completion; transcript persisted.
+- [x] Schema: `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers` ([DATA_MODEL.md](DATA_MODEL.md)) + migration `0005`. *(`interview_sessions` lands with the mock interview.)*
+- [x] Prep-plan generation from the active resume (+ optional target role / seniority / focus): LLM builds sections → topics; stored once, regenerate on explicit action. *(live-verified 2026-07-21: 12-topic senior-frontend plan grounded in the resume, incl. its self-identified algorithms gap)*
+- [x] Per-topic progress tracking (todo / in_progress / done + self-confidence); the plan doubles as a persistent checklist. *(status persisted via upsert; done/total counter)*
+- [x] Question generation per topic (theory / behavioural / coding, chosen difficulty); model answers generated on-demand and cached.
+- [x] Live-coding tasks: in-app editor, LLM reviews the submitted solution (correctness, complexity, edge cases, style) with a score — **no code execution** (ADR-001). *(live-verified: virtual-list task scored 0.85 with an accurate overscan/key critique)*
+- [ ] Mock interview: turn-based text chat, LLM interviewer calibrated to resume + target role; written feedback report on completion; transcript persisted. *(needs `interview_sessions` + enum)*
 
 ### Other extensions
 

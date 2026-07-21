@@ -5,8 +5,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- **Interview-prep module planned (ADR-013).** Resume-driven prep plan with progress tracking, generated theory/behavioural/coding questions with on-demand model answers, LLM-reviewed live-coding (no code execution), and a text-chat mock interview with a feedback report. Standalone, reuses the existing LLM gateway + resumes; no new service/infra. Docs only so far (ADR-013, PRODUCT/ARCHITECTURE/DATA_MODEL/ROADMAP) — schema and code to follow.
+- Interview-prep module remainder: text-chat mock interview (`interview_sessions`) with a feedback report (ADR-013).
 - Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
+
+## [1.3.0] — 2026-07-21
+
+**Interview-prep module, first increment (ADR-013).** A standalone, resume-driven prep workspace at `/app/interview`, reusing the existing LLM gateway (ADR-005) and resumes — no new service or infrastructure.
+
+### Added
+
+- **Resume-driven prep plan.** `POST /interview/plan` builds an LLM study plan (sections → topics with a "why", grounded in the active resume + optional target role/seniority/focus), stored in `interview_plans`; `GET /interview/plan` returns the active one. Regenerating deactivates the old plan and keeps it as history.
+- **Progress tracking.** `PATCH /interview/plan/:id/progress` upserts per-topic status (todo / in-progress / done) into `interview_topic_progress`; the plan doubles as a persistent checklist with a done/total counter.
+- **Question generation.** `POST /interview/questions` generates theory / behavioural / live-coding questions for a topic (cached in `interview_questions`); `POST /interview/questions/:id/model-answer` reveals and caches the reference answer on demand.
+- **LLM-reviewed live-coding.** `POST /interview/questions/:id/review` reviews a submitted solution (correctness, complexity, style, suggestions, 0–100 score) and stores each attempt in `interview_answers`. **The code is reviewed, never executed** (ADR-001 / ADR-013).
+- **Web UI.** `/app/interview` workspace: plan generation form, sections with per-topic progress selects, a topic drill (generate questions, reveal model answers, live-coding editor + review with a score gauge), plus an `Interview` nav entry.
+- **Schema.** Migration `0005`: `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers` (+ enums). The `interview_sessions` table (mock interview) lands with the next increment.
+
+### Fixed
+
+- `serverApiGet` now tolerates an empty response body (a handler returning `null`, e.g. "no active plan") instead of throwing on `JSON.parse`.
 
 ## [1.2.3] — 2026-07-21
 

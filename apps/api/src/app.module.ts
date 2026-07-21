@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
+import { InterviewModule } from './interview/interview.module';
 import { LlmModule } from './llm/llm.module';
 import { MatchingModule } from './matching/matching.module';
 import { OutreachModule } from './outreach/outreach.module';
@@ -47,6 +48,7 @@ import { redisConnectionFromUrl } from './redis';
     AuthModule,
     LlmModule,
     MatchingModule,
+    InterviewModule,
     OutreachModule,
     ProfilesModule,
     ResumesModule,

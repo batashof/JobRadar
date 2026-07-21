@@ -7,6 +7,7 @@ export const APP_NAME = 'JobRadar';
 
 export * from './applications';
 export * from './auth';
+export * from './interview';
 export * from './matches';
 export * from './outreach';
 export * from './profiles';

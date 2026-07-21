@@ -15,6 +15,7 @@ const NAV = [
   { href: '/app/board', label: 'Board' },
   { href: '/app/profiles', label: 'Profiles' },
   { href: '/app/resume', label: 'Resume' },
+  { href: '/app/interview', label: 'Interview' },
 ];
 
 export function AppHeader() {

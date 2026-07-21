@@ -29,7 +29,7 @@ describe('AppHeader', () => {
 
   it('renders every nav link', () => {
     render(<AppHeader />);
-    for (const label of ['Dashboard', 'Feed', 'Board', 'Profiles', 'Resume']) {
+    for (const label of ['Dashboard', 'Feed', 'Board', 'Profiles', 'Resume', 'Interview']) {
       expect(screen.getByRole('link', { name: label })).toBeTruthy();
     }
   });

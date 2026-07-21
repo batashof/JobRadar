@@ -12,5 +12,8 @@ export async function serverApiGet<T>(path: string): Promise<T> {
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`API GET ${path} failed: ${res.status}`);
-  return res.json() as Promise<T>;
+  // A handler that returns null/undefined (e.g. "no active plan") sends an empty
+  // body — JSON.parse would throw on it, so treat an empty body as null.
+  const body = await res.text();
+  return (body ? JSON.parse(body) : null) as T;
 }

@@ -2,6 +2,19 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Interview-prep module, first increment (v1.3.0, ADR-013)
+
+- **Shipped the interview-prep module (ADR-013), increment 1:** standalone, resume-driven, at `/app/interview` — reuses the LLM gateway (ADR-005) + resumes, no new service/infra.
+- **Backend `interview/`:** `InterviewService` + controller (guarded). `POST/GET /interview/plan` (LLM plan from the active resume, sections → topics, stored in `interview_plans`, active-plan history), `PATCH /interview/plan/:id/progress` (per-topic upsert), `POST/GET /interview/questions` (theory/behavioural/coding, cached), `POST .../:id/model-answer` (reveal + cache), `POST .../:id/review` (LLM review of a submitted solution — **not executed** — stored in `interview_answers`). Pure prompt builders + parsers in `prompts.ts`.
+- **Schema:** migration `0005` — `interview_plans` (`resume_id` nullable/set-null), `interview_topic_progress`, `interview_questions`, `interview_answers` + 2 enums. `interview_sessions` (mock interview) deferred to increment 2.
+- **Web:** `interview-workspace.tsx` (plan form, sections + progress selects, topic drill with question generation, model-answer reveal, live-coding editor + review via `ScoreGauge`), `lib/interview.ts`, `/app/interview` page, `Interview` nav link.
+- **Bug fixed (found in browser verify):** `serverApiGet` threw on an empty body — `GET /interview/plan` returns `null` (empty body) when there's no plan; now returns null gracefully.
+- **Tests:** api 238 (20 new: prompts parsers + controller delegation), web 71 (interview-workspace 4 cases + header nav). Lint/typecheck clean both apps.
+- **Live-verified locally (Groq/Gemini):** signed up a demo user with a real resume → generated a 12-topic senior-frontend plan grounded in the resume (caught its self-identified algorithms gap); marked a topic Done (1/12 persisted); generated a live-coding "virtual list" task; reviewed a React solution → 0.85 with an accurate overscan/`key` critique. No console errors.
+- **Version 1.3.0:** CHANGELOG + all four `package.json` (synced from the previous 1.2.2/1.2.3 split) + CLAUDE.md line. Docs synced (ROADMAP ticks, DATA_MODEL status).
+- **Prod TODO (developer):** apply migration `0005` on Neon (`db:migrate:prod`).
+- **Next step:** increment 2 — mock interview (`interview_sessions` + enum, text-chat endpoints, chat UI).
+
 ## 2026-07-21 — Interview-prep module planned (ADR-013, docs only)
 
 - **Decision (ADR-013):** add a large **interview-prep module** as a phase-4 extension *inside* JobRadar rather than a separate app — the developer explicitly did not want to stand up new infrastructure. Reuses the existing monorepo, NestJS/Next apps, Neon Postgres, the ADR-005 LLM gateway, and resumes-in-Postgres (ADR-011). No new service, no new external dependency.

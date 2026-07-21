@@ -189,7 +189,7 @@ PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at mos
 
 ## Phase 4 additions (ADR-013 — interview prep)
 
-> Planned (migration to follow). Standalone, resume-driven; all content is LLM-generated on-demand and cached (ADR-005 discipline). No code execution, no voice (ADR-013).
+> `interview_plans`, `interview_topic_progress`, `interview_questions`, `interview_answers` shipped (migration `0005`, v1.3.0). `interview_sessions` (mock interview) is planned. Standalone, resume-driven; all content is LLM-generated on-demand and cached (ADR-005 discipline). No code execution, no voice (ADR-013).
 
 ### interview_plans
 
@@ -199,7 +199,7 @@ A resume-driven study roadmap. One active plan per user; older ones kept as hist
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid FK → users | |
-| resume_id | uuid FK → resumes | the resume the plan was generated from |
+| resume_id | uuid FK → resumes, nullable | the resume the plan was generated from; `set null` on resume delete so the plan survives |
 | target_role | text nullable | e.g. "Senior Frontend" |
 | target_seniority | text nullable | `intern \| junior \| middle \| senior \| lead` |
 | focus | text[] nullable | stack / areas to emphasise |

@@ -10,11 +10,13 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { InterviewPlanStructure, InterviewReview } from '@jobradar/shared';
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -40,6 +42,19 @@ export const applicationStageEnum = pgEnum('application_stage', [
   'offer',
   'rejected',
   'withdrawn',
+]);
+
+// Interview-prep module (ADR-013).
+export const interviewTopicStatusEnum = pgEnum('interview_topic_status', [
+  'todo',
+  'in_progress',
+  'done',
+]);
+
+export const interviewQuestionKindEnum = pgEnum('interview_question_kind', [
+  'theory',
+  'behavioral',
+  'coding',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -278,4 +293,87 @@ export const profileMatches = pgTable(
     digestedAt: timestamp('digested_at', { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.vacancyId] })],
+);
+
+// ---------------------------------------------------------------------------
+// Interview-prep module (ADR-013)
+// ---------------------------------------------------------------------------
+
+// A resume-driven study roadmap. One active plan per user; older ones are kept
+// as history. `resume_id` is nullable + set-null so deleting the source resume
+// does not take the plan with it.
+export const interviewPlans = pgTable(
+  'interview_plans',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    resumeId: uuid('resume_id').references(() => resumes.id, { onDelete: 'set null' }),
+    targetRole: text('target_role'),
+    targetSeniority: text('target_seniority'),
+    focus: text('focus').array().notNull().default(sql`'{}'::text[]`),
+    // LLM plan: { sections: [{ title, topics: [{ key, title, why }] }] }.
+    structure: jsonb('structure').notNull().$type<InterviewPlanStructure>(),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('interview_plans_user_id_idx').on(t.userId)],
+);
+
+// Per-topic progress, kept out of the plan's `structure` so the plan stays
+// stable and progress is queryable. `topic_key` matches a topics[].key.
+export const interviewTopicProgress = pgTable(
+  'interview_topic_progress',
+  {
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => interviewPlans.id, { onDelete: 'cascade' }),
+    topicKey: text('topic_key').notNull(),
+    status: interviewTopicStatusEnum('status').notNull().default('todo'),
+    confidence: smallint('confidence'),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.planId, t.topicKey] })],
+);
+
+// Generated, cached questions and live-coding tasks. The model answer is
+// generated only when the user reveals it (extra token discipline, ADR-005).
+export const interviewQuestions = pgTable(
+  'interview_questions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    planId: uuid('plan_id').references(() => interviewPlans.id, { onDelete: 'set null' }),
+    topic: text('topic').notNull(),
+    kind: interviewQuestionKindEnum('kind').notNull(),
+    difficulty: text('difficulty'),
+    prompt: text('prompt').notNull(),
+    modelAnswer: text('model_answer'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('interview_questions_user_id_idx').on(t.userId)],
+);
+
+// A user attempt (written answer or pasted live-coding solution) and its LLM
+// review. The code is reviewed, never executed (ADR-013).
+export const interviewAnswers = pgTable(
+  'interview_answers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => interviewQuestions.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    answer: text('answer').notNull(),
+    review: jsonb('review').$type<InterviewReview>(),
+    score: real('score'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('interview_answers_question_id_idx').on(t.questionId)],
 );
