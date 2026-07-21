@@ -1,6 +1,13 @@
 import type { VacancyDetail } from '@jobradar/shared';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const { generateBrief, generateCoverLetter } = vi.hoisted(() => ({
+  generateBrief: vi.fn(),
+  generateCoverLetter: vi.fn(),
+}));
+
+vi.mock('@/lib/vacancies', () => ({ generateBrief, generateCoverLetter }));
 
 import { VacancyDetailView } from './vacancy-detail';
 
@@ -27,6 +34,8 @@ function detail(overrides: Partial<VacancyDetail> = {}): VacancyDetail {
 }
 
 describe('VacancyDetailView', () => {
+  afterEach(() => vi.clearAllMocks());
+
   it('renders the full description and the outbound link', () => {
     render(<VacancyDetailView detail={detail()} />);
 
@@ -60,5 +69,50 @@ describe('VacancyDetailView', () => {
     );
     const link = screen.getByRole('link', { name: '@acme_hr' });
     expect(link.getAttribute('href')).toBe('https://t.me/acme_hr');
+  });
+
+  it('renders a cached Russian brief without calling the API', () => {
+    render(<VacancyDetailView detail={detail({ summaryRu: 'Компания делает X.' })} />);
+    expect(screen.getByText('Компания делает X.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Сгенерировать заново' })).toBeTruthy();
+    expect(generateBrief).not.toHaveBeenCalled();
+  });
+
+  it('generates a brief on click', async () => {
+    generateBrief.mockResolvedValue({
+      summaryRu: 'Свежий бриф.',
+      generatedAt: '2026-07-21T00:00:00.000Z',
+      cached: false,
+    });
+    render(<VacancyDetailView detail={detail()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать бриф' }));
+
+    await waitFor(() => expect(screen.getByText('Свежий бриф.')).toBeTruthy());
+    expect(generateBrief).toHaveBeenCalledWith('v1', false);
+  });
+
+  it('generates an editable cover letter on click', async () => {
+    generateCoverLetter.mockResolvedValue({ coverLetter: 'Dear Acme team, …' });
+    render(<VacancyDetailView detail={detail()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate cover letter' }));
+
+    const textarea = await screen.findByRole('textbox', { name: 'Cover letter' });
+    expect((textarea as HTMLTextAreaElement).value).toBe('Dear Acme team, …');
+
+    fireEvent.change(textarea, { target: { value: 'Edited letter' } });
+    expect((textarea as HTMLTextAreaElement).value).toBe('Edited letter');
+  });
+
+  it('surfaces generation errors (e.g. no LLM provider configured)', async () => {
+    generateCoverLetter.mockRejectedValue(new Error('No LLM provider configured'));
+    render(<VacancyDetailView detail={detail()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate cover letter' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('No LLM provider configured'),
+    );
   });
 });

@@ -1,4 +1,6 @@
 import type {
+  BriefResponse,
+  CoverLetterResponse,
   EmploymentType,
   SourceOption,
   VacancyDetail,
@@ -42,4 +44,14 @@ export function fetchSources(): Promise<SourceOption[]> {
 
 export function fetchVacancy(id: string): Promise<VacancyDetail> {
   return apiFetch<VacancyDetail>(`/vacancies/${id}`);
+}
+
+export function generateBrief(id: string, force = false): Promise<BriefResponse> {
+  return apiFetch<BriefResponse>(`/vacancies/${id}/brief${force ? '?force=true' : ''}`, {
+    method: 'POST',
+  });
+}
+
+export function generateCoverLetter(id: string): Promise<CoverLetterResponse> {
+  return apiFetch<CoverLetterResponse>(`/vacancies/${id}/cover-letter`, { method: 'POST' });
 }

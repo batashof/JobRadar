@@ -87,6 +87,19 @@ export interface VacancyDetail extends VacancyListItem {
   ingestedAt: string;
 }
 
+/** POST /vacancies/:id/brief — on-demand Russian brief (ADR-011). */
+export interface BriefResponse {
+  summaryRu: string;
+  generatedAt: string;
+  /** True when served from the cache instead of a fresh LLM call. */
+  cached: boolean;
+}
+
+/** POST /vacancies/:id/cover-letter — generated from the active resume (ADR-011). */
+export interface CoverLetterResponse {
+  coverLetter: string;
+}
+
 /** A source available as a feed filter option (canonical-vacancy count). */
 export interface SourceOption {
   slug: string;
