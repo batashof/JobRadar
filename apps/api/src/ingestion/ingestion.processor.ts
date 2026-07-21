@@ -11,8 +11,11 @@ import { DedupService, type DedupResult } from '../dedup/dedup.service';
 import { MatchingService, type MatchRunResult } from '../matching/matching.service';
 import { ResumeMatchingService } from '../matching/resume-matching.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
+import { JobicyIngestService } from './jobicy/jobicy.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
+import { RemotiveIngestService } from './remotive/remotive.service';
 import { TelegramIngestService } from './telegram/telegram.service';
+import { WorkingNomadsIngestService } from './workingnomads/workingnomads.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 
@@ -34,6 +37,9 @@ export class IngestionProcessor extends WorkerHost {
     @Inject(DB) private readonly db: Database,
     private readonly hh: HhIngestService,
     private readonly remoteok: RemoteOkIngestService,
+    private readonly remotive: RemotiveIngestService,
+    private readonly jobicy: JobicyIngestService,
+    private readonly workingnomads: WorkingNomadsIngestService,
     private readonly telegram: TelegramIngestService,
     private readonly wwr: WwrIngestService,
     private readonly dedup: DedupService,
@@ -80,6 +86,15 @@ export class IngestionProcessor extends WorkerHost {
           break;
         case 'remoteok':
           result = await this.remoteok.ingest(source);
+          break;
+        case 'remotive':
+          result = await this.remotive.ingest(source);
+          break;
+        case 'jobicy':
+          result = await this.jobicy.ingest(source);
+          break;
+        case 'workingnomads':
+          result = await this.workingnomads.ingest(source);
           break;
         case 'telegram':
           result = await this.telegram.ingest(source);

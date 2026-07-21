@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-21 — Three more job platforms: Remotive, Jobicy, Working Nomads (v1.5.0)
+
+- **Added three free no-auth JSON sources.** Remotive (`?category=software-dev`), Jobicy (`?industry=dev`) and Working Nomads (`exposed_jobs`), each with normalizer + service + unit tests, wired into the ingestion processor/module and seeded active. Web feed source filter gained labels for all three.
+- **Chosen against ADR-001.** Probed each candidate live before committing: all four shortlisted (incl. Arbeitnow, Himalayas) returned HTTP 200 unauthenticated. Picked the developer's two (Remotive, Jobicy) plus Working Nomads for the requested freelance lean. True freelance marketplaces (Upwork/Freelancer/Fiverr/Toptal) rejected — no free open API, OAuth-gated, scraping-forbidden.
+- **Noise control.** Remotive's `category` param leaks non-tech items, so the worker filters to a tech-category allowlist client-side; Working Nomads is filtered to `Development`; Jobicy's `industry=dev` is clean at the source. Live-verified parse: Remotive 41→20, Jobicy 50→50, Working Nomads 38→23, salaries/employment mapped correctly.
+- **Tests + build green.** New normalizer specs, updated `seed-data.spec` (active list) and `ingestion.processor.spec` (constructor args); api lint/typecheck/build and web feed-browser tests pass.
+- **Next step:** apply to prod with `db:migrate:prod` (neon-apply upserts the new sources into Neon), then watch a cron cycle to confirm the three feeds yield vacancies.
+
 ## 2026-07-21 — More Telegram job channels (v1.4.1)
 
 - **Broadened Telegram coverage 3 → 6 channels.** Added `rabotafrontend` (frontend), `golang_jobs` (Go/backend) and `qa_jobs` (QA) alongside `job_react` / `geekjobs` / `remote_it_jobs`.

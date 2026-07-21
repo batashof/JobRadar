@@ -5,7 +5,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 remainder: Telegram digest bot, browser extension, more sources, calendar sync.
+- Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
+
+## [1.5.0] — 2026-07-21
+
+**Three more job platforms.** Added Remotive, Jobicy and Working Nomads as ingestion sources — all free, public, no-auth JSON feeds that fit ADR-001 (budget $0) and the API-first politeness rules.
+
+### Added
+
+- **Remotive** (`remotive`, JSON): `https://remotive.com/api/remote-jobs?category=software-dev`. The server-side category filter is unreliable, so the worker keeps only a tech-category allowlist client-side. Free-form salary strings are parsed for clear *annual* figures only (hourly rates stay null); `contract`/`freelance` fold into the `freelance` employment enum.
+- **Jobicy** (`jobicy`, JSON v2): `https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50`. `industry=dev` scopes to software roles; `jobType` maps to the employment enum.
+- **Working Nomads** (`workingnomads`, JSON): `https://www.workingnomads.com/api/exposed_jobs/`. Freelance-leaning aggregator (Lemon.io etc.); the worker keeps only the `Development` category. External id is the trailing numeric id in the job URL.
+- Each source has its own normalizer + service + unit tests, is registered in the ingestion processor/module, seeded (active) in `seed-data`, and labeled in the web feed's source filter.
+
+### Notes
+
+- Dedicated freelance marketplaces (Upwork, Freelancer, Fiverr, Toptal) were evaluated and rejected: none offer a free open API (all gate behind OAuth + approval and forbid scraping), which conflicts with ADR-001 and the spirit of ADR-003. Freelance/contract coverage instead comes from the `job_type`/`jobType` fields of Remotive/Jobicy and from Working Nomads.
+- Live-verified against the real feeds (2026-07-21): Remotive 41→20 kept, Jobicy 50→50, Working Nomads 38→23.
 
 ## [1.4.1] — 2026-07-21
 

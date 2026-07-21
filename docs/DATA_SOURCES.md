@@ -40,6 +40,36 @@
 | Data quality | Medium: title/company in one string ("Company: Title"), needs parsing; no salary |
 | Notes | Use conditional GET (`If-Modified-Since` / `ETag`) |
 
+### 4. Remotive — JSON feed — **active in v1.0 (secondary)**
+
+| | |
+|---|---|
+| Kind | Public JSON feed |
+| Endpoint | `https://remotive.com/api/remote-jobs?category=software-dev` (payload under `jobs`) |
+| Auth | None. Terms request a link back to the original posting — the vacancy `url` provides it |
+| Data quality | Good: `category`, `tags`, `job_type`, free-form `salary` string, `candidate_required_location` |
+| Notes | The `category` filter is unreliable (the feed still mixes in non-tech items), so the worker keeps only a tech-category allowlist client-side. Salaries are free text — only clear *annual* figures are parsed; hourly rates stay null. `contract`/`freelance` fold into the `freelance` employment enum |
+
+### 5. Jobicy — JSON feed — **active in v1.0 (secondary)**
+
+| | |
+|---|---|
+| Kind | Public JSON feed (API v2) |
+| Endpoint | `https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50` (payload under `jobs`) |
+| Auth | None. Terms request a credited link back and apply buttons pointing at the original posting |
+| Data quality | Good: `jobIndustry`, `jobType`, `jobGeo`, `jobLevel`, full `jobDescription` HTML. No structured salary |
+| Notes | `industry=dev` already scopes to software roles. `jobType` maps to the employment enum (`Full-Time`→full_time, `Contract`/`Freelance`→freelance) |
+
+### 6. Working Nomads — JSON feed — **active in v1.0 (secondary, freelance-leaning)**
+
+| | |
+|---|---|
+| Kind | Public JSON feed (a flat array) |
+| Endpoint | `https://www.workingnomads.com/api/exposed_jobs/` |
+| Auth | None |
+| Data quality | Medium: `title`, `company_name`, `category_name`, comma-joined `tags`, `location`, `pub_date`. No salary or employment type. Only the "exposed" slice (~40 items) is public |
+| Notes | Aggregates remote/contract roles including freelance marketplaces (e.g. Lemon.io). The worker keeps only the `Development` category to stay on-topic. `external_id` is the trailing numeric id in the job URL |
+
 ## Later sources (phase 4)
 
 ### HN Who's Hiring

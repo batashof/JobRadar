@@ -26,6 +26,9 @@ describe('IngestionProcessor error handling', () => {
       db as never,
       { ingest: jest.fn() } as never, // hh
       worker as never, // remoteok
+      { ingest: jest.fn() } as never, // remotive
+      { ingest: jest.fn() } as never, // jobicy
+      { ingest: jest.fn() } as never, // workingnomads
       { ingest: jest.fn() } as never, // telegram
       { ingest: jest.fn() } as never, // wwr
       { run: jest.fn() } as never, // dedup

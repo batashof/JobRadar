@@ -17,6 +17,9 @@ const SOURCE_LABELS: Record<string, string> = {
   telegram: 'Telegram',
   remoteok: 'RemoteOK',
   weworkremotely: 'WeWorkRemotely',
+  remotive: 'Remotive',
+  jobicy: 'Jobicy',
+  workingnomads: 'Working Nomads',
   hh: 'hh.ru',
 };
 

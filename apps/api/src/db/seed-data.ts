@@ -49,6 +49,37 @@ export const SEED_SOURCES: SourceSeed[] = [
     isActive: true,
     config: { feedUrl: 'https://weworkremotely.com/categories/remote-programming-jobs.rss' },
   },
+  {
+    // Free public JSON feed, no auth. Server-side category filter is unreliable,
+    // so the worker also keeps only tech categories client-side. API terms ask
+    // for a link back to the original posting — the vacancy URL provides it.
+    slug: 'remotive',
+    kind: 'api',
+    isActive: true,
+    config: {
+      feedUrl: 'https://remotive.com/api/remote-jobs?category=software-dev',
+      linkBackRequired: true,
+    },
+  },
+  {
+    // Free public JSON feed, no auth (industry=dev). Terms ask for a credited
+    // link back and apply buttons pointing at the original posting.
+    slug: 'jobicy',
+    kind: 'api',
+    isActive: true,
+    config: {
+      feedUrl: 'https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50',
+      linkBackRequired: true,
+    },
+  },
+  {
+    // Free public JSON feed, no auth. Aggregates remote/contract roles
+    // (freelance-leaning, e.g. Lemon.io); the worker keeps only dev categories.
+    slug: 'workingnomads',
+    kind: 'api',
+    isActive: true,
+    config: { feedUrl: 'https://www.workingnomads.com/api/exposed_jobs/', linkBackRequired: true },
+  },
 ];
 
 /** Local-development-only fixtures (never seeded in production). */

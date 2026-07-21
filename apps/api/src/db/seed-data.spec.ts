@@ -7,9 +7,16 @@ describe('seed data', () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it('registers the v1.0 sources as active (telegram primary, hh dropped per ADR-009)', () => {
+  it('registers the active sources (telegram primary, hh dropped per ADR-009)', () => {
     const active = SEED_SOURCES.filter((s) => s.isActive).map((s) => s.slug);
-    expect(active).toEqual(['telegram', 'remoteok', 'weworkremotely']);
+    expect(active).toEqual([
+      'telegram',
+      'remoteok',
+      'weworkremotely',
+      'remotive',
+      'jobicy',
+      'workingnomads',
+    ]);
   });
 
   it('configures telegram channels as clean, unique usernames without @', () => {

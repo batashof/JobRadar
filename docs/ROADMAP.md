@@ -20,7 +20,7 @@
 - [x] Schema + migrations: users, search_profiles, sources, vacancies, applications, profile_matches ([DATA_MODEL.md](DATA_MODEL.md)).
 - [x] Seed data.
 - [x] ~~hh.ru ingestion worker~~ — **dropped (ADR-009)**. *(worker + `HH_API_TOKEN` implemented but never went live — hh geo-403s non-CIS IPs and dev.hh.ru needs a Russian phone; a CIS token/IP is barred by ADR-001. Inactive legacy code; Telegram replaces it as the primary source.)*
-- [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(both: RemoteOK JSON + WWR RSS, live in prod)*
+- [x] RSS/JSON ingestion worker (RemoteOK or WeWorkRemotely). *(RemoteOK JSON + WWR RSS live in prod; extended with three more free no-auth JSON feeds — Remotive, Jobicy, Working Nomads, 2026-07-21)*
 - [x] **Telegram job-channel ingestion worker (primary source, ADR-009)**: MTProto/GramJS reads configured public channels, per-channel parse (regex first, LLM later), normalize + upsert; `t.me` deep link as the vacancy URL. Needs `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` + a stored session string (secrets). *(worker + regex parser + `telegram:session` helper shipped; skips politely until the secrets and `sources.config.channels` are set)*
 - [x] Deduplication v1 (heuristic, ADR-004). *(trigram title similarity + company + 14-day window; E2E verified locally)*
 - [x] GitHub Actions cron hitting the ingestion hook every 4 hours (ADR-006). *(runs no-op with a warning until Render env vars are set)*
@@ -82,7 +82,7 @@ Standalone prep module inside JobRadar (no new service/infra): `interview/` on t
 - [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).
 - [ ] Telegram bot as second digest channel.
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
-- [ ] More sources: HN Who's Hiring, Djinni. *(Telegram channels promoted to a v1.0 primary source — ADR-009.)*
+- [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Still open: HN Who's Hiring, Djinni.
 - [x] Funnel statistics: applied → screening → interview → offer conversion. *(`furthest_stage` column tracks the deepest non-terminal stage each application ever reached, so rejected/withdrawn cards still count through their peak; `GET /applications/stats` + dashboard Funnel card with per-step conversion — E2E verified)*
 - [ ] Google Calendar sync for interviews (OAuth).
 
