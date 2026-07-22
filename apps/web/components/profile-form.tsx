@@ -16,7 +16,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError } from '@/lib/api';
-import { EMPLOYMENT_TYPE_LABELS, WORK_FORMAT_LABELS } from '@/lib/labels';
+import { useI18n } from '@/lib/i18n/context';
 
 function splitTags(text: string): string[] {
   return text
@@ -43,6 +43,7 @@ export interface ProfileFormProps {
 }
 
 export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
+  const { t } = useI18n();
   const [name, setName] = useState(initial?.name ?? '');
   const [keywords, setKeywords] = useState((initial?.keywords ?? []).join(', '));
   const [stack, setStack] = useState((initial?.stack ?? []).join(', '));
@@ -73,7 +74,7 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
       isActive,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid input');
+      setError(parsed.error.issues[0]?.message ?? t('common.invalidInput'));
       return;
     }
 
@@ -81,7 +82,7 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
     try {
       await onSubmit(parsed.data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setError(err instanceof ApiError ? err.message : t('common.tryAgain'));
       setSubmitting(false);
     }
   }
@@ -89,38 +90,38 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{initial ? 'Edit profile' : 'New search profile'}</CardTitle>
+        <CardTitle>{initial ? t('form.editTitle') : t('form.newTitle')}</CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit} noValidate>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">{t('form.name')}</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="keywords">Keywords</Label>
+            <Label htmlFor="keywords">{t('form.keywords')}</Label>
             <Input
               id="keywords"
-              placeholder="react, typescript, node"
+              placeholder={t('form.keywordsPlaceholder')}
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
             />
-            <p className="text-xs text-[var(--color-muted-foreground)]">Comma-separated.</p>
+            <p className="text-xs text-[var(--color-muted-foreground)]">{t('form.commaSeparated')}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="stack">Stack</Label>
+            <Label htmlFor="stack">{t('form.stack')}</Label>
             <Input
               id="stack"
-              placeholder="React, PostgreSQL"
+              placeholder={t('form.stackPlaceholder')}
               value={stack}
               onChange={(e) => setStack(e.target.value)}
             />
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Work format</legend>
+            <legend className="text-sm font-medium">{t('form.workFormat')}</legend>
             <div className="flex flex-wrap gap-4">
               {WORK_FORMATS.map((wf) => (
                 <label key={wf} className="flex items-center gap-2 text-sm">
@@ -129,14 +130,14 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
                     checked={workFormat.includes(wf)}
                     onChange={() => setWorkFormat((prev) => toggle(prev, wf))}
                   />
-                  {WORK_FORMAT_LABELS[wf]}
+                  {t(`workFormat.${wf}`)}
                 </label>
               ))}
             </div>
           </fieldset>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Employment type</legend>
+            <legend className="text-sm font-medium">{t('form.employmentType')}</legend>
             <div className="flex flex-wrap gap-4">
               {EMPLOYMENT_TYPES.map((et) => (
                 <label key={et} className="flex items-center gap-2 text-sm">
@@ -145,7 +146,7 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
                     checked={employmentType.includes(et)}
                     onChange={() => setEmploymentType((prev) => toggle(prev, et))}
                   />
-                  {EMPLOYMENT_TYPE_LABELS[et]}
+                  {t(`employmentType.${et}`)}
                 </label>
               ))}
             </div>
@@ -153,7 +154,7 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="salaryMin">Salary min</Label>
+              <Label htmlFor="salaryMin">{t('form.salaryMin')}</Label>
               <Input
                 id="salaryMin"
                 inputMode="numeric"
@@ -162,7 +163,7 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="salaryMax">Salary max</Label>
+              <Label htmlFor="salaryMax">{t('form.salaryMax')}</Label>
               <Input
                 id="salaryMax"
                 inputMode="numeric"
@@ -171,11 +172,11 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="salaryCurrency">Currency</Label>
+              <Label htmlFor="salaryCurrency">{t('form.currency')}</Label>
               <Input
                 id="salaryCurrency"
                 maxLength={3}
-                placeholder="USD"
+                placeholder={t('form.currencyPlaceholder')}
                 value={salaryCurrency}
                 onChange={(e) => setSalaryCurrency(e.target.value)}
               />
@@ -188,7 +189,7 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
             />
-            Active (included in matching &amp; digests)
+            {t('form.activeLabel')}
           </label>
 
           {error ? (
@@ -199,10 +200,10 @@ export function ProfileForm({ initial, onSubmit, onCancel }: ProfileFormProps) {
         </CardContent>
         <CardFooter className="gap-3">
           <Button type="submit" disabled={submitting}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Create profile'}
+            {submitting ? t('form.saving') : initial ? t('form.saveChanges') : t('form.create')}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </CardFooter>
       </form>

@@ -5,7 +5,7 @@ import { AuthGuard, type AuthedRequest } from './auth.guard';
 import type { AuthService } from './auth.service';
 import { SESSION_COOKIE } from './session';
 
-const user: AuthUser = { id: 'u1', email: 'a@b.com', digestEnabled: true };
+const user: AuthUser = { id: 'u1', email: 'a@b.com', digestEnabled: true, language: 'ru' };
 
 function contextFor(request: Partial<AuthedRequest>): { ctx: ExecutionContext; request: AuthedRequest } {
   const req = request as AuthedRequest;

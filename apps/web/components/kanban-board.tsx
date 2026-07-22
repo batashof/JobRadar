@@ -32,7 +32,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useRef, useState } from 'react';
 
 import { Card } from '@/components/ui/card';
-import { APPLICATION_STAGE_LABELS } from '@/lib/labels';
+import { useI18n } from '@/lib/i18n/context';
 import {
   deleteApplication,
   listApplications,
@@ -63,6 +63,7 @@ interface CardProps {
 }
 
 function SortableCard({ item, onNotes, onDelete, onRemindAfter }: CardProps) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
@@ -99,7 +100,7 @@ function SortableCard({ item, onNotes, onDelete, onRemindAfter }: CardProps) {
       <div className="flex items-start gap-2">
         <button
           type="button"
-          aria-label="Drag"
+          aria-label={t('board.dragAria')}
           className="mt-0.5 cursor-grab touch-none text-[var(--color-muted-foreground)]"
           {...attributes}
           {...listeners}
@@ -124,7 +125,7 @@ function SortableCard({ item, onNotes, onDelete, onRemindAfter }: CardProps) {
 
       {reminderDue ? (
         <p className="mt-2 rounded-md bg-[var(--color-destructive)]/10 px-2 py-1 text-xs font-medium text-[var(--color-destructive)]">
-          No answer for {daysSinceActivity(item, new Date())} days — follow up?
+          {t('board.followUp', { days: daysSinceActivity(item, new Date()) })}
         </p>
       ) : null}
 
@@ -134,14 +135,14 @@ function SortableCard({ item, onNotes, onDelete, onRemindAfter }: CardProps) {
           className="text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
           onClick={() => setNotesOpen((o) => !o)}
         >
-          {item.notes ? '📝 Notes' : 'Add notes'}
+          {item.notes ? t('board.notes') : t('board.addNotes')}
         </button>
         <button
           type="button"
           className="text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
           onClick={() => onDelete(item.id)}
         >
-          Remove
+          {t('board.remove')}
         </button>
       </div>
 
@@ -150,26 +151,26 @@ function SortableCard({ item, onNotes, onDelete, onRemindAfter }: CardProps) {
           <textarea
             className="mt-2 w-full rounded-md border border-[var(--color-input)] bg-transparent p-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
             rows={3}
-            placeholder="Notes…"
+            placeholder={t('board.notesPlaceholder')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={saveNotes}
           />
           <label className="mt-2 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
-            Remind after
+            {t('board.remindAfter')}
             <input
               type="number"
               min={1}
               max={365}
               inputMode="numeric"
               placeholder={String(REMINDER_DEFAULT_DAYS)}
-              aria-label="Remind after days"
+              aria-label={t('board.remindAfterAria')}
               className="w-16 rounded-md border border-[var(--color-input)] bg-transparent px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
               value={remindDraft}
               onChange={(e) => setRemindDraft(e.target.value)}
               onBlur={saveRemindAfter}
             />
-            days
+            {t('board.days')}
           </label>
         </>
       ) : null}
@@ -194,12 +195,13 @@ function Column({
   onDelete: (id: string) => void;
   onRemindAfter: (id: string, days: number | null) => void;
 }) {
+  const { t } = useI18n();
   const { setNodeRef } = useDroppable({ id: stage });
 
   return (
     <div className="flex w-64 shrink-0 flex-col">
       <div className="mb-2 flex items-center justify-between px-1">
-        <span className="text-sm font-semibold">{APPLICATION_STAGE_LABELS[stage]}</span>
+        <span className="text-sm font-semibold">{t(`stage.${stage}`)}</span>
         <span className="text-xs text-[var(--color-muted-foreground)]">{items.length}</span>
       </div>
       <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
@@ -227,6 +229,7 @@ function Column({
 // ---------------------------------------------------------------------------
 
 export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
+  const { t } = useI18n();
   const [columns, setColumns] = useState<Columns>(() => groupByStage(initial));
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -324,7 +327,7 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
         columns: stages.map((stage) => ({ stage, orderedIds: cols[stage].map((i) => i.id) })),
       });
     } catch {
-      setError('Could not save the change — reloading the board.');
+      setError(t('board.saveChangeFailed'));
       const fresh = await listApplications().catch(() => null);
       if (fresh) setColumns(groupByStage(fresh));
     }
@@ -335,7 +338,7 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
       await updateApplication(id, { notes });
       setColumns((prev) => mapItem(prev, id, (i) => ({ ...i, notes })));
     } catch {
-      setError('Could not save notes.');
+      setError(t('board.saveNotesFailed'));
     }
   }
 
@@ -344,7 +347,7 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
       await updateApplication(id, { remindAfterDays });
       setColumns((prev) => mapItem(prev, id, (i) => ({ ...i, remindAfterDays })));
     } catch {
-      setError('Could not save the reminder threshold.');
+      setError(t('board.saveReminderFailed'));
     }
   }
 
@@ -354,7 +357,7 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
     try {
       await deleteApplication(id);
     } catch {
-      setError('Could not remove the card.');
+      setError(t('board.removeFailed'));
       setColumns(prev);
     }
   }
@@ -364,10 +367,8 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Application board</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Drag cards between stages. Save vacancies from the feed to add them here.
-        </p>
+        <h1 className="text-2xl font-semibold">{t('board.title')}</h1>
+        <p className="text-sm text-[var(--color-muted-foreground)]">{t('board.subtitle')}</p>
       </div>
 
       {error ? (
@@ -379,7 +380,7 @@ export function KanbanBoard({ initial }: { initial: ApplicationItem[] }) {
       {total === 0 ? (
         <Card>
           <div className="py-10 text-center text-sm text-[var(--color-muted-foreground)]">
-            No applications yet. Open the feed and save a vacancy to your board.
+            {t('board.empty')}
           </div>
         </Card>
       ) : (

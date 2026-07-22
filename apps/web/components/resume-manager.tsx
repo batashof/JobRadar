@@ -6,9 +6,11 @@ import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useI18n } from '@/lib/i18n/context';
 import { activateResume, deleteResume, resumeFileUrl, uploadResume } from '@/lib/resumes';
 
 export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
+  const { t, lang } = useI18n();
   const [resumes, setResumes] = useState<ResumeItem[]>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
     event.target.value = '';
     if (!file) return;
     if (file.size > RESUME_MAX_BYTES) {
-      setError(`File is too large (max ${Math.round(RESUME_MAX_BYTES / 1024 / 1024)} MB)`);
+      setError(t('resume.tooLarge', { mb: Math.round(RESUME_MAX_BYTES / 1024 / 1024) }));
       return;
     }
     setBusy(true);
@@ -29,7 +31,7 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
       // The new upload becomes the active resume server-side.
       setResumes((prev) => [uploaded, ...prev.map((r) => ({ ...r, isActive: false }))]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : t('resume.uploadFailed'));
     } finally {
       setBusy(false);
     }
@@ -41,18 +43,18 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
       const updated = await activateResume(id);
       setResumes((prev) => prev.map((r) => ({ ...r, isActive: r.id === updated.id })));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to activate');
+      setError(err instanceof Error ? err.message : t('resume.activateFailed'));
     }
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Delete this resume?')) return;
+    if (!window.confirm(t('resume.confirmDelete'))) return;
     setError(null);
     try {
       await deleteResume(id);
       setResumes((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
+      setError(err instanceof Error ? err.message : t('resume.deleteFailed'));
     }
   }
 
@@ -60,11 +62,8 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Resume</h1>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            Upload your resume as a PDF. The active one drives matching, cover letters, and
-            email applications.
-          </p>
+          <h1 className="text-2xl font-semibold">{t('resume.title')}</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">{t('resume.subtitle')}</p>
         </div>
         <div>
           <input
@@ -76,7 +75,7 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
             onChange={(e) => void handleFileChange(e)}
           />
           <Button disabled={busy} onClick={() => fileInputRef.current?.click()}>
-            {busy ? 'Uploading…' : 'Upload PDF'}
+            {busy ? t('resume.uploading') : t('resume.uploadPdf')}
           </Button>
         </div>
       </div>
@@ -90,7 +89,7 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
       {resumes.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-[var(--color-muted-foreground)]">
-            No resume yet. Upload a PDF to unlock resume matching and cover letters.
+            {t('resume.none')}
           </CardContent>
         </Card>
       ) : null}
@@ -110,24 +109,28 @@ export function ResumeManager({ initial }: { initial: ResumeItem[] }) {
                     >
                       {resume.filename}
                     </a>
-                    {resume.isActive ? <Badge variant="primary">Active</Badge> : null}
+                    {resume.isActive ? <Badge variant="primary">{t('resume.active')}</Badge> : null}
                     {resume.extractedChars === 0 ? (
-                      <Badge variant="destructive">No text extracted</Badge>
+                      <Badge variant="destructive">{t('resume.noText')}</Badge>
                     ) : null}
                   </div>
                   <p className="text-xs text-[var(--color-muted-foreground)]">
-                    Uploaded {new Date(resume.uploadedAt).toLocaleDateString()} ·{' '}
-                    {resume.extractedChars.toLocaleString()} chars of text
+                    {t('resume.uploadedAt', {
+                      date: new Date(resume.uploadedAt).toLocaleDateString(
+                        lang === 'ru' ? 'ru-RU' : 'en-GB',
+                      ),
+                      chars: resume.extractedChars.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US'),
+                    })}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   {!resume.isActive ? (
                     <Button variant="outline" size="sm" onClick={() => void handleActivate(resume.id)}>
-                      Make active
+                      {t('resume.makeActive')}
                     </Button>
                   ) : null}
                   <Button variant="ghost" size="sm" onClick={() => void handleDelete(resume.id)}>
-                    Delete
+                    {t('resume.delete')}
                   </Button>
                 </div>
               </CardContent>

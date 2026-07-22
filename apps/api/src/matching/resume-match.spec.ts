@@ -1,15 +1,24 @@
 import { buildResumeMatchPrompt, parseResumeMatchReply } from './resume-match';
 
+const VACANCY = { title: 'Senior React', company: 'Acme', description: 'React, TypeScript, remote.' };
+
 describe('buildResumeMatchPrompt', () => {
-  it('demands strict JSON and includes both texts', () => {
-    const { system, user } = buildResumeMatchPrompt(
-      { title: 'Senior React', company: 'Acme', description: 'React, TypeScript, remote.' },
-      'React dev, 8 years.',
-    );
+  it('demands strict JSON in Russian by default and includes both texts', () => {
+    const { system, user } = buildResumeMatchPrompt(VACANCY, 'React dev, 8 years.');
     expect(system).toContain('"score"');
     expect(system).toContain('"explanation"');
-    expect(user).toContain('Senior React — Acme');
+    expect(system).toContain('по-русски');
+    expect(user).toContain('Вакансия: Senior React — Acme');
     expect(user).toContain('React dev, 8 years.');
+  });
+
+  it('builds an English prompt when lang is en', () => {
+    const { system, user } = buildResumeMatchPrompt(VACANCY, 'React dev, 8 years.', 'en');
+    expect(system).toContain('"score"');
+    expect(system).toContain('in English');
+    expect(system).not.toContain('по-русски');
+    expect(user).toContain('Vacancy: Senior React — Acme');
+    expect(user).toContain('Candidate resume:');
   });
 });
 

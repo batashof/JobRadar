@@ -21,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScoreGauge } from '@/components/ui/score-gauge';
+import { useI18n } from '@/lib/i18n/context';
+import type { TFunction } from '@/lib/i18n/dictionaries';
 import {
   generateInterviewPlan,
   generateQuestions,
@@ -30,47 +32,35 @@ import {
   updateTopicProgress,
 } from '@/lib/interview';
 
-const STATUS_LABEL: Record<InterviewTopicStatus, string> = {
-  todo: 'To do',
-  in_progress: 'In progress',
-  done: 'Done',
-};
+const TOPIC_STATUSES: InterviewTopicStatus[] = ['todo', 'in_progress', 'done'];
 
-const KIND_LABEL: Record<InterviewQuestionKind, string> = {
-  theory: 'Theory',
-  behavioral: 'Behavioural',
-  coding: 'Live-coding',
-};
-
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : 'Something went wrong';
+function errText(err: unknown, t: TFunction): string {
+  return err instanceof Error ? err.message : t('common.somethingWrong');
 }
 
 export function InterviewWorkspace({ initialPlan }: { initialPlan: InterviewPlanDetail | null }) {
+  const { t } = useI18n();
   const [plan, setPlan] = useState<InterviewPlanDetail | null>(initialPlan);
 
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Interview prep</h1>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            A resume-driven study plan, generated questions, and live-coding practice reviewed by
-            the assistant.
-          </p>
+          <h1 className="text-2xl font-semibold">{t('interview.title')}</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">{t('interview.subtitle')}</p>
         </div>
         <Link
           href="/app/interview/mock"
           className="shrink-0 text-sm font-medium text-[var(--color-primary)] hover:underline"
         >
-          Mock interview →
+          {t('interview.mockLink')}
         </Link>
       </header>
 
       {plan ? (
         <PlanView plan={plan} onPlan={setPlan} />
       ) : (
-        <PlanForm heading="Generate your prep plan" onPlan={setPlan} />
+        <PlanForm heading={t('interview.generateHeading')} onPlan={setPlan} />
       )}
     </div>
   );
@@ -83,6 +73,7 @@ function PlanForm({
   heading: string;
   onPlan: (plan: InterviewPlanDetail) => void;
 }) {
+  const { t } = useI18n();
   const [targetRole, setTargetRole] = useState('');
   const [seniority, setSeniority] = useState<InterviewSeniority | ''>('');
   const [focus, setFocus] = useState('');
@@ -104,7 +95,7 @@ function PlanForm({
       });
       onPlan(plan);
     } catch (err) {
-      setError(errText(err));
+      setError(errText(err, t));
     } finally {
       setBusy(false);
     }
@@ -116,28 +107,25 @@ function PlanForm({
         <CardTitle>{heading}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          The plan is built from your active resume. Optionally aim it at a role, level, and focus
-          areas.
-        </p>
+        <p className="text-sm text-[var(--color-muted-foreground)]">{t('interview.planFromResume')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="space-y-1 text-sm">
-            <span className="text-[var(--color-muted-foreground)]">Target role</span>
+            <span className="text-[var(--color-muted-foreground)]">{t('interview.targetRole')}</span>
             <Input
               value={targetRole}
-              placeholder="e.g. Senior Frontend"
+              placeholder={t('interview.targetRolePlaceholder')}
               onChange={(e) => setTargetRole(e.target.value)}
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span className="text-[var(--color-muted-foreground)]">Seniority</span>
+            <span className="text-[var(--color-muted-foreground)]">{t('interview.seniority')}</span>
             <select
-              aria-label="Seniority"
+              aria-label={t('interview.seniority')}
               className="flex h-9 w-full rounded-md border border-[var(--color-input)] bg-transparent px-3 text-sm"
               value={seniority}
               onChange={(e) => setSeniority(e.target.value as InterviewSeniority | '')}
             >
-              <option value="">Any</option>
+              <option value="">{t('interview.any')}</option>
               {INTERVIEW_SENIORITIES.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -146,10 +134,10 @@ function PlanForm({
             </select>
           </label>
           <label className="space-y-1 text-sm">
-            <span className="text-[var(--color-muted-foreground)]">Focus (comma-separated)</span>
+            <span className="text-[var(--color-muted-foreground)]">{t('interview.focus')}</span>
             <Input
               value={focus}
-              placeholder="React, System design"
+              placeholder={t('interview.focusPlaceholder')}
               onChange={(e) => setFocus(e.target.value)}
             />
           </label>
@@ -160,7 +148,7 @@ function PlanForm({
           </p>
         ) : null}
         <Button disabled={busy} onClick={() => void handleGenerate()}>
-          {busy ? 'Generating…' : 'Generate plan'}
+          {busy ? t('interview.generating') : t('interview.generatePlan')}
         </Button>
       </CardContent>
     </Card>
@@ -174,6 +162,7 @@ function PlanView({
   plan: InterviewPlanDetail;
   onPlan: (plan: InterviewPlanDetail) => void;
 }) {
+  const { t } = useI18n();
   const [activeTopic, setActiveTopic] = useState<InterviewPlanTopic | null>(null);
   const [regenerate, setRegenerate] = useState(false);
 
@@ -199,17 +188,17 @@ function PlanView({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-[var(--color-muted-foreground)]">
-          <span className="font-medium">{plan.targetRole ?? 'Your plan'}</span>
+          <span className="font-medium">{plan.targetRole ?? t('interview.yourPlan')}</span>
           {plan.targetSeniority ? <span> · {plan.targetSeniority}</span> : null}
           <span> · </span>
-          <span>{`${doneTopics}/${totalTopics} topics done`}</span>
+          <span>{t('interview.topicsDone', { done: doneTopics, total: totalTopics })}</span>
         </div>
         <Button variant="outline" size="sm" onClick={() => setRegenerate((v) => !v)}>
-          {regenerate ? 'Cancel' : 'Regenerate plan'}
+          {regenerate ? t('common.cancel') : t('interview.regeneratePlan')}
         </Button>
       </div>
 
-      {regenerate ? <PlanForm heading="Regenerate plan" onPlan={onPlan} /> : null}
+      {regenerate ? <PlanForm heading={t('interview.regenerateHeading')} onPlan={onPlan} /> : null}
 
       <div className="space-y-5">
         {plan.structure.sections.map((section) => (
@@ -237,16 +226,16 @@ function PlanView({
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {status === 'done' ? <Badge variant="primary">Done</Badge> : null}
+                      {status === 'done' ? <Badge variant="primary">{t('interview.done')}</Badge> : null}
                       <select
-                        aria-label={`Progress: ${topic.title}`}
+                        aria-label={t('interview.progressAria', { title: topic.title })}
                         className="h-8 rounded-md border border-[var(--color-input)] bg-transparent px-2 text-xs"
                         value={status}
                         onChange={(e) => setStatus(topic.key, e.target.value as InterviewTopicStatus)}
                       >
-                        {(Object.keys(STATUS_LABEL) as InterviewTopicStatus[]).map((s) => (
+                        {TOPIC_STATUSES.map((s) => (
                           <option key={s} value={s}>
-                            {STATUS_LABEL[s]}
+                            {t(`interview.status.${s}`)}
                           </option>
                         ))}
                       </select>
@@ -280,6 +269,7 @@ function TopicDrill({
   topic: InterviewPlanTopic;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [kind, setKind] = useState<InterviewQuestionKind>('theory');
   const [difficulty, setDifficulty] = useState<InterviewDifficulty>('middle');
   const [questions, setQuestions] = useState<InterviewQuestionItem[] | null>(null);
@@ -310,7 +300,7 @@ function TopicDrill({
       });
       setQuestions((prev) => [...created, ...(prev ?? [])]);
     } catch (err) {
-      setError(errText(err));
+      setError(errText(err, t));
     } finally {
       setBusy(false);
     }
@@ -321,30 +311,30 @@ function TopicDrill({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">{topic.title}</CardTitle>
         <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
+          {t('interview.close')}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <label className="space-y-1 text-xs">
-            <span className="block text-[var(--color-muted-foreground)]">Type</span>
+            <span className="block text-[var(--color-muted-foreground)]">{t('interview.type')}</span>
             <select
-              aria-label="Question type"
+              aria-label={t('interview.type')}
               className="h-9 rounded-md border border-[var(--color-input)] bg-transparent px-2 text-sm"
               value={kind}
               onChange={(e) => setKind(e.target.value as InterviewQuestionKind)}
             >
               {INTERVIEW_QUESTION_KINDS.map((k) => (
                 <option key={k} value={k}>
-                  {KIND_LABEL[k]}
+                  {t(`interview.kind.${k}`)}
                 </option>
               ))}
             </select>
           </label>
           <label className="space-y-1 text-xs">
-            <span className="block text-[var(--color-muted-foreground)]">Difficulty</span>
+            <span className="block text-[var(--color-muted-foreground)]">{t('interview.difficulty')}</span>
             <select
-              aria-label="Difficulty"
+              aria-label={t('interview.difficulty')}
               className="h-9 rounded-md border border-[var(--color-input)] bg-transparent px-2 text-sm"
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value as InterviewDifficulty)}
@@ -357,7 +347,7 @@ function TopicDrill({
             </select>
           </label>
           <Button disabled={busy} onClick={() => void handleGenerate()}>
-            {busy ? 'Generating…' : 'Generate questions'}
+            {busy ? t('interview.generating') : t('interview.generateQuestions')}
           </Button>
         </div>
 
@@ -368,9 +358,7 @@ function TopicDrill({
         ) : null}
 
         {questions && questions.length === 0 ? (
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            No questions yet — generate some to start practising.
-          </p>
+          <p className="text-sm text-[var(--color-muted-foreground)]">{t('interview.noQuestions')}</p>
         ) : null}
 
         <ul className="space-y-3">
@@ -386,6 +374,7 @@ function TopicDrill({
 }
 
 function QuestionCard({ question }: { question: InterviewQuestionItem }) {
+  const { t } = useI18n();
   const [modelAnswer, setModelAnswer] = useState<string | null>(question.modelAnswer);
   const [showAnswer, setShowAnswer] = useState(false);
   const [answer, setAnswer] = useState('');
@@ -405,7 +394,7 @@ function QuestionCard({ question }: { question: InterviewQuestionItem }) {
       setModelAnswer(res.modelAnswer);
       setShowAnswer(true);
     } catch (err) {
-      setError(errText(err));
+      setError(errText(err, t));
     } finally {
       setBusy(false);
     }
@@ -417,7 +406,7 @@ function QuestionCard({ question }: { question: InterviewQuestionItem }) {
     try {
       setReview(await reviewAnswer(question.id, answer));
     } catch (err) {
-      setError(errText(err));
+      setError(errText(err, t));
     } finally {
       setBusy(false);
     }
@@ -427,15 +416,15 @@ function QuestionCard({ question }: { question: InterviewQuestionItem }) {
     <div className="space-y-3 rounded-md border border-[var(--color-border)] p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="whitespace-pre-wrap text-sm">{question.prompt}</p>
-        <Badge variant="muted">{KIND_LABEL[question.kind]}</Badge>
+        <Badge variant="muted">{t(`interview.kind.${question.kind}`)}</Badge>
       </div>
 
       {question.kind === 'coding' ? (
         <div className="space-y-2">
           <textarea
-            aria-label="Your solution"
+            aria-label={t('interview.yourSolution')}
             className="min-h-28 w-full rounded-md border border-[var(--color-input)] bg-transparent p-2 font-mono text-xs"
-            placeholder="Write your solution here — it is reviewed, not executed."
+            placeholder={t('interview.solutionPlaceholder')}
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
           />
@@ -445,14 +434,18 @@ function QuestionCard({ question }: { question: InterviewQuestionItem }) {
             disabled={busy || answer.trim().length === 0}
             onClick={() => void handleReview()}
           >
-            {busy ? 'Reviewing…' : 'Review my solution'}
+            {busy ? t('interview.reviewing') : t('interview.reviewSolution')}
           </Button>
         </div>
       ) : null}
 
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" disabled={busy} onClick={() => void handleReveal()}>
-          {showAnswer ? 'Hide model answer' : modelAnswer ? 'Show model answer' : 'Reveal answer'}
+          {showAnswer
+            ? t('interview.hideAnswer')
+            : modelAnswer
+              ? t('interview.showAnswer')
+              : t('interview.revealAnswer')}
         </Button>
       </div>
 
@@ -475,19 +468,19 @@ function QuestionCard({ question }: { question: InterviewQuestionItem }) {
             {review.review.verdict ? <p className="font-medium">{review.review.verdict}</p> : null}
             {review.review.correctness ? (
               <p>
-                <span className="text-[var(--color-muted-foreground)]">Correctness: </span>
+                <span className="text-[var(--color-muted-foreground)]">{t('interview.correctness')}</span>
                 {review.review.correctness}
               </p>
             ) : null}
             {review.review.complexity ? (
               <p>
-                <span className="text-[var(--color-muted-foreground)]">Complexity: </span>
+                <span className="text-[var(--color-muted-foreground)]">{t('interview.complexity')}</span>
                 {review.review.complexity}
               </p>
             ) : null}
             {review.review.style ? (
               <p>
-                <span className="text-[var(--color-muted-foreground)]">Style: </span>
+                <span className="text-[var(--color-muted-foreground)]">{t('interview.style')}</span>
                 {review.review.style}
               </p>
             ) : null}

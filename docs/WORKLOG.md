@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-22 — Two-language interface, EN/RU (ADR-014, v1.6.0)
+
+- **Account language.** New `users.language` (`'en' | 'ru'`, default `'ru'`), on `AuthUser`, updatable via `PATCH /auth/me`; a `jr_lang` cookie mirrors it for server components and pre-auth pages. Migration `0007` (also adds `vacancies.summary_en`(+ts) and `resume_matches.explanation_en`).
+- **Web i18n from scratch (no library).** `lib/i18n` isomorphic dictionaries (flat keys, `ru` typed against `en`), `I18nProvider`/`useI18n()`, `getServerT()`, header EN/RU switcher (+ on auth pages). Translated the whole interface: nav, dashboard, feed, board, profiles, profile-form, resume, interview workspace, mock interview, apply-email, and both vacancy-detail assistant sections. Format/type/stage/status labels moved into the dictionaries.
+- **Bilingual generation + caching.** EN variants of `buildBriefPrompt`/`buildResumeMatchPrompt`; generation language = `user.language`, passed from controllers. Brief cached per language (`summary_en` beside `summary_ru`); fit score generated once, rationale cached per language (`explanation_en`). Renamed `BriefResponse/VacancyDetail.summaryRu` → `summary`.
+- **Tests + verification.** New backend specs (EN prompts, `updateMe`) and web specs (dictionary parity, provider switch); 269 API + 81 web tests green, lint + typecheck clean. Browser-verified locally end-to-end: UI switches instantly pre-auth and authenticated, PATCH persists to the account (DB shows `en`), both priority sections flip with the toggle.
+- **Next step:** apply migration to prod (`db:migrate:prod`) and confirm on the deployed app; decide whether the default should stay `ru` or flip to `en`.
+
 ## 2026-07-21 — Three more job platforms: Remotive, Jobicy, Working Nomads (v1.5.0)
 
 - **Added three free no-auth JSON sources.** Remotive (`?category=software-dev`), Jobicy (`?industry=dev`) and Working Nomads (`exposed_jobs`), each with normalizer + service + unit tests, wired into the ingestion processor/module and seeded active. Web feed source filter gained labels for all three.

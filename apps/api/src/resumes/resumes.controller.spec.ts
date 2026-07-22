@@ -4,7 +4,7 @@ import type { AuthUser, ResumeItem } from '@jobradar/shared';
 import { ResumesController } from './resumes.controller';
 import type { ResumesService } from './resumes.service';
 
-const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true };
+const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true, language: 'ru' };
 
 const item: ResumeItem = {
   id: 'r1',

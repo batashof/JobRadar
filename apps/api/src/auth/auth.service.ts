@@ -4,7 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { AuthUser, LoginInput, SignupInput } from '@jobradar/shared';
+import type { AuthUser, Language, LoginInput, SignupInput } from '@jobradar/shared';
 import { and, eq, gt } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
@@ -18,8 +18,18 @@ interface SessionResult {
   expiresAt: Date;
 }
 
-function toAuthUser(row: { id: string; email: string; digestEnabled: boolean }): AuthUser {
-  return { id: row.id, email: row.email, digestEnabled: row.digestEnabled };
+function toAuthUser(row: {
+  id: string;
+  email: string;
+  digestEnabled: boolean;
+  language: string;
+}): AuthUser {
+  return {
+    id: row.id,
+    email: row.email,
+    digestEnabled: row.digestEnabled,
+    language: row.language as Language,
+  };
 }
 
 /** Postgres unique_violation. drizzle wraps the pg error, so check the cause chain too. */
@@ -37,12 +47,19 @@ export class AuthService {
   /** Registers a new user and opens a session. Rejects duplicate emails. */
   async signup(input: SignupInput): Promise<SessionResult> {
     const passwordHash = await hashPassword(input.password);
-    let created: { id: string; email: string; digestEnabled: boolean } | undefined;
+    let created:
+      | { id: string; email: string; digestEnabled: boolean; language: string }
+      | undefined;
     try {
       const [row] = await this.db
         .insert(users)
         .values({ email: input.email, passwordHash })
-        .returning({ id: users.id, email: users.email, digestEnabled: users.digestEnabled });
+        .returning({
+          id: users.id,
+          email: users.email,
+          digestEnabled: users.digestEnabled,
+          language: users.language,
+        });
       created = row;
     } catch (err) {
       if (isUniqueViolation(err)) {
@@ -62,6 +79,7 @@ export class AuthService {
         id: users.id,
         email: users.email,
         digestEnabled: users.digestEnabled,
+        language: users.language,
         passwordHash: users.passwordHash,
       })
       .from(users)
@@ -88,12 +106,29 @@ export class AuthService {
         id: users.id,
         email: users.email,
         digestEnabled: users.digestEnabled,
+        language: users.language,
       })
       .from(sessions)
       .innerJoin(users, eq(users.id, sessions.userId))
       .where(and(eq(sessions.token, token), gt(sessions.expiresAt, new Date())))
       .limit(1);
     return row ? toAuthUser(row) : null;
+  }
+
+  /** Updates the caller's interface language (ADR-014) and returns the fresh user. */
+  async updateLanguage(userId: string, language: Language): Promise<AuthUser> {
+    const [row] = await this.db
+      .update(users)
+      .set({ language, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        digestEnabled: users.digestEnabled,
+        language: users.language,
+      });
+    if (!row) throw new UnauthorizedException('User not found');
+    return toAuthUser(row);
   }
 
   /** Revokes a session (logout). No-op if the token is unknown. */

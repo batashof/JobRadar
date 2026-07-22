@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   type ApplyContact,
   detectSeniority,
+  type Language,
   levelsBelowResume,
   type SeniorityLevel,
   type SourceOption,
@@ -22,7 +23,7 @@ const NO_RESUME = '00000000-0000-0000-0000-000000000000';
 export class VacanciesService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async feed(userId: string, query: VacancyQuery): Promise<VacancyFeed> {
+  async feed(userId: string, lang: Language, query: VacancyQuery): Promise<VacancyFeed> {
     const { q, workFormat, employmentType, salaryMin, resumeFit, page, pageSize } = query;
 
     const resume = await this.activeResume(userId);
@@ -76,6 +77,7 @@ export class VacanciesService {
         seniority: vacancies.seniority,
         resumeScore: resumeMatches.score,
         resumeExplanation: resumeMatches.explanation,
+        resumeExplanationEn: resumeMatches.explanationEn,
       })
       .from(vacancies)
       .innerJoin(sources, eq(sources.id, vacancies.sourceId))
@@ -99,11 +101,11 @@ export class VacanciesService {
       .where(where);
 
     return {
-      items: items.map((v) => ({
+      items: items.map(({ resumeExplanationEn, ...v }) => ({
         ...v,
         seniority: (v.seniority as SeniorityLevel | null) ?? null,
         resumeScore: v.resumeScore ?? null,
-        resumeExplanation: v.resumeExplanation || null,
+        resumeExplanation: (lang === 'en' ? resumeExplanationEn : v.resumeExplanation) || null,
         publishedAt: v.publishedAt?.toISOString() ?? null,
       })),
       total: countRow?.count ?? 0,
@@ -113,7 +115,7 @@ export class VacanciesService {
   }
 
   /** Full vacancy for the in-app detail page (ADR-011); carries the cached resume score. */
-  async getById(userId: string, id: string): Promise<VacancyDetail> {
+  async getById(userId: string, lang: Language, id: string): Promise<VacancyDetail> {
     const resume = await this.activeResume(userId);
 
     const [row] = await this.db
@@ -134,9 +136,11 @@ export class VacanciesService {
         seniority: vacancies.seniority,
         applyContact: vacancies.applyContact,
         summaryRu: vacancies.summaryRu,
+        summaryEn: vacancies.summaryEn,
         ingestedAt: vacancies.ingestedAt,
         resumeScore: resumeMatches.score,
         resumeExplanation: resumeMatches.explanation,
+        resumeExplanationEn: resumeMatches.explanationEn,
       })
       .from(vacancies)
       .innerJoin(sources, eq(sources.id, vacancies.sourceId))
@@ -150,15 +154,16 @@ export class VacanciesService {
       .where(eq(vacancies.id, id));
     if (!row) throw new NotFoundException('Vacancy not found');
 
+    const { summaryRu, summaryEn, resumeExplanationEn, ...rest } = row;
     return {
-      ...row,
+      ...rest,
       publishedAt: row.publishedAt?.toISOString() ?? null,
       ingestedAt: row.ingestedAt.toISOString(),
       seniority: (row.seniority as SeniorityLevel | null) ?? null,
       applyContact: (row.applyContact as ApplyContact | null) ?? null,
-      summaryRu: row.summaryRu ?? null,
+      summary: (lang === 'en' ? summaryEn : summaryRu) ?? null,
       resumeScore: row.resumeScore ?? null,
-      resumeExplanation: row.resumeExplanation || null,
+      resumeExplanation: (lang === 'en' ? resumeExplanationEn : row.resumeExplanation) || null,
     };
   }
 

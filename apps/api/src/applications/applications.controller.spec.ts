@@ -3,7 +3,7 @@ import type { AuthUser } from '@jobradar/shared';
 import { ApplicationsController } from './applications.controller';
 import type { ApplicationsService } from './applications.service';
 
-const user: AuthUser = { id: 'user-1', email: 'a@b.com', digestEnabled: true };
+const user: AuthUser = { id: 'user-1', email: 'a@b.com', digestEnabled: true, language: 'ru' };
 const UUID = '11111111-1111-4111-8111-111111111111';
 
 describe('ApplicationsController', () => {

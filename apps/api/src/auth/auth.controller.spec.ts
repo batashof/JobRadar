@@ -5,7 +5,7 @@ import { AuthController } from './auth.controller';
 import type { AuthService } from './auth.service';
 import { SESSION_COOKIE } from './session';
 
-const user: AuthUser = { id: 'u1', email: 'a@b.com', digestEnabled: true };
+const user: AuthUser = { id: 'u1', email: 'a@b.com', digestEnabled: true, language: 'ru' };
 
 function fakeResponse() {
   const cookies: { name: string; value?: string }[] = [];
@@ -76,5 +76,16 @@ describe('AuthController', () => {
   it('me returns the injected current user', () => {
     const controller = new AuthController({} as unknown as AuthService);
     expect(controller.me(user)).toEqual({ user });
+  });
+
+  it('updateMe delegates the language change and returns the fresh user', async () => {
+    const updated: AuthUser = { ...user, language: 'en' };
+    const updateLanguage = jest.fn().mockResolvedValue(updated);
+    const controller = new AuthController({ updateLanguage } as unknown as AuthService);
+
+    const result = await controller.updateMe(user, { language: 'en' });
+
+    expect(updateLanguage).toHaveBeenCalledWith(user.id, 'en');
+    expect(result).toEqual({ user: updated });
   });
 });

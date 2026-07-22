@@ -99,6 +99,8 @@ export const users = pgTable('users', {
   oauthId: text('oauth_id'),
   digestEnabled: boolean('digest_enabled').notNull().default(true),
   digestLastSentAt: timestamp('digest_last_sent_at', { withTimezone: true }),
+  // Interface + AI-generation language, 'en' | 'ru' (ADR-014). Default 'ru'.
+  language: text('language').notNull().default('ru'),
   // OAuth refresh token for the Gmail `gmail.send` scope (ADR-011).
   // Null = email apply disabled. Encrypted at rest by the app layer.
   gmailRefreshToken: text('gmail_refresh_token'),
@@ -188,9 +190,12 @@ export const vacancies = pgTable(
     // Coarse level detected at ingestion for the resume-driven feed filter
     // (ADR-012): 'intern' | 'junior' | 'middle' | 'senior' | 'lead' | null.
     seniority: text('seniority'),
-    // On-demand Russian brief, cached after the first generation (ADR-011).
+    // On-demand brief, cached per language after the first generation
+    // (ADR-011/014). One slot per interface language, shared across users.
     summaryRu: text('summary_ru'),
     summaryGeneratedAt: timestamp('summary_generated_at', { withTimezone: true }),
+    summaryEn: text('summary_en'),
+    summaryEnGeneratedAt: timestamp('summary_en_generated_at', { withTimezone: true }),
     ingestedAt: timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
     canonicalVacancyId: uuid('canonical_vacancy_id').references(
       (): AnyPgColumn => vacancies.id,
@@ -260,7 +265,11 @@ export const resumeMatches = pgTable(
       .notNull()
       .references(() => vacancies.id, { onDelete: 'cascade' }),
     score: real('score').notNull(),
+    // Rationale cached per interface language (ADR-014). `explanation` is the
+    // Russian slot (legacy name kept); `explanation_en` the English one. The
+    // score itself is language-neutral and generated once.
     explanation: text('explanation').notNull().default(''),
+    explanationEn: text('explanation_en').notNull().default(''),
     matchedAt: timestamp('matched_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.resumeId, t.vacancyId] })],

@@ -4,6 +4,8 @@
  * discipline is the caller's job nowhere else (ADR-005).
  */
 
+import type { Language } from '@jobradar/shared';
+
 export const VACANCY_TEXT_LIMIT = 6000;
 export const RESUME_TEXT_LIMIT = 5000;
 
@@ -18,8 +20,21 @@ export interface VacancyPromptInput {
   location?: string | null;
 }
 
-/** Russian vacancy brief: who the employer is, what the role is, how well it fits. */
+/**
+ * Vacancy brief in the requested interface language (ADR-014): who the employer
+ * is, what the role is, how well it fits. Same three-part structure in both.
+ */
 export function buildBriefPrompt(
+  vacancy: VacancyPromptInput,
+  resumeText: string | null,
+  lang: Language = 'ru',
+): { system: string; user: string } {
+  return lang === 'en'
+    ? buildBriefPromptEn(vacancy, resumeText)
+    : buildBriefPromptRu(vacancy, resumeText);
+}
+
+function buildBriefPromptRu(
   vacancy: VacancyPromptInput,
   resumeText: string | null,
 ): { system: string; user: string } {
@@ -42,6 +57,35 @@ export function buildBriefPrompt(
     'Всего не больше 150 слов, без воды.',
     `\nВакансия: ${vacancy.title} — ${vacancy.company}${vacancy.location ? ` (${vacancy.location})` : ''}`,
     `\nТекст вакансии:\n${truncate(vacancy.description, VACANCY_TEXT_LIMIT)}`,
+    fitSection,
+  ].join('\n');
+
+  return { system, user };
+}
+
+function buildBriefPromptEn(
+  vacancy: VacancyPromptInput,
+  resumeText: string | null,
+): { system: string; user: string } {
+  const system = [
+    'You are a job-search assistant. Reply in English only, concise and to the point.',
+    'Never invent facts: if something is not in the vacancy text, say so plainly.',
+  ].join(' ');
+
+  const fitSection = resumeText
+    ? `\n\nCandidate resume (for the fit assessment):\n${truncate(resumeText, RESUME_TEXT_LIMIT)}`
+    : '';
+
+  const user = [
+    'Write a short vacancy brief in three parts:',
+    '1. Employer: what the company is and what it does (from the vacancy text; say so plainly if unclear).',
+    '2. The role: responsibilities, key requirements, format/conditions.',
+    resumeText
+      ? '3. Fit for the candidate: how well the vacancy matches the resume — strong overlaps and clear gaps.'
+      : '3. Who it is for: what experience and level are expected here.',
+    'No more than 150 words total, no filler.',
+    `\nVacancy: ${vacancy.title} — ${vacancy.company}${vacancy.location ? ` (${vacancy.location})` : ''}`,
+    `\nVacancy text:\n${truncate(vacancy.description, VACANCY_TEXT_LIMIT)}`,
     fitSection,
   ].join('\n');
 

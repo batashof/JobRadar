@@ -23,7 +23,7 @@ export class VacanciesController {
     @CurrentUser() user: AuthUser,
     @Query(new ZodValidationPipe(vacancyQuerySchema)) query: VacancyQuery,
   ): Promise<VacancyFeed> {
-    return this.vacancies.feed(user.id, query);
+    return this.vacancies.feed(user.id, user.language, query);
   }
 
   @Get('sources')
@@ -37,6 +37,6 @@ export class VacanciesController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<VacancyDetail> {
-    return this.vacancies.getById(user.id, id);
+    return this.vacancies.getById(user.id, user.language, id);
   }
 }

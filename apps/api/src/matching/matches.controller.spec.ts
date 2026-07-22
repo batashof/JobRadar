@@ -6,7 +6,7 @@ import type { ResumeMatchingService } from './resume-matching.service';
 
 const noResumeMatching = {} as ResumeMatchingService;
 
-const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true };
+const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true, language: 'ru' };
 
 describe('MatchesController', () => {
   it('delegates the parsed query to the service, scoped to the user', async () => {

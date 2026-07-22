@@ -7,20 +7,22 @@ import { ProfileForm } from '@/components/profile-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useI18n } from '@/lib/i18n/context';
+import type { TFunction } from '@/lib/i18n/dictionaries';
 import { createProfile, deleteProfile, updateProfile } from '@/lib/profiles';
-import { EMPLOYMENT_TYPE_LABELS, WORK_FORMAT_LABELS } from '@/lib/labels';
 
 type Mode = { kind: 'idle' } | { kind: 'create' } | { kind: 'edit'; id: string };
 
-function salaryText(p: SearchProfile): string | null {
+function salaryText(p: SearchProfile, t: TFunction): string | null {
   if (p.salaryMin == null && p.salaryMax == null) return null;
   const cur = p.salaryCurrency ? ` ${p.salaryCurrency}` : '';
   if (p.salaryMin != null && p.salaryMax != null) return `${p.salaryMin}–${p.salaryMax}${cur}`;
-  if (p.salaryMin != null) return `from ${p.salaryMin}${cur}`;
-  return `up to ${p.salaryMax}${cur}`;
+  if (p.salaryMin != null) return t('profiles.salaryFrom', { min: p.salaryMin, cur });
+  return t('profiles.salaryTo', { max: p.salaryMax ?? '', cur });
 }
 
 export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState<SearchProfile[]>(initial);
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
 
@@ -37,7 +39,7 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Delete this search profile?')) return;
+    if (!window.confirm(t('profiles.confirmDelete'))) return;
     await deleteProfile(id);
     setProfiles((prev) => prev.filter((p) => p.id !== id));
   }
@@ -46,13 +48,11 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Search profiles</h1>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            What the radar watches for. Active profiles drive matching and digests.
-          </p>
+          <h1 className="text-2xl font-semibold">{t('profiles.title')}</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">{t('profiles.subtitle')}</p>
         </div>
         {mode.kind === 'idle' ? (
-          <Button onClick={() => setMode({ kind: 'create' })}>New profile</Button>
+          <Button onClick={() => setMode({ kind: 'create' })}>{t('profiles.new')}</Button>
         ) : null}
       </div>
 
@@ -63,7 +63,7 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
       {profiles.length === 0 && mode.kind !== 'create' ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-[var(--color-muted-foreground)]">
-            No search profiles yet. Create one to start matching vacancies.
+            {t('profiles.none')}
           </CardContent>
         </Card>
       ) : null}
@@ -85,9 +85,9 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
                   <div className="flex items-center gap-2">
                     <CardTitle>{profile.name}</CardTitle>
                     {profile.isActive ? (
-                      <Badge variant="primary">Active</Badge>
+                      <Badge variant="primary">{t('profiles.active')}</Badge>
                     ) : (
-                      <Badge variant="muted">Paused</Badge>
+                      <Badge variant="muted">{t('profiles.paused')}</Badge>
                     )}
                   </div>
                   <div className="flex gap-2">
@@ -96,14 +96,14 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
                       size="sm"
                       onClick={() => setMode({ kind: 'edit', id: profile.id })}
                     >
-                      Edit
+                      {t('common.edit')}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => void handleDelete(profile.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </Button>
                   </div>
                 </CardHeader>
@@ -112,12 +112,12 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
                     <div className="flex flex-wrap gap-1.5">
                       {profile.workFormat.map((wf) => (
                         <Badge key={wf} variant="outline">
-                          {WORK_FORMAT_LABELS[wf]}
+                          {t(`workFormat.${wf}`)}
                         </Badge>
                       ))}
                       {profile.employmentType.map((et) => (
                         <Badge key={et} variant="default">
-                          {EMPLOYMENT_TYPE_LABELS[et]}
+                          {t(`employmentType.${et}`)}
                         </Badge>
                       ))}
                     </div>
@@ -125,20 +125,20 @@ export function ProfilesManager({ initial }: { initial: SearchProfile[] }) {
 
                   {profile.keywords.length > 0 ? (
                     <p className="text-sm">
-                      <span className="text-[var(--color-muted-foreground)]">Keywords: </span>
+                      <span className="text-[var(--color-muted-foreground)]">{t('profiles.keywords')}</span>
                       {profile.keywords.join(', ')}
                     </p>
                   ) : null}
                   {profile.stack.length > 0 ? (
                     <p className="text-sm">
-                      <span className="text-[var(--color-muted-foreground)]">Stack: </span>
+                      <span className="text-[var(--color-muted-foreground)]">{t('profiles.stack')}</span>
                       {profile.stack.join(', ')}
                     </p>
                   ) : null}
-                  {salaryText(profile) ? (
+                  {salaryText(profile, t) ? (
                     <p className="text-sm">
-                      <span className="text-[var(--color-muted-foreground)]">Salary: </span>
-                      {salaryText(profile)}
+                      <span className="text-[var(--color-muted-foreground)]">{t('profiles.salary')}</span>
+                      {salaryText(profile, t)}
                     </p>
                   ) : null}
                 </CardContent>

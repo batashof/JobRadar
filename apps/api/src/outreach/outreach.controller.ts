@@ -28,7 +28,7 @@ export class OutreachController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('force') force?: string,
   ): Promise<BriefResponse> {
-    return this.outreach.brief(user.id, id, force === 'true');
+    return this.outreach.brief(user.id, id, user.language, force === 'true');
   }
 
   @Post(':id/cover-letter')
@@ -44,7 +44,7 @@ export class OutreachController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ResumeMatchResponse> {
-    return this.outreach.resumeMatch(user.id, id);
+    return this.outreach.resumeMatch(user.id, id, user.language);
   }
 
   @Post(':id/apply-email/draft')

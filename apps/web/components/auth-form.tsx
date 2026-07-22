@@ -16,34 +16,19 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { Logo } from '@/components/ui/logo';
 import { ApiError } from '@/lib/api';
 import { login, signup } from '@/lib/auth';
+import { useI18n } from '@/lib/i18n/context';
 
 type Mode = 'login' | 'signup';
 
-const copy: Record<Mode, { title: string; description: string; cta: string; alt: string; altHref: string; altLabel: string }> = {
-  login: {
-    title: 'Welcome back',
-    description: 'Sign in to your JobRadar account.',
-    cta: 'Sign in',
-    alt: "Don't have an account?",
-    altHref: '/signup',
-    altLabel: 'Create one',
-  },
-  signup: {
-    title: 'Create your account',
-    description: 'Start tracking your job search with JobRadar.',
-    cta: 'Sign up',
-    alt: 'Already have an account?',
-    altHref: '/login',
-    altLabel: 'Sign in',
-  },
-};
+const ALT_HREF: Record<Mode, string> = { login: '/signup', signup: '/login' };
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
-  const t = copy[mode];
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +41,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     const schema = mode === 'signup' ? signupSchema : loginSchema;
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid input');
+      setError(parsed.error.issues[0]?.message ?? t('common.invalidInput'));
       return;
     }
 
@@ -70,23 +55,26 @@ export function AuthForm({ mode }: { mode: Mode }) {
       router.replace('/app');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setError(err instanceof ApiError ? err.message : t('common.tryAgain'));
       setSubmitting(false);
     }
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
-      <Logo size={36} />
+      <div className="flex items-center gap-4">
+        <Logo size={36} />
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>{t.title}</CardTitle>
-          <CardDescription>{t.description}</CardDescription>
+          <CardTitle>{t(`auth.${mode}.title`)}</CardTitle>
+          <CardDescription>{t(`auth.${mode}.description`)}</CardDescription>
         </CardHeader>
         <form onSubmit={onSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -97,7 +85,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -115,12 +103,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </CardContent>
           <CardFooter className="flex-col gap-4">
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? 'Please wait…' : t.cta}
+              {submitting ? t('auth.submitting') : t(`auth.${mode}.cta`)}
             </Button>
             <p className="text-sm text-[var(--color-muted-foreground)]">
-              {t.alt}{' '}
-              <Link href={t.altHref} className="text-[var(--color-primary)] hover:underline">
-                {t.altLabel}
+              {t(`auth.${mode}.alt`)}{' '}
+              <Link href={ALT_HREF[mode]} className="text-[var(--color-primary)] hover:underline">
+                {t(`auth.${mode}.altLabel`)}
               </Link>
             </p>
           </CardFooter>

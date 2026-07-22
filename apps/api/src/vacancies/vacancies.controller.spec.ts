@@ -3,7 +3,7 @@ import type { AuthUser, SourceOption, VacancyDetail, VacancyFeed, VacancyQuery }
 import { VacanciesController } from './vacancies.controller';
 import type { VacanciesService } from './vacancies.service';
 
-const USER: AuthUser = { id: 'u1', email: 'u@acme.dev', digestEnabled: false };
+const USER: AuthUser = { id: 'u1', email: 'u@acme.dev', digestEnabled: false, language: 'ru' };
 
 describe('VacanciesController', () => {
   it('delegates the parsed query to the service, scoped to the user', async () => {
@@ -22,7 +22,7 @@ describe('VacanciesController', () => {
     };
 
     await expect(controller.feed(USER, query)).resolves.toBe(result);
-    expect(feed).toHaveBeenCalledWith(USER.id, query);
+    expect(feed).toHaveBeenCalledWith(USER.id, USER.language, query);
   });
 
   it('returns the vacancy detail by id, scoped to the user', async () => {
@@ -37,7 +37,7 @@ describe('VacanciesController', () => {
     const controller = new VacanciesController({ getById } as unknown as VacanciesService);
 
     await expect(controller.getById(USER, 'v1')).resolves.toBe(detail);
-    expect(getById).toHaveBeenCalledWith(USER.id, 'v1');
+    expect(getById).toHaveBeenCalledWith(USER.id, USER.language, 'v1');
   });
 
   it('lists source filter options', async () => {

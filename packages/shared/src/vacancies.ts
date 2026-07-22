@@ -69,7 +69,7 @@ export interface VacancyListItem {
   seniority?: SeniorityLevel | null;
   /** LLM resume-fit score in [0, 1] for the caller's active resume; null if not yet scored. */
   resumeScore?: number | null;
-  /** Short RU rationale that accompanies `resumeScore`; null when unscored. */
+  /** Short rationale (viewer's language) that accompanies `resumeScore`; null when unscored. */
   resumeExplanation?: string | null;
 }
 
@@ -92,14 +92,18 @@ export interface ApplyContact {
 /** Full vacancy for the in-app detail page (untruncated description, ADR-011). */
 export interface VacancyDetail extends VacancyListItem {
   applyContact: ApplyContact | null;
-  /** Cached on-demand Russian brief; null until first generated. */
-  summaryRu: string | null;
+  /**
+   * Cached on-demand brief in the viewer's interface language (ADR-014);
+   * null until first generated in that language.
+   */
+  summary: string | null;
   ingestedAt: string;
 }
 
-/** POST /vacancies/:id/brief — on-demand Russian brief (ADR-011). */
+/** POST /vacancies/:id/brief — on-demand brief in the user's language (ADR-011/014). */
 export interface BriefResponse {
-  summaryRu: string;
+  /** Brief text in the requested language. */
+  summary: string;
   generatedAt: string;
   /** True when served from the cache instead of a fresh LLM call. */
   cached: boolean;
@@ -114,7 +118,7 @@ export interface CoverLetterResponse {
 export interface ResumeMatchResponse {
   /** Fit score in [0, 1]. */
   score: number;
-  /** Short RU rationale: main overlap and the main gap. */
+  /** Short rationale in the requested language: main overlap and the main gap. */
   explanation: string;
   /** True when served from `resume_matches` instead of a fresh LLM call. */
   cached: boolean;

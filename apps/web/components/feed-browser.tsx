@@ -17,7 +17,8 @@ import { Label } from '@/components/ui/label';
 import { VacancyCard } from '@/components/vacancy-card';
 import { ApiError } from '@/lib/api';
 import { createApplication } from '@/lib/applications';
-import { EMPLOYMENT_TYPE_LABELS, sourceLabel, WORK_FORMAT_LABELS } from '@/lib/labels';
+import { useI18n } from '@/lib/i18n/context';
+import { sourceLabel } from '@/lib/labels';
 import { EMPTY_FILTERS, fetchFeed, type FeedFilters } from '@/lib/vacancies';
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -35,6 +36,7 @@ export function FeedBrowser({
   sourceOptions: SourceOption[];
   hasResume: boolean;
 }) {
+  const { t } = useI18n();
   const [tracked, setTracked] = useState<Set<string>>(() => new Set(trackedIds));
   const [saving, setSaving] = useState<Set<string>>(() => new Set());
   const [qInput, setQInput] = useState('');
@@ -66,7 +68,7 @@ export function FeedBrowser({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : 'Failed to load vacancies');
+          setError(err instanceof ApiError ? err.message : t('feed.loadFailed'));
         }
       })
       .finally(() => {
@@ -75,7 +77,7 @@ export function FeedBrowser({
     return () => {
       cancelled = true;
     };
-  }, [filters, page]);
+  }, [filters, page, t]);
 
   function applyFilters(event: FormEvent) {
     event.preventDefault();
@@ -106,7 +108,7 @@ export function FeedBrowser({
         if (err instanceof ApiError && err.status === 409) {
           setTracked((prev) => new Set(prev).add(id));
         } else {
-          setError('Could not save to the board.');
+          setError(t('feed.saveFailed'));
         }
       })
       .finally(() =>
@@ -123,10 +125,8 @@ export function FeedBrowser({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Vacancies</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Aggregated from all active sources. Full-text search, filter, and browse.
-        </p>
+        <h1 className="text-2xl font-semibold">{t('feed.title')}</h1>
+        <p className="text-sm text-[var(--color-muted-foreground)]">{t('feed.subtitle')}</p>
       </div>
 
       <Card>
@@ -134,21 +134,21 @@ export function FeedBrowser({
           <form onSubmit={applyFilters} className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
-                aria-label="Search vacancies"
-                placeholder="Search title, company, description…"
+                aria-label={t('feed.searchAria')}
+                placeholder={t('feed.searchPlaceholder')}
                 value={qInput}
                 onChange={(e) => setQInput(e.target.value)}
               />
               <div className="flex gap-2">
                 <Input
-                  aria-label="Minimum salary"
+                  aria-label={t('feed.minSalaryAria')}
                   inputMode="numeric"
-                  placeholder="Min salary"
+                  placeholder={t('feed.minSalaryPlaceholder')}
                   className="w-32"
                   value={salaryInput}
                   onChange={(e) => setSalaryInput(e.target.value)}
                 />
-                <Button type="submit">Search</Button>
+                <Button type="submit">{t('feed.search')}</Button>
               </div>
             </div>
             {hasResume ? (
@@ -158,15 +158,15 @@ export function FeedBrowser({
                   checked={filters.resumeFit}
                   onChange={(e) => toggleResumeFit(e.target.checked)}
                 />
-                Hide roles below my level
+                {t('feed.hideBelow')}
                 <span className="text-xs text-[var(--color-muted-foreground)]">
-                  (based on your active resume)
+                  {t('feed.hideBelowHint')}
                 </span>
               </label>
             ) : null}
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               <fieldset className="flex flex-wrap items-center gap-3">
-                <Label className="text-[var(--color-muted-foreground)]">Format:</Label>
+                <Label className="text-[var(--color-muted-foreground)]">{t('feed.format')}</Label>
                 {WORK_FORMATS.map((wf) => (
                   <label key={wf} className="flex items-center gap-1.5 text-sm">
                     <input
@@ -174,12 +174,12 @@ export function FeedBrowser({
                       checked={workFormat.includes(wf)}
                       onChange={() => setWorkFormat((prev) => toggle(prev, wf))}
                     />
-                    {WORK_FORMAT_LABELS[wf]}
+                    {t(`workFormat.${wf}`)}
                   </label>
                 ))}
               </fieldset>
               <fieldset className="flex flex-wrap items-center gap-3">
-                <Label className="text-[var(--color-muted-foreground)]">Type:</Label>
+                <Label className="text-[var(--color-muted-foreground)]">{t('feed.type')}</Label>
                 {EMPLOYMENT_TYPES.map((et) => (
                   <label key={et} className="flex items-center gap-1.5 text-sm">
                     <input
@@ -187,13 +187,13 @@ export function FeedBrowser({
                       checked={employmentType.includes(et)}
                       onChange={() => setEmploymentType((prev) => toggle(prev, et))}
                     />
-                    {EMPLOYMENT_TYPE_LABELS[et]}
+                    {t(`employmentType.${et}`)}
                   </label>
                 ))}
               </fieldset>
               {sourceOptions.length > 0 ? (
                 <fieldset className="flex flex-wrap items-center gap-3">
-                  <Label className="text-[var(--color-muted-foreground)]">Source:</Label>
+                  <Label className="text-[var(--color-muted-foreground)]">{t('feed.source')}</Label>
                   {sourceOptions.map((s) => (
                     <label key={s.slug} className="flex items-center gap-1.5 text-sm">
                       <input
@@ -216,12 +216,10 @@ export function FeedBrowser({
 
       <div className="flex items-center justify-between text-sm text-[var(--color-muted-foreground)]">
         <span>
-          {feed.total} {feed.total === 1 ? 'vacancy' : 'vacancies'}
-          {loading ? ' · loading…' : ''}
+          {t(feed.total === 1 ? 'feed.countOne' : 'feed.countMany', { count: feed.total })}
+          {loading ? t('feed.loadingSuffix') : ''}
         </span>
-        <span>
-          Page {feed.page} of {totalPages}
-        </span>
+        <span>{t('feed.pageOf', { page: feed.page, total: totalPages })}</span>
       </div>
 
       {error ? (
@@ -233,7 +231,7 @@ export function FeedBrowser({
       {feed.items.length === 0 && !loading ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-[var(--color-muted-foreground)]">
-            No vacancies match these filters.
+            {t('feed.noMatch')}
           </CardContent>
         </Card>
       ) : (
@@ -258,7 +256,7 @@ export function FeedBrowser({
           disabled={feed.page <= 1 || loading}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
-          Previous
+          {t('common.previous')}
         </Button>
         <span className="text-sm text-[var(--color-muted-foreground)]">
           {feed.page} / {totalPages}
@@ -269,7 +267,7 @@ export function FeedBrowser({
           disabled={feed.page >= totalPages || loading}
           onClick={() => setPage((p) => p + 1)}
         >
-          Next
+          {t('common.next')}
         </Button>
       </div>
     </div>

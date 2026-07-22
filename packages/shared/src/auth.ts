@@ -34,11 +34,25 @@ export const loginSchema = z.object({
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+/** UI language and generation language for AI sections (ADR-014). */
+export const LANGUAGES = ['en', 'ru'] as const;
+export type Language = (typeof LANGUAGES)[number];
+export const DEFAULT_LANGUAGE: Language = 'ru';
+export const languageSchema = z.enum(LANGUAGES);
+
+/** PATCH /auth/me body — currently only the interface language is mutable. */
+export const updateMeSchema = z.object({
+  language: languageSchema,
+});
+export type UpdateMeInput = z.infer<typeof updateMeSchema>;
+
 /** Public user shape returned by the API. Never carries the password hash. */
 export interface AuthUser {
   id: string;
   email: string;
   digestEnabled: boolean;
+  /** Interface + AI-generation language (ADR-014). */
+  language: Language;
 }
 
 /** Response of GET /auth/me, POST /auth/login and POST /auth/signup. */

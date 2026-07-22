@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { AppHeader } from '@/components/app-header';
 import { AuthProvider } from '@/lib/auth-context';
+import { I18nProvider } from '@/lib/i18n/context';
 import { getCurrentUser } from '@/lib/server-auth';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -11,10 +12,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <AuthProvider user={user}>
-      <div className="min-h-screen">
-        <AppHeader />
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-      </div>
+      <I18nProvider initialLanguage={user.language}>
+        <div className="min-h-screen">
+          <AppHeader />
+          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        </div>
+      </I18nProvider>
     </AuthProvider>
   );
 }

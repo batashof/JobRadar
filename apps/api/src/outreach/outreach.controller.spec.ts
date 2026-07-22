@@ -8,12 +8,12 @@ import type {
 import { OutreachController } from './outreach.controller';
 import type { OutreachService } from './outreach.service';
 
-const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true };
+const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true, language: 'ru' };
 
 describe('OutreachController', () => {
   it('delegates brief generation with the force flag parsed', async () => {
     const result: BriefResponse = {
-      summaryRu: 'Кратко о вакансии',
+      summary: 'Кратко о вакансии',
       generatedAt: '2026-07-21T00:00:00.000Z',
       cached: false,
     };
@@ -21,10 +21,10 @@ describe('OutreachController', () => {
     const controller = new OutreachController({ brief } as unknown as OutreachService);
 
     await expect(controller.brief(user, 'v1', undefined)).resolves.toBe(result);
-    expect(brief).toHaveBeenCalledWith(user.id, 'v1', false);
+    expect(brief).toHaveBeenCalledWith(user.id, 'v1', user.language, false);
 
     await controller.brief(user, 'v1', 'true');
-    expect(brief).toHaveBeenLastCalledWith(user.id, 'v1', true);
+    expect(brief).toHaveBeenLastCalledWith(user.id, 'v1', user.language, true);
   });
 
   it('delegates cover letter generation', async () => {
@@ -42,7 +42,7 @@ describe('OutreachController', () => {
     const controller = new OutreachController({ resumeMatch } as unknown as OutreachService);
 
     await expect(controller.resumeMatch(user, 'v1')).resolves.toBe(result);
-    expect(resumeMatch).toHaveBeenCalledWith(user.id, 'v1');
+    expect(resumeMatch).toHaveBeenCalledWith(user.id, 'v1', user.language);
   });
 
   it('delegates apply-email drafting with the cover letter', async () => {

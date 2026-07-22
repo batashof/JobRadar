@@ -39,6 +39,7 @@ User 1──n InterviewSession (n──1 InterviewPlan, nullable)
 | oauth_id | text nullable | |
 | digest_enabled | boolean default true | unsubscribe flag |
 | digest_last_sent_at | timestamptz nullable | idempotency for digest job |
+| language | text not null default `'ru'` | interface + AI-generation language, `en` \| `ru` (ADR-014) |
 | created_at / updated_at | timestamptz | |
 
 ### sessions
@@ -157,11 +158,12 @@ PK `(profile_id, vacancy_id)`.
 |---|---|---|
 | resume_id | uuid FK → resumes | |
 | vacancy_id | uuid FK → vacancies | |
-| score | real | LLM fit score |
-| explanation | text | short LLM fit explanation |
+| score | real | LLM fit score (language-neutral, generated once) |
+| explanation | text | short LLM fit explanation in Russian (ADR-014) |
+| explanation_en | text not null default `''` | short LLM fit explanation in English (ADR-014) |
 | matched_at | timestamptz | |
 
-PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005). Populated two ways: the capped background batch over profile-matched vacancies (ADR-011), and on-demand when the user scores a single vacancy from its detail page (ADR-012).
+PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005). The score is generated once; each language's `explanation` is filled on first request in that language (ADR-014). Populated two ways: the capped background batch over profile-matched vacancies (ADR-011), and on-demand when the user scores a single vacancy from its detail page (ADR-012).
 
 ### outreach_emails (sent applications)
 
@@ -185,6 +187,8 @@ PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at mos
 | vacancies | seniority | text nullable | coarse level detected at ingestion (ADR-012): `intern \| junior \| middle \| senior \| lead`; null = unstated. Powers the feed's soft resume-driven level filter |
 | vacancies | summary_ru | text nullable | cached on-demand Russian brief (employer, what they do, fit) |
 | vacancies | summary_generated_at | timestamptz nullable | |
+| vacancies | summary_en | text nullable | cached on-demand English brief; per-language slot (ADR-014) |
+| vacancies | summary_en_generated_at | timestamptz nullable | |
 | users | gmail_refresh_token | text nullable | OAuth refresh token for `gmail.send` (encrypted at rest); null = email apply disabled |
 
 ## Phase 4 additions (ADR-013 — interview prep)

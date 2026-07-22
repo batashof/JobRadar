@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { APP_NAME } from '@jobradar/shared';
 
+import { resolveServerLanguage } from '@/lib/i18n/server';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -10,9 +11,10 @@ export const metadata: Metadata = {
     'Personal job-search radar: aggregated vacancies and an application tracker.',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const lang = await resolveServerLanguage();
   return (
-    <html lang="en">
+    <html lang={lang}>
       <body>{children}</body>
     </html>
   );

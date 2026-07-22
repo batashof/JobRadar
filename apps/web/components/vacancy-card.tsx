@@ -1,6 +1,6 @@
 'use client';
 
-import type { VacancyListItem } from '@jobradar/shared';
+import type { Language, VacancyListItem } from '@jobradar/shared';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -8,23 +8,27 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { scoreColor } from '@/components/ui/score-gauge';
-import { EMPLOYMENT_TYPE_LABELS, sourceLabel, WORK_FORMAT_LABELS } from '@/lib/labels';
+import { useI18n } from '@/lib/i18n/context';
+import type { TFunction } from '@/lib/i18n/dictionaries';
+import { sourceLabel } from '@/lib/labels';
 
-export function salaryText(v: VacancyListItem): string | null {
+export function salaryText(v: VacancyListItem, t: TFunction): string | null {
   // Some sources emit 0/0 for "no salary" — treat non-positive as absent.
   const min = v.salaryMin && v.salaryMin > 0 ? v.salaryMin : null;
   const max = v.salaryMax && v.salaryMax > 0 ? v.salaryMax : null;
   if (min == null && max == null) return null;
   const cur = v.salaryCurrency ? ` ${v.salaryCurrency}` : '';
   if (min != null && max != null) return `${min}–${max}${cur}`;
-  if (min != null) return `from ${min}${cur}`;
-  return `up to ${max}${cur}`;
+  if (min != null) return t('vacancy.salaryFrom', { min, cur });
+  return t('vacancy.salaryTo', { max: max ?? '', cur });
 }
 
-export function publishedText(iso: string | null): string | null {
+export function publishedText(iso: string | null, lang: Language): string | null {
   if (!iso) return null;
-  // Fixed locale: SSR and the browser must format identically (hydration).
-  return new Date(iso).toLocaleDateString('en-GB', {
+  // Locale is fixed per render by the account language, so SSR and the browser
+  // format identically (no hydration mismatch).
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-GB';
+  return new Date(iso).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -45,8 +49,9 @@ export function VacancyCard({
   /** Extra badge shown before the source badge (e.g. the match score). */
   leadingBadge?: ReactNode;
 }) {
-  const salary = salaryText(v);
-  const published = publishedText(v.publishedAt);
+  const { t, lang } = useI18n();
+  const salary = salaryText(v, t);
+  const published = publishedText(v.publishedAt, lang);
   return (
     <Card>
       <CardHeader className="gap-2 pb-2">
@@ -62,17 +67,17 @@ export function VacancyCard({
               <span
                 className="rounded-md border px-1.5 py-0.5 text-xs font-semibold tabular-nums"
                 style={{ color: scoreColor(v.resumeScore), borderColor: scoreColor(v.resumeScore) }}
-                title="Resume fit"
+                title={t('vacancy.resumeFit')}
               >
                 CV {Math.round(v.resumeScore * 100)}%
               </span>
             ) : null}
             <Badge variant="muted">{sourceLabel(v.source)}</Badge>
             {tracked ? (
-              <Badge variant="primary">On board ✓</Badge>
+              <Badge variant="primary">{t('vacancy.onBoard')}</Badge>
             ) : (
               <Button size="sm" variant="outline" disabled={saving} onClick={() => onSave(v.id)}>
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t('vacancy.saving') : t('vacancy.save')}
               </Button>
             )}
           </div>
@@ -83,9 +88,9 @@ export function VacancyCard({
           {published ? ` · ${published}` : ''}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {v.workFormat ? <Badge variant="outline">{WORK_FORMAT_LABELS[v.workFormat]}</Badge> : null}
+          {v.workFormat ? <Badge variant="outline">{t(`workFormat.${v.workFormat}`)}</Badge> : null}
           {v.employmentType ? (
-            <Badge variant="default">{EMPLOYMENT_TYPE_LABELS[v.employmentType]}</Badge>
+            <Badge variant="default">{t(`employmentType.${v.employmentType}`)}</Badge>
           ) : null}
           {salary ? <Badge variant="primary">{salary}</Badge> : null}
         </div>

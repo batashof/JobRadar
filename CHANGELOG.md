@@ -7,6 +7,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.6.0] — 2026-07-22
+
+**Two-language interface (English / Russian).** A user-controlled language, stored on the account, now drives both the whole UI and the language the AI sections generate in — an interface in Russian produces a Russian brief and fit rationale; in English, English (ADR-014).
+
+### Added
+
+- **Account language** — new `users.language` column (`'en' | 'ru'`, default `'ru'`), exposed on `AuthUser` and updatable via `PATCH /auth/me`. A `jr_lang` cookie mirrors it so server components (incl. pre-auth `/login` and `/signup`) render the right language.
+- **Web i18n layer** — isomorphic `lib/i18n` dictionaries (flat keys, `ru` typed against `en` so they can't drift), an `I18nProvider` + `useI18n()` client context, a `getServerT()` server helper, and an EN/RU switcher in the header (and on the auth pages). Switching is optimistic, persists to the account, and refreshes server components. The entire interface — nav, dashboard, feed, board, profiles, resume, interview, mock interview, apply-email, and both vacancy-detail assistant sections — is translated.
+- **Bilingual AI generation** — `buildBriefPrompt` and `buildResumeMatchPrompt` gained English variants; generation language follows the caller's account language. The brief is cached per language on the vacancy row (`summary_en` alongside `summary_ru`); the resume-fit score is generated once and its rationale cached per language (`resume_matches.explanation_en` alongside `explanation`).
+
+### Changed
+
+- `BriefResponse.summaryRu` / `VacancyDetail.summaryRu` renamed to `summary` — the field now carries the brief in the requested language.
+- Work-format / employment-type / application-stage / interview-status labels moved from fixed English maps into the i18n dictionaries; source brand names stay as-is.
+
+### Notes
+
+- Migration `0007` adds `users.language`, `vacancies.summary_en`(+`_generated_at`), and `resume_matches.explanation_en`. Apply to prod with `db:migrate:prod`.
+- End-to-end verified locally: pre-auth and authenticated UI switch instantly, the language persists to the account (DB confirmed), and both priority sections flip with the toggle.
+
 ## [1.5.0] — 2026-07-21
 
 **Three more job platforms.** Added Remotive, Jobicy and Working Nomads as ingestion sources — all free, public, no-auth JSON feeds that fit ADR-001 (budget $0) and the API-first politeness rules.

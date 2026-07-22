@@ -25,7 +25,7 @@ describe('truncate', () => {
 });
 
 describe('buildBriefPrompt', () => {
-  it('is Russian-only and includes the vacancy text', () => {
+  it('defaults to Russian and includes the vacancy text', () => {
     const { system, user } = buildBriefPrompt(vacancy, null);
     expect(system).toContain('по-русски');
     expect(user).toContain('Senior React Developer — Acme (Remote)');
@@ -34,11 +34,27 @@ describe('buildBriefPrompt', () => {
     expect(user).not.toContain('Резюме кандидата');
   });
 
-  it('adds the resume fit section when a resume is available', () => {
-    const { user } = buildBriefPrompt(vacancy, 'React dev, 8 years');
+  it('adds the Russian resume fit section when a resume is available', () => {
+    const { user } = buildBriefPrompt(vacancy, 'React dev, 8 years', 'ru');
     expect(user).toContain('Резюме кандидата');
     expect(user).toContain('React dev, 8 years');
     expect(user).toContain('Соответствие кандидату');
+  });
+
+  it('builds an English brief when lang is en', () => {
+    const { system, user } = buildBriefPrompt(vacancy, null, 'en');
+    expect(system).toContain('English only');
+    expect(system).not.toContain('по-русски');
+    expect(user).toContain('Write a short vacancy brief');
+    expect(user).toContain('Senior React Developer — Acme (Remote)');
+    expect(user).not.toContain('Резюме кандидата');
+  });
+
+  it('adds the English resume fit section when a resume is available', () => {
+    const { user } = buildBriefPrompt(vacancy, 'React dev, 8 years', 'en');
+    expect(user).toContain('Candidate resume');
+    expect(user).toContain('React dev, 8 years');
+    expect(user).toContain('Fit for the candidate');
   });
 });
 

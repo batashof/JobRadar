@@ -9,7 +9,7 @@ import type {
 import { InterviewController } from './interview.controller';
 import type { InterviewService } from './interview.service';
 
-const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true };
+const user: AuthUser = { id: 'user-1', email: 'dev@jobradar.local', digestEnabled: true, language: 'ru' };
 
 describe('InterviewController', () => {
   it('delegates fetching the active plan', async () => {

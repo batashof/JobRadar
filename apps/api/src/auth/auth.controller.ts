@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import {
   type AuthResponse,
   type LoginInput,
   loginSchema,
   type SignupInput,
   signupSchema,
+  type UpdateMeInput,
+  updateMeSchema,
 } from '@jobradar/shared';
 import type { Request, Response } from 'express';
 
@@ -54,6 +56,16 @@ export class AuthController {
   @UseGuards(AuthGuard)
   me(@CurrentUser() user: AuthUser): AuthResponse {
     return { user };
+  }
+
+  @Patch('me')
+  @UseGuards(AuthGuard)
+  async updateMe(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(updateMeSchema)) body: UpdateMeInput,
+  ): Promise<AuthResponse> {
+    const updated = await this.auth.updateLanguage(user.id, body.language);
+    return { user: updated };
   }
 
   private setSessionCookie(res: Response, token: string, expiresAt: Date): void {

@@ -6,6 +6,7 @@ import type {
   ApplyEmailSendResult,
   BriefResponse,
   CoverLetterResponse,
+  Language,
   ResumeMatchResponse,
 } from '@jobradar/shared';
 import { and, eq, sql } from 'drizzle-orm';
@@ -34,31 +35,39 @@ export class OutreachService {
   ) {}
 
   /**
-   * Russian brief for the vacancy — generated on demand, cached permanently on
-   * the vacancy row (ADR-005 token discipline). `force` regenerates.
+   * Vacancy brief in the user's language — generated on demand, cached
+   * permanently per language on the vacancy row (ADR-005/014). `force`
+   * regenerates the requested language's slot.
    */
-  async brief(userId: string, vacancyId: string, force = false): Promise<BriefResponse> {
+  async brief(
+    userId: string,
+    vacancyId: string,
+    lang: Language = 'ru',
+    force = false,
+  ): Promise<BriefResponse> {
     const vacancy = await this.loadVacancy(vacancyId);
 
-    if (vacancy.summaryRu && vacancy.summaryGeneratedAt && !force) {
-      return {
-        summaryRu: vacancy.summaryRu,
-        generatedAt: vacancy.summaryGeneratedAt.toISOString(),
-        cached: true,
-      };
+    const cachedText = lang === 'en' ? vacancy.summaryEn : vacancy.summaryRu;
+    const cachedAt = lang === 'en' ? vacancy.summaryEnGeneratedAt : vacancy.summaryGeneratedAt;
+    if (cachedText && cachedAt && !force) {
+      return { summary: cachedText, generatedAt: cachedAt.toISOString(), cached: true };
     }
 
     const resume = await this.resumes.getActive(userId);
-    const prompt = buildBriefPrompt(vacancy, resume?.extractedText || null);
+    const prompt = buildBriefPrompt(vacancy, resume?.extractedText || null, lang);
     const result = await this.llm.complete({ ...prompt, maxTokens: 700 });
 
     const generatedAt = new Date();
     await this.db
       .update(vacancies)
-      .set({ summaryRu: result.text, summaryGeneratedAt: generatedAt })
+      .set(
+        lang === 'en'
+          ? { summaryEn: result.text, summaryEnGeneratedAt: generatedAt }
+          : { summaryRu: result.text, summaryGeneratedAt: generatedAt },
+      )
       .where(eq(vacancies.id, vacancyId));
 
-    return { summaryRu: result.text, generatedAt: generatedAt.toISOString(), cached: false };
+    return { summary: result.text, generatedAt: generatedAt.toISOString(), cached: false };
   }
 
   /** Cover letter grounded in the active resume — not cached, user edits before use. */
@@ -81,10 +90,16 @@ export class OutreachService {
   }
 
   /**
-   * On-demand LLM resume-fit score for one vacancy (ADR-012). Cached permanently
-   * in `resume_matches` (one call per resume × vacancy) — a repeat click is free.
+   * On-demand LLM resume-fit score for one vacancy (ADR-012). The score is
+   * cached permanently in `resume_matches`; the rationale is cached per language
+   * (ADR-014). A repeat click in a language already generated is free; the first
+   * click in the other language reuses the score and only regenerates the text.
    */
-  async resumeMatch(userId: string, vacancyId: string): Promise<ResumeMatchResponse> {
+  async resumeMatch(
+    userId: string,
+    vacancyId: string,
+    lang: Language = 'ru',
+  ): Promise<ResumeMatchResponse> {
     const vacancy = await this.loadVacancy(vacancyId);
 
     const resume = await this.resumes.getActive(userId);
@@ -98,14 +113,29 @@ export class OutreachService {
     }
 
     const [cached] = await this.db
-      .select({ score: resumeMatches.score, explanation: resumeMatches.explanation })
+      .select({
+        score: resumeMatches.score,
+        explanation: resumeMatches.explanation,
+        explanationEn: resumeMatches.explanationEn,
+      })
       .from(resumeMatches)
       .where(and(eq(resumeMatches.resumeId, resume.id), eq(resumeMatches.vacancyId, vacancyId)));
+
     if (cached) {
-      return { score: cached.score, explanation: cached.explanation, cached: true };
+      const localized = lang === 'en' ? cached.explanationEn : cached.explanation;
+      if (localized) {
+        return { score: cached.score, explanation: localized, cached: true };
+      }
+      // Score already known, just this language's rationale is missing.
+      const explanation = await this.generateMatchExplanation(vacancy, resume.extractedText, lang);
+      await this.db
+        .update(resumeMatches)
+        .set(lang === 'en' ? { explanationEn: explanation } : { explanation })
+        .where(and(eq(resumeMatches.resumeId, resume.id), eq(resumeMatches.vacancyId, vacancyId)));
+      return { score: cached.score, explanation, cached: false };
     }
 
-    const prompt = buildResumeMatchPrompt(vacancy, resume.extractedText);
+    const prompt = buildResumeMatchPrompt(vacancy, resume.extractedText, lang);
     const result = await this.llm.complete({ ...prompt, maxTokens: 300, temperature: 0.2 });
     const parsed = parseResumeMatchReply(result.text);
     if (!parsed) {
@@ -118,11 +148,27 @@ export class OutreachService {
         resumeId: resume.id,
         vacancyId,
         score: parsed.score,
-        explanation: parsed.explanation,
+        explanation: lang === 'en' ? '' : parsed.explanation,
+        explanationEn: lang === 'en' ? parsed.explanation : '',
       })
       .onConflictDoNothing();
 
     return { score: parsed.score, explanation: parsed.explanation, cached: false };
+  }
+
+  /** Generates just the fit rationale in the requested language (score reused). */
+  private async generateMatchExplanation(
+    vacancy: VacancyPromptInput,
+    resumeText: string,
+    lang: Language,
+  ): Promise<string> {
+    const prompt = buildResumeMatchPrompt(vacancy, resumeText, lang);
+    const result = await this.llm.complete({ ...prompt, maxTokens: 300, temperature: 0.2 });
+    const parsed = parseResumeMatchReply(result.text);
+    if (!parsed) {
+      throw new BadRequestException('Could not score this vacancy — please try again');
+    }
+    return parsed.explanation;
   }
 
   /**
@@ -244,6 +290,8 @@ export class OutreachService {
     VacancyPromptInput & {
       summaryRu: string | null;
       summaryGeneratedAt: Date | null;
+      summaryEn: string | null;
+      summaryEnGeneratedAt: Date | null;
       applyContact: unknown;
     }
   > {
@@ -255,6 +303,8 @@ export class OutreachService {
         location: vacancies.location,
         summaryRu: vacancies.summaryRu,
         summaryGeneratedAt: vacancies.summaryGeneratedAt,
+        summaryEn: vacancies.summaryEn,
+        summaryEnGeneratedAt: vacancies.summaryEnGeneratedAt,
         applyContact: vacancies.applyContact,
       })
       .from(vacancies)

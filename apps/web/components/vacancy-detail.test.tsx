@@ -35,7 +35,7 @@ function detail(overrides: Partial<VacancyDetail> = {}): VacancyDetail {
     location: 'Remote',
     publishedAt: '2026-07-18T00:00:00.000Z',
     applyContact: null,
-    summaryRu: null,
+    summary: null,
     ingestedAt: '2026-07-18T01:00:00.000Z',
     ...overrides,
   };
@@ -83,21 +83,21 @@ describe('VacancyDetailView', () => {
   });
 
   it('renders a cached Russian brief without calling the API', () => {
-    render(<VacancyDetailView detail={detail({ summaryRu: 'Компания делает X.' })} />);
+    render(<VacancyDetailView detail={detail({ summary: 'Компания делает X.' })} />);
     expect(screen.getByText('Компания делает X.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Сгенерировать заново' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Regenerate brief' })).toBeTruthy();
     expect(generateBrief).not.toHaveBeenCalled();
   });
 
   it('generates a brief on click', async () => {
     generateBrief.mockResolvedValue({
-      summaryRu: 'Свежий бриф.',
+      summary: 'Свежий бриф.',
       generatedAt: '2026-07-21T00:00:00.000Z',
       cached: false,
     });
     render(<VacancyDetailView detail={detail()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать бриф' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
 
     await waitFor(() => expect(screen.getByText('Свежий бриф.')).toBeTruthy());
     expect(generateBrief).toHaveBeenCalledWith('v1', false);
@@ -124,7 +124,7 @@ describe('VacancyDetailView', () => {
     );
     expect(screen.getByText('72%')).toBeTruthy();
     expect(screen.getByText('React совпал, нет Go.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Пересчитать' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Rescore' })).toBeTruthy();
     expect(matchResume).not.toHaveBeenCalled();
   });
 
@@ -132,7 +132,7 @@ describe('VacancyDetailView', () => {
     matchResume.mockResolvedValue({ score: 0.4, explanation: 'Частичное совпадение.', cached: false });
     render(<VacancyDetailView detail={detail()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Оценить по резюме' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Score against resume' }));
 
     await waitFor(() => expect(screen.getByText('40%')).toBeTruthy());
     expect(matchResume).toHaveBeenCalledWith('v1');

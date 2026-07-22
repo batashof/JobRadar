@@ -3,7 +3,7 @@ import type { AuthUser } from '@jobradar/shared';
 import { ProfilesController } from './profiles.controller';
 import type { ProfilesService } from './profiles.service';
 
-const user: AuthUser = { id: 'user-1', email: 'a@b.com', digestEnabled: true };
+const user: AuthUser = { id: 'user-1', email: 'a@b.com', digestEnabled: true, language: 'ru' };
 
 describe('ProfilesController', () => {
   it('list scopes to the current user', async () => {
