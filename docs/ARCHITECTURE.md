@@ -116,7 +116,7 @@ apps/api/src/
 ├── interview/      # resume-driven prep plans, generated Q&A, LLM-reviewed live-coding, text mock interview
 │
 │   # phase 4 (ADR-015):
-└── planner/        # day plans, blocks, focus timer, estimation stats, LLM composition (+ deterministic fallback), `planner:tick` scheduler, Telegram-bot nudges + webhook
+└── planner/        # day plans, blocks, focus timer, estimation stats, LLM composition (+ deterministic fallback), in-process `planner:tick` scheduler (no BullMQ), Telegram-bot nudges + webhook
 ```
 
 ## Scheduling: two clocks
@@ -124,7 +124,7 @@ apps/api/src/
 | Clock | Granularity | Where | Why |
 |---|---|---|---|
 | Ingestion / keep-alive | 4 h / 10 min | GitHub Actions (ADR-006) | Free external trigger; wakes the sleeping Render container |
-| `planner:tick` | 1 min | BullMQ repeatable job inside the API (ADR-015) | Minute granularity in a private repo would exceed the free Actions allowance; the 10-min keep-alive already keeps the process warm. Tick claims nudges before sending, so restarts delay but never duplicate |
+| `planner:tick` | 1 min | Plain in-process `setInterval` in the API (revised ADR-015 §7) | Minute granularity in a private repo would exceed the free Actions allowance; the 10-min keep-alive keeps the process warm. **Not BullMQ** — the tick only touches Postgres, and BullMQ's Redis polling was burning the Upstash free-tier command budget. Idempotent via DB writes (a nudge is raised once per day/block) |
 
 ## Telegram: two independent integrations
 

@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-23 — Fix: planner tick off BullMQ, onto an in-process interval (revised ADR-015 §7, v1.10.1)
+
+- **Problem, seen in prod metering.** The `planner:tick` from v1.10.0 rode a BullMQ repeatable job. BullMQ keeps a worker polling Redis continuously (blocking reads, stalled-job checks, delayed-set scans), so a minute tick plus a second queue drove Upstash to ~247k of its 500k monthly free-tier commands within days — on track to blow the budget, which would also stall ingestion.
+- **Root cause.** The tick only ever touches Postgres (load state, write nudges, close stale days); its restart-safety comes from idempotent DB writes (a nudge is raised at most once per day/block; a day closes on its status). The Redis-backed queue added nothing but cost.
+- **Fix.** Replaced the BullMQ processor with `PlannerScheduler`, a plain `setInterval` in a lifecycle-managed provider: non-overlapping (skips if a tick is still running), failure-isolated (a throw never kills the interval), `unref`'d for clean shutdown. Deleted `planner.processor.ts` and the `planner` queue registration; the planner module no longer imports BullMQ. Ingestion keeps BullMQ — its jobs need the queue.
+- **Result.** The planner's contribution to Upstash is now **zero commands**. Remaining Redis load is ingestion only (6 runs / 4h).
+- **Tests + verification.** New `planner.scheduler.spec` (lifecycle, no-overlap, failure isolation); 334 API tests green, lint + typecheck + build clean. Live-verified locally: with the tick on the interval, a stale accepted plan from 2026-07-19 was auto-closed (`auto_closed = t`, block `skipped/unreported`, `debtCreated: 1`) and `debt` + `block_start` + `evening` nudges were raised — same behaviour as the BullMQ version, no Redis queue involved.
+- **Docs.** Revised ADR-015 §7 with a dated note; updated ARCHITECTURE ("two clocks" + module map) and RISKS #8 (now "hit in practice, fixed").
+- **Next step (unchanged):** increment 4b — the Telegram bot on the same `planner_nudges` rows; needs `TELEGRAM_BOT_TOKEN`.
+
 ## 2026-07-23 — Day planner increment 4a: the tick, auto-close and in-app nudges (ADR-015, v1.10.0)
 
 - **`planner:tick`** is a BullMQ repeatable job registered on boot (`upsertJobScheduler`, every 60s) and running inside the API, per ADR-015 §7 — not GitHub Actions, whose free minutes cannot cover minute granularity on a private repo. A Redis failure logs and leaves bootstrap alone.

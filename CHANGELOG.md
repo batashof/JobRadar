@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.10.1] — 2026-07-23
+
+**Fix: `planner:tick` no longer uses BullMQ/Redis.** The tick shipped in 1.10.0 on a BullMQ repeatable job; BullMQ's continuous worker polling reached ~247k of the 500k monthly Upstash free-tier command budget within days. The tick only ever reads and writes Postgres, so the queue added no safety. It now runs on a plain in-process `setInterval` (lifecycle-managed, non-overlapping, failure-isolated) — zero Redis commands, same idempotency guarantees, same behaviour. Ingestion keeps using BullMQ, which its jobs genuinely need. Revised ADR-015 §7; risk #8 in docs/RISKS.md updated.
+
 ## [1.10.0] — 2026-07-23
 
 **Day planner, increment 4a (ADR-015): the tick and in-app nudges.** The planner now has its own clock; the Telegram channel is the only piece still missing.

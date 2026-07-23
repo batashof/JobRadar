@@ -77,7 +77,9 @@ Messages carry inline buttons — *Start* / *Done* / *+15 min* / *Skip* — so a
 
 ### 7. Scheduling: an in-process tick, not a workflow cron
 
-A **BullMQ repeatable job `planner:tick` runs every minute inside the API**, picks due nudges, sends them, and performs day rollover per user timezone. This deliberately does *not* follow ADR-006: the external-cron rationale was free-tier sleeping, and the existing 10-minute keep-alive already keeps the instance warm, while a minute-granularity GitHub Actions cron would exceed the private-repo minute allowance. The tick is idempotent (`planner_nudges` rows are claimed before sending), so a restart or a brief container sleep only delays a nudge, never duplicates it.
+`planner:tick` runs every minute inside the API, picks due nudges, sends them, and performs day rollover per user timezone. This deliberately does *not* follow ADR-006: the external-cron rationale was free-tier sleeping, and the existing 10-minute keep-alive already keeps the instance warm, while a minute-granularity GitHub Actions cron would exceed the private-repo minute allowance. The tick is idempotent (a nudge is raised at most once per day/block, and a day closes on its status), so a restart or a brief container sleep only delays a nudge, never duplicates it.
+
+> **Revised 2026-07-23 (implemented as of v1.10.1).** The tick was first built as a **BullMQ repeatable job** and that proved wrong: the tick only ever reads and writes Postgres, so the Redis-backed queue added no safety, and BullMQ's continuous worker polling burned roughly half of the Upstash free-tier monthly command budget (500k) in days. It now runs on a **plain in-process `setInterval`** in a lifecycle-managed provider — zero Redis commands, idempotency still guaranteed by the DB writes above. Ingestion keeps using BullMQ (its jobs genuinely need the queue). Single-instance only, which the Render free tier already is; the fine granularity exists solely for the midway ping, so the interval can be relaxed to several minutes if needed.
 
 ### 8. Scope guards
 

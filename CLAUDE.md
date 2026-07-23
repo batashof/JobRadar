@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.10.0** (day planner increment 4a — in-process `planner:tick`, automatic end-of-day close and in-app nudges with bounded escalation, ADR-015, 2026-07-23; keep this line in sync on every bump).
+- **Current version: 1.10.1** (day planner — `planner:tick` moved off BullMQ to a plain in-process `setInterval` after it burned ~half the Upstash free-tier command budget; revised ADR-015 §7, 2026-07-23; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;
