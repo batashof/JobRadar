@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-23 — Day planner: design docs (ADR-015, no code yet)
+
+- **Problem framed with the developer.** Three parallel tracks (applying, interview prep, Anthropic courses), the bottleneck is execution and estimation, not finding work. A plain calendar is explicitly rejected — it is ignorable and one shifted slot invalidates the rest of the day.
+- **Decisions taken** (chosen from options, see [ADR-015](decisions/015-day-planner-accountability.md)): ordered queue of timeboxes instead of a time grid; LLM composes the plan from real DB state (due follow-ups, `todo` prep topics, matching vacancies, manual backlog, debt) with a deterministic fallback; morning accept + evening close ritual; rolling debt with `carry_count` and rotting blocks instead of streaks; focus timer feeding a personal estimation factor; Telegram **bot** nudges with bounded escalation. Rejected for now: a hard route-level gate on the feed, streak counter, forced mid-block check-ins.
+- **Infrastructure note.** `planner:tick` runs as a 1-minute BullMQ repeatable job **inside the API**, deliberately not via GitHub Actions (ADR-006): the repo is private, so minute-granularity workflow cron would exceed the free minute allowance, and the existing 10-min keep-alive already keeps the Render instance warm.
+- **Docs updated:** ADR-015 (Proposed) + decisions index, PRODUCT.md (core concepts + out-of-scope), ARCHITECTURE.md (planner module, "two clocks", "two Telegram integrations"), DATA_MODEL.md (`planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` — migration `0008` planned), ROADMAP.md (new phase-4 section).
+- **Next step:** accept ADR-015 and implement in increments — schema + candidates + manual plan first, then timer/close-out/debt, then LLM generation, then the Telegram bot.
+
 ## 2026-07-22 — Two-language interface, EN/RU (ADR-014, v1.6.0)
 
 - **Account language.** New `users.language` (`'en' | 'ru'`, default `'ru'`), on `AuthUser`, updatable via `PATCH /auth/me`; a `jr_lang` cookie mirrors it for server components and pre-auth pages. Migration `0007` (also adds `vacancies.summary_en`(+ts) and `resume_matches.explanation_en`).

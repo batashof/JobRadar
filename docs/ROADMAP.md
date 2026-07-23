@@ -77,10 +77,27 @@ Standalone prep module inside JobRadar (no new service/infra): `interview/` on t
 - [x] Live-coding tasks: in-app editor, LLM reviews the submitted solution (correctness, complexity, edge cases, style) with a score — **no code execution** (ADR-001). *(live-verified: virtual-list task scored 0.85 with an accurate overscan/key critique)*
 - [x] Mock interview: turn-based text chat, LLM interviewer calibrated to resume + target role; written feedback report on completion; transcript persisted. *(v1.4.0 — start/reply/finish endpoints, chat UI at `/app/interview/mock`; live-verified 2026-07-21: resume-grounded opening, reactive follow-up, 85% feedback report)*
 
+### Day planner (accountability loop, ADR-015)
+
+A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(Proposed 2026-07-23; ADR-015.)*
+
+- [ ] Schema + migration `0008`: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` ([DATA_MODEL.md](DATA_MODEL.md)).
+- [ ] Candidate collection (plain SQL, no LLM): due follow-ups, `todo`/`in_progress` prep topics, fresh matching vacancies, manual backlog, carried debt.
+- [ ] Plan generation: one LLM call per plan (ADR-005 gateway, `users.language`) selecting + sequencing candidates within the corrected capacity; deterministic fallback ordering when no LLM key is available.
+- [ ] Morning ritual: explicit plan acceptance (app or bot); until accepted the dashboard leads with the acceptance card and the day counts as unplanned.
+- [ ] Block queue UI: current block front and centre, reorder / add / edit / drop, deep links into the application, prep topic, or vacancy behind a block.
+- [ ] Focus timer: start / pause / resume / stop → `focus_sessions`, `actual_minutes` on the block.
+- [ ] Evening close-out: per-block `done` / `partial` / `skipped` + reason, day review stored on the plan, auto-close at end of day marking unresolved blocks `unreported`.
+- [ ] Rolling debt: carry unfinished blocks into the next plan first, `carry_count`, rotting (≥3) pinned + escalated, explicit drop-with-reason as the only other exit.
+- [ ] Estimation calibration: `estimation_factor` (global + per category) from the last N blocks, surfaced on the dashboard and fed back into generation.
+- [ ] `planner:tick` BullMQ repeatable job (1 min): due nudges, midway checks, day rollover per timezone, idempotent claim-before-send.
+- [ ] Telegram bot channel: `TELEGRAM_BOT_TOKEN` outbound `sendMessage` + `POST /planner/telegram/webhook` (secret-token guarded), inline *Start / Done / +15 min / Skip*; degrades to in-app-only without a token.
+- [ ] Planner stats on the dashboard: completion rate, debt (count + minutes), per-category time vs targets, estimation factor.
+
 ### Other extensions
 
 - [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).
-- [ ] Telegram bot as second digest channel.
+- [ ] Telegram bot as second digest channel. *(The bot itself arrives with the day planner, ADR-015; only the digest payload remains.)*
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
 - [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Still open: HN Who's Hiring, Djinni.
 - [x] Funnel statistics: applied → screening → interview → offer conversion. *(`furthest_stage` column tracks the deepest non-terminal stage each application ever reached, so rejected/withdrawn cards still count through their peak; `GET /applications/stats` + dashboard Funnel card with per-step conversion — E2E verified)*

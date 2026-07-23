@@ -24,6 +24,14 @@ InterviewPlan 1──n InterviewTopicProgress
 User 1──n InterviewQuestion (n──1 InterviewPlan, nullable)
 InterviewQuestion 1──n InterviewAnswer
 User 1──n InterviewSession (n──1 InterviewPlan, nullable)
+
+Phase 4 (ADR-015 — day planner):
+User 1──1 PlannerSettings
+User 1──n DayPlan            (unique per day)
+DayPlan 1──n PlanBlock
+PlanBlock 1──n FocusSession
+PlanBlock 0──1 PlanBlock      (carried_from — debt chain)
+User 1──n PlannerNudge        (n──1 DayPlan / PlanBlock, nullable)
 ```
 
 ## Tables
@@ -273,6 +281,112 @@ A text-chat mock interview and its final feedback report.
 | feedback | jsonb nullable | final report: strengths, gaps, per-area notes, recommendation |
 | started_at | timestamptz | |
 | ended_at | timestamptz nullable | |
+
+## Phase 4 additions (ADR-015 — day planner)
+
+> Planned: migration `0008`. One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
+
+### planner_settings
+
+One row per user; created lazily with defaults on first planner use.
+
+| Column | Type | Notes |
+|---|---|---|
+| user_id | uuid PK FK → users | cascade on user delete |
+| timezone | text not null default `'UTC'` | IANA name; defines what "today" and the ritual times mean |
+| morning_ritual_at | time not null default `09:00` | when the draft plan is generated and the morning nudge fires |
+| evening_review_at | time not null default `20:00` | when the close-out reminder fires |
+| capacity_minutes | integer not null default 240 | daily budget the planner fits blocks into (corrected estimates) |
+| default_block_minutes | integer not null default 30 | |
+| category_targets | jsonb nullable | soft weekly minutes per category, e.g. `{ "job_search": 300, "learning": 240 }` |
+| telegram_chat_id | text nullable | null = nudges are in-app only |
+| telegram_enabled | boolean not null default false | |
+| escalation_after_minutes | integer not null default 20 | unacknowledged nudge → repeat |
+| escalation_max_repeats | smallint not null default 2 | then the nudge is recorded as ignored |
+| estimation_factor | real not null default 1 | cached median `actual / estimate`, recomputed at day close |
+| estimation_factor_by_category | jsonb nullable | same, per category |
+| updated_at | timestamptz | |
+
+### day_plans
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| plan_date | date | the local day in the user's timezone; **unique (user_id, plan_date)** |
+| status | enum | `draft` / `accepted` / `closed` |
+| generated_by | enum | `llm` / `fallback` / `manual` — `fallback` = deterministic ordering when the LLM gateway was unavailable |
+| intent | text nullable | one line: what today is actually about |
+| accepted_at | timestamptz nullable | null = the ritual was never completed; the day counts as unplanned |
+| closed_at | timestamptz nullable | |
+| auto_closed | boolean not null default false | true when the tick job closed the day instead of the user |
+| review | jsonb nullable | close-out summary: totals, per-category minutes, completion rate, debt created |
+| created_at / updated_at | timestamptz | |
+
+Index: `(user_id, plan_date)` unique.
+
+### plan_blocks
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| plan_id | uuid FK → day_plans | cascade on plan delete |
+| user_id | uuid FK → users | denormalized for user-scoped queries |
+| position | integer | order in the queue; the "current" block is the first non-terminal one |
+| title | text | |
+| details | text nullable | what "done" means for this block |
+| category | enum | `job_search` / `interview_prep` / `learning` / `admin` / `other` |
+| source_kind | enum | `manual` / `application_followup` / `interview_topic` / `vacancy_apply` / `course` / `debt` |
+| source_ref | jsonb nullable | `{ "applicationId": … }` / `{ "planId": …, "topicKey": … }` / `{ "vacancyId": … }` — lets the block deep-link into the app |
+| estimate_minutes | integer | as entered / generated |
+| corrected_estimate_minutes | integer | `estimate × estimation_factor` at generation time; capacity is checked against this |
+| actual_minutes | integer not null default 0 | sum of the block's focus sessions |
+| status | enum | `pending` / `active` / `done` / `partial` / `skipped` / `dropped` |
+| skip_reason | enum nullable | `no_time` / `no_energy` / `blocked` / `changed_priority` / `avoided` / `unreported` |
+| outcome_note | text nullable | free-form line at close-out |
+| carried_from_block_id | uuid FK → plan_blocks, nullable | debt chain; `set null` on delete |
+| carry_count | smallint not null default 0 | ≥3 = *rotting*: pinned first, escalated wording |
+| started_at / completed_at | timestamptz nullable | |
+| created_at / updated_at | timestamptz | |
+
+Indexes: `(plan_id, position)`; `(user_id, status)`.
+
+### focus_sessions
+
+One start→stop run of the timer on a block; pausing ends a session, resuming opens the next one.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| block_id | uuid FK → plan_blocks | cascade |
+| user_id | uuid FK → users | |
+| started_at | timestamptz | |
+| ended_at | timestamptz nullable | null = currently running (at most one per user) |
+| duration_seconds | integer nullable | written at stop; the source of `plan_blocks.actual_minutes` |
+| ended_reason | enum nullable | `completed` / `paused` / `abandoned` / `auto` (tick closed a session left running overnight) |
+
+Index: `(user_id, ended_at)` — finding the running session.
+
+### planner_nudges
+
+Scheduled reminders; the tick job claims a row before sending, which makes delivery idempotent.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| plan_id | uuid FK → day_plans, nullable | |
+| block_id | uuid FK → plan_blocks, nullable | |
+| kind | enum | `morning` / `block_start` / `midway` / `evening` / `escalation` / `debt` |
+| channel | enum | `telegram` / `in_app` |
+| scheduled_for | timestamptz | |
+| status | enum | `pending` / `sent` / `acknowledged` / `ignored` / `cancelled` |
+| repeat_index | smallint not null default 0 | escalation counter, capped by `escalation_max_repeats` |
+| sent_at / acknowledged_at | timestamptz nullable | |
+| telegram_message_id | text nullable | for editing the message after an inline-button action |
+| created_at | timestamptz | |
+
+Index: `(status, scheduled_for)` — the tick's only hot query.
 
 ## Deduplication (v1 heuristic, ADR-004)
 

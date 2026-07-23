@@ -19,6 +19,8 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [011](011-resume-apply-assistant.md) | Resume-driven apply assistant (upload, LLM matching, cover letters, Gmail apply) | Accepted |
 | [012](012-feed-resume-relevance.md) | Feed-centric resume-driven relevance (remove Matches page, on-demand fit gauge, soft seniority filter) | Accepted |
 | [013](013-interview-prep-module.md) | Interview-prep module (resume-driven plan, generated Q&A, LLM-reviewed live-coding, text mock interview) | Accepted |
+| [014](014-interface-language-i18n.md) | Two-language interface (EN/RU) driving UI and AI generation | Accepted |
+| [015](015-day-planner-accountability.md) | Day planner with accountability loop (LLM-composed timebox queue, Telegram nudges, rolling debt) | Proposed |
 
 ## Template
 

@@ -52,6 +52,8 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 11 | Resume-driven apply assistant: PDF in Postgres, LLM via ADR-005 gateway, email apply via Gmail API (phase 4) | [011](decisions/011-resume-apply-assistant.md) |
 | 12 | Feed-centric resume-driven relevance (remove Matches page, on-demand fit gauge, soft seniority filter) | [012](decisions/012-feed-resume-relevance.md) |
 | 13 | Interview-prep module: resume-driven plan, generated Q&A, LLM-reviewed live-coding, text mock interview (phase 4) | [013](decisions/013-interview-prep-module.md) |
+| 14 | Two-language interface (EN/RU) stored on the account, driving UI strings and AI-generation language | [014](decisions/014-interface-language-i18n.md) |
+| 15 | Day planner with accountability loop: LLM-composed timebox queue, in-process minute tick, Telegram-bot nudges, rolling debt (phase 4) | [015](decisions/015-day-planner-accountability.md) |
 
 ## Repository layout (monorepo)
 
@@ -111,8 +113,25 @@ apps/api/src/
 ├── outreach/       # vacancy briefs, cover letters, Gmail OAuth + email apply
 │
 │   # phase 4 (ADR-013):
-└── interview/      # resume-driven prep plans, generated Q&A, LLM-reviewed live-coding, text mock interview
+├── interview/      # resume-driven prep plans, generated Q&A, LLM-reviewed live-coding, text mock interview
+│
+│   # phase 4 (ADR-015):
+└── planner/        # day plans, blocks, focus timer, estimation stats, `planner:tick` scheduler, Telegram-bot nudges + webhook
 ```
+
+## Scheduling: two clocks
+
+| Clock | Granularity | Where | Why |
+|---|---|---|---|
+| Ingestion / keep-alive | 4 h / 10 min | GitHub Actions (ADR-006) | Free external trigger; wakes the sleeping Render container |
+| `planner:tick` | 1 min | BullMQ repeatable job inside the API (ADR-015) | Minute granularity in a private repo would exceed the free Actions allowance; the 10-min keep-alive already keeps the process warm. Tick claims nudges before sending, so restarts delay but never duplicate |
+
+## Telegram: two independent integrations
+
+| Integration | Credentials | Direction | Used for |
+|---|---|---|---|
+| MTProto user client (ADR-009) | `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` + session string | inbound read | Ingesting job channels |
+| Bot API (ADR-015) | `TELEGRAM_BOT_TOKEN` (+ `TELEGRAM_BOT_WEBHOOK_SECRET`) | outbound send + webhook | Planner nudges, inline Start/Done/+15/Skip actions |
 
 ## Data flow: ingestion
 

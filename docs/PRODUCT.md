@@ -29,6 +29,10 @@ JobRadar is a personal job-search service that removes the two most tedious part
 | **Interview question** | An LLM-generated question for a prep topic — theory, behavioural, or coding — at a chosen difficulty; model answer generated on demand and cached (phase 4, ADR-013). |
 | **Live-coding task** | A coding question the user solves in-app; the LLM reviews the submitted solution (correctness, complexity, edge cases, style) — the code is not executed (phase 4, ADR-013). |
 | **Mock interview** | A turn-based text-chat rehearsal where the LLM plays the interviewer, calibrated to the resume + target role, and produces a written feedback report at the end (phase 4, ADR-013). |
+| **Day plan** | An ordered queue of timeboxes for today (not a calendar), composed from real app state — due follow-ups, `todo` prep topics, fresh matching vacancies, manual tasks, and yesterday's debt. Accepted in the morning, closed in the evening (phase 4, ADR-015). |
+| **Block** | One timebox in a day plan: title, category, estimate in minutes, tracked actual time, and an outcome (`done` / `partial` / `skipped` + reason). |
+| **Debt** | Blocks left unfinished at day close. They roll into the next plan first, count up (`carry_count`), and can only be cleared by doing or explicitly dropping them (ADR-015). |
+| **Estimation factor** | The user's personal `actual / estimate` median, shown plainly and applied to generated estimates so the plan fits the day (ADR-015). |
 
 ## v1.0 scope (minimum shipped to production)
 
@@ -51,6 +55,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 - Additional sources: HN Who's Hiring, Djinni (phase 4). *(Telegram channels moved into v1.0 as the primary source — ADR-009.)*
 - Funnel statistics (application → interview → offer conversion) (phase 4).
 - **Interview-prep module (ADR-013)**: resume-driven prep plan with progress tracking, generated theory/behavioural/coding questions with on-demand model answers, LLM-reviewed live-coding (no code execution), and a text-chat mock interview with a feedback report (phase 4).
+- **Day planner (ADR-015)**: LLM-composed queue of timeboxes built from app state, morning accept / evening close ritual, focus timer with estimation calibration, rolling debt, and Telegram-bot nudges with escalation (phase 4).
 - Google Calendar interview sync (phase 4).
 - Multi-tenancy, billing (Stripe test mode), landing page (phase 5).
 
