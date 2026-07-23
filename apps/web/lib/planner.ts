@@ -7,6 +7,7 @@ import type {
   DropPlanBlockInput,
   GenerateDayPlanInput,
   PlanCandidatesResponse,
+  PlannerNudgeItem,
   PlannerSettings,
   PlannerTodayResponse,
   UpdatePlanBlockInput,
@@ -104,6 +105,10 @@ export function dropBlock(blockId: string, input: DropPlanBlockInput = {}): Prom
     method: 'DELETE',
     body: JSON.stringify(input),
   });
+}
+
+export function acknowledgeNudge(nudgeId: string): Promise<PlannerNudgeItem[]> {
+  return apiFetch<PlannerNudgeItem[]>(`/planner/nudges/${nudgeId}/ack`, { method: 'POST' });
 }
 
 export function updatePlannerSettings(

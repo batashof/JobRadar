@@ -10,6 +10,7 @@ import {
   type PlanBlockItem,
   type PlanCandidate,
   type PlanCandidatesResponse,
+  type PlannerNudgeItem,
   type PlannerSettings,
   type PlannerTodayResponse,
   type PlanSkipReason,
@@ -28,6 +29,7 @@ import { useI18n } from '@/lib/i18n/context';
 import type { TranslationKey } from '@/lib/i18n/dictionaries';
 import {
   acceptDayPlan,
+  acknowledgeNudge,
   addBlock,
   closeDayPlan,
   completeBlock,
@@ -77,6 +79,7 @@ export function DayPlanner({
   const [plan, setPlan] = useState<DayPlanDetail | null>(initial.plan);
   const [settings, setSettings] = useState<PlannerSettings>(initial.settings);
   const [candidates, setCandidates] = useState<PlanCandidatesResponse>(initialCandidates);
+  const [nudges, setNudges] = useState<PlannerNudgeItem[]>(initial.nudges);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [droppingId, setDroppingId] = useState<string | null>(null);
@@ -155,6 +158,38 @@ export function DayPlanner({
         <p role="alert" className="text-sm text-[var(--color-destructive)]">
           {error}
         </p>
+      )}
+
+      {nudges.length > 0 && (
+        <ul className="space-y-2">
+          {nudges.map((nudge) => (
+            <li
+              key={nudge.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--color-border)] p-3"
+            >
+              <span className="text-sm">
+                {t(`nudge.${nudge.kind}` as TranslationKey)}
+                {nudge.repeatIndex > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {t('nudge.repeated', { count: nudge.repeatIndex })}
+                  </Badge>
+                )}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  void (async () => {
+                    setNudges(await acknowledgeNudge(nudge.id));
+                  })();
+                }}
+              >
+                {t('nudge.ack')}
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
 
       <Card>

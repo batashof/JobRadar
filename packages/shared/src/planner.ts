@@ -193,12 +193,37 @@ export interface ActiveFocusSession {
   bankedMinutes: number;
 }
 
+// ---------------------------------------------------------------------------
+// Nudges (ADR-015 §6) — in-app for now; the Telegram channel reuses these rows
+// ---------------------------------------------------------------------------
+
+export const PLANNER_NUDGE_KINDS = [
+  'morning',
+  'block_start',
+  'midway',
+  'evening',
+  'escalation',
+  'debt',
+] as const;
+export type PlannerNudgeKind = (typeof PLANNER_NUDGE_KINDS)[number];
+
+export interface PlannerNudgeItem {
+  id: string;
+  kind: PlannerNudgeKind;
+  blockId: string | null;
+  /** How many times it was repeated without being acknowledged. */
+  repeatIndex: number;
+  sentAt: string | null;
+}
+
 /** GET /planner/today — the plan plus everything the day surface needs. */
 export interface PlannerTodayResponse {
   /** `YYYY-MM-DD` resolved in the user's timezone. */
   today: string;
   plan: DayPlanDetail | null;
   settings: PlannerSettings;
+  /** Unacknowledged nudges, newest first. */
+  nudges: PlannerNudgeItem[];
 }
 
 /** POST /planner/plans — start today's plan (idempotent per day). */

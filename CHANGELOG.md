@@ -7,6 +7,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.10.0] — 2026-07-23
+
+**Day planner, increment 4a (ADR-015): the tick and in-app nudges.** The planner now has its own clock; the Telegram channel is the only piece still missing.
+
+### Added
+
+- **`planner:tick`** — a BullMQ repeatable job running every minute inside the API (ADR-015 §7, deliberately not GitHub Actions). Registered idempotently on boot; a Redis outage logs and never blocks bootstrap.
+- **Automatic end-of-day close**: a day nobody closed is closed by the tick with everything unresolved recorded as `skipped` / `unreported` and `auto_closed = true` — which is what finally turns yesterday's leftovers into today's debt without any user action.
+- **Nudges** written to `planner_nudges` and delivered in-app: `morning` (day not taken on), `debt` (leftovers from earlier days), `block_start` (accepted day, nothing running), `midway` (a block past 1.5× its corrected estimate), `evening` (review time, day still open). Each is raised at most once per day, or once per block.
+- **Bounded escalation**: an unacknowledged nudge repeats every `escalation_after_minutes` up to `escalation_max_repeats`, then is recorded as `ignored` and stops. The record of ignoring is the point, not an unmutable alarm.
+- `GET /planner/nudges`, `POST /planner/nudges/:id/ack`, nudges included in `GET /planner/today`, and a banner list with a "Got it" action on the day page (EN + RU).
+
+### Notes
+
+- Delivery is in-app only; the same rows feed the Telegram bot once a `TELEGRAM_BOT_TOKEN` exists (increment 4b).
+- New risk logged in docs/RISKS.md: the minute tick consumes Upstash free-tier commands — watch it in production.
+
 ## [1.9.0] — 2026-07-23
 
 **Day planner, increment 3 (ADR-015): the assistant composes the day.** `POST /planner/plans/generate` turns the SQL-collected candidates into an ordered, capacity-fitting draft.

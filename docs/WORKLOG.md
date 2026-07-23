@@ -2,6 +2,18 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-23 — Day planner increment 4a: the tick, auto-close and in-app nudges (ADR-015, v1.10.0)
+
+- **`planner:tick`** is a BullMQ repeatable job registered on boot (`upsertJobScheduler`, every 60s) and running inside the API, per ADR-015 §7 — not GitHub Actions, whose free minutes cannot cover minute granularity on a private repo. A Redis failure logs and leaves bootstrap alone.
+- **Decision logic is pure** (`tick-logic.ts`: `decideNudges`, `escalationAction`, `localMinutesOfDay`), so when the planner pokes is pinned by tests rather than by a clock; the IO half (`planner-tick.service.ts`) loads state, writes nudges, and auto-closes stale days, catching per-user errors so one bad row cannot stop the tick for everyone.
+- **Automatic end-of-day close** finally closes the loop from increment 2: an unclosed day gets `auto_closed = true`, its leftovers become `skipped`/`unreported`, and they surface as debt candidates the next morning.
+- **Nudges** (`morning`, `debt`, `block_start`, `midway` at 1.5× the corrected estimate, `evening`), each raised at most once per day or per block, delivered in-app: `GET /planner/nudges`, `POST /planner/nudges/:id/ack`, included in `GET /planner/today`, rendered as a banner list with "Got it".
+- **Escalation is bounded**: repeat every `escalation_after_minutes` up to `escalation_max_repeats`, then the row is marked `ignored` and stops.
+- **Tests**: 331 API (13 new — time parsing, per-kind nudge rules, once-per-day/per-block dedup, escalation states, controller) and 100 web (1 new); lint + typecheck clean.
+- **Live-verified against the running API**: a stale open plan from 2026-07-20 was auto-closed by the tick (`auto_closed = t`, block → `skipped/unreported`, `debtCreated: 1`); `morning` + `debt` raised once each and not repeated on later ticks; with `escalation_after_minutes` temporarily set to 1 the two nudges escalated to `repeat_index = 1` and then stopped as `ignored` (settings restored); accepting the day produced `block_start`, which renders as a banner on `/app/day` with the debt badge showing `1 · 30 min`.
+- **Risk logged** (docs/RISKS.md #8): the minute tick consumes Upstash free-tier commands; watch the dashboard after a week in prod and drop to 5 min if needed — only the midway ping wants minute precision.
+- **Next step:** increment 4b — the Telegram bot on the same `planner_nudges` rows: outbound `sendMessage`, `POST /planner/telegram/webhook` guarded by the secret token, inline Start / Done / +15 min / Skip. Needs `TELEGRAM_BOT_TOKEN` from the developer.
+
 ## 2026-07-23 — Day planner increment 3: the assistant composes the day (ADR-015, v1.9.0)
 
 - **`POST /planner/plans/generate`.** Collects candidates (unchanged SQL), then asks the ADR-005 gateway to order and size them within the remaining capacity, in the account language. The prompt hands over the keys, capacity, estimation factor and the day's intent; `parseComposeReply` keeps only keys that were actually offered, drops repeats and out-of-range estimates — a hallucinated task cannot reach the plan.

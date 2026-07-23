@@ -23,6 +23,7 @@ import {
   PLAN_BLOCK_CATEGORIES,
   type PlanCandidate,
   type PlanCandidatesResponse,
+  type PlannerNudgeItem,
   type PlannerSettings,
   type PlannerTodayResponse,
   PLANNER_DEFAULTS,
@@ -36,7 +37,7 @@ import {
 import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { dayPlans, focusSessions, planBlocks, plannerSettings } from '../db/schema';
+import { dayPlans, focusSessions, planBlocks, plannerNudges, plannerSettings } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
 import { CandidatesService } from './candidates.service';
 import { fallbackCompose, fitToCapacity } from './compose';
@@ -125,7 +126,47 @@ export class PlannerService {
       today,
       plan: plan ? await this.toDetail(plan) : null,
       settings: toSettings(settings),
+      nudges: await this.listNudges(userId),
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Nudges (ADR-015 §6). Delivery is in-app until a bot token exists; the tick
+  // writes the rows, this is the read side.
+  // -------------------------------------------------------------------------
+
+  /** Nudges the user has not acknowledged yet, newest first. */
+  async listNudges(userId: string): Promise<PlannerNudgeItem[]> {
+    const rows = await this.db
+      .select()
+      .from(plannerNudges)
+      .where(and(eq(plannerNudges.userId, userId), eq(plannerNudges.status, 'sent')))
+      .orderBy(desc(plannerNudges.sentAt))
+      .limit(10);
+
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      blockId: row.blockId,
+      repeatIndex: row.repeatIndex,
+      sentAt: row.sentAt?.toISOString() ?? null,
+    }));
+  }
+
+  /** Acknowledging is the user saying "seen" — it stops the escalation. */
+  async acknowledgeNudge(userId: string, nudgeId: string): Promise<PlannerNudgeItem[]> {
+    const [nudge] = await this.db
+      .select()
+      .from(plannerNudges)
+      .where(and(eq(plannerNudges.id, nudgeId), eq(plannerNudges.userId, userId)));
+    if (!nudge) throw new NotFoundException('Nudge not found');
+
+    await this.db
+      .update(plannerNudges)
+      .set({ status: 'acknowledged', acknowledgedAt: new Date() })
+      .where(eq(plannerNudges.id, nudge.id));
+
+    return this.listNudges(userId);
   }
 
   /** Starts today's plan. Idempotent: a second call returns the existing plan. */

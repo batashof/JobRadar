@@ -284,7 +284,7 @@ A text-chat mock interview and its final feedback report.
 
 ## Phase 4 additions (ADR-015 — day planner)
 
-> Shipped: migration `0008` (v1.7.0 increment 1; v1.8.0 increment 2 started writing `focus_sessions`, block outcomes and `day_plans.review`). `planner_nudges` is still unwritten — it belongs to the nudge increment. One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
+> Shipped: migration `0008` (v1.7.0 increment 1; v1.8.0 increment 2 started writing `focus_sessions`, block outcomes and `day_plans.review`). `planner_nudges` started being written in v1.10.0 by `planner:tick` (in-app channel; `telegram_message_id` stays null until the bot lands). One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
 
 ### planner_settings
 

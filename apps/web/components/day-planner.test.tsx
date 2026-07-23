@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   closeDayPlan: vi.fn(),
   completeBlock: vi.fn(),
   createDayPlan: vi.fn(),
+  acknowledgeNudge: vi.fn(),
   dropBlock: vi.fn(),
   generateDayPlan: vi.fn(),
   getCandidates: vi.fn(),
@@ -85,7 +86,7 @@ function plan(overrides: Partial<DayPlanDetail> = {}): DayPlanDetail {
 }
 
 function today(overrides: Partial<PlannerTodayResponse> = {}): PlannerTodayResponse {
-  return { today: '2026-07-23', plan: plan(), settings, ...overrides };
+  return { today: '2026-07-23', plan: plan(), settings, nudges: [], ...overrides };
 }
 
 const noCandidates: PlanCandidatesResponse = { candidates: [], debt: { count: 0, minutes: 0 } };
@@ -320,6 +321,25 @@ describe('DayPlanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close it' }));
 
     expect(mocks.closeDayPlan).toHaveBeenCalledWith('plan-1', { note: 'rough' });
+  });
+
+  it('shows in-app nudges and acknowledges them', async () => {
+    mocks.acknowledgeNudge.mockResolvedValue([]);
+    const withNudge = today({
+      nudges: [
+        { id: 'n1', kind: 'evening', blockId: null, repeatIndex: 2, sentAt: '2026-07-23T20:00:00Z' },
+      ],
+    });
+    render(<DayPlanner initial={withNudge} initialCandidates={noCandidates} />);
+
+    expect(screen.getByText('Time for the review — close the day.')).toBeTruthy();
+    expect(screen.getByText('repeated 2×')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(mocks.acknowledgeNudge).toHaveBeenCalledWith('n1');
+    await waitFor(() =>
+      expect(screen.queryByText('Time for the review — close the day.')).toBeNull(),
+    );
   });
 
   it('locks a closed day: no timer, no suggestions, no new blocks', () => {

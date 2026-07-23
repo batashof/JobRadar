@@ -72,6 +72,18 @@ describe('PlannerController', () => {
     });
   });
 
+  it('lists and acknowledges nudges for the current user', async () => {
+    const listNudges = jest.fn().mockResolvedValue([]);
+    const acknowledgeNudge = jest.fn().mockResolvedValue([]);
+    const controller = controllerWith({ listNudges, acknowledgeNudge });
+
+    await controller.getNudges(user);
+    await controller.acknowledgeNudge(user, 'nudge-1');
+
+    expect(listNudges).toHaveBeenCalledWith(user.id);
+    expect(acknowledgeNudge).toHaveBeenCalledWith(user.id, 'nudge-1');
+  });
+
   it('composes the plan in the account language', async () => {
     const generatePlan = jest.fn().mockResolvedValue({});
     await controllerWith({ generatePlan }).generatePlan(user, { regenerate: true });

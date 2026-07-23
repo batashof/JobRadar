@@ -79,7 +79,7 @@ Standalone prep module inside JobRadar (no new service/infra): `interview/` on t
 
 ### Day planner (accountability loop, ADR-015)
 
-A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(ADR-015 accepted 2026-07-23; increment 1 in v1.7.0 — schema, candidates, manual plan; increment 2 in v1.8.0 — timer, close-out, estimation factor; increment 3 in v1.9.0 — LLM composition.)*
+A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(ADR-015 accepted 2026-07-23; increment 1 in v1.7.0 — schema, candidates, manual plan; increment 2 in v1.8.0 — timer, close-out, estimation factor; increment 3 in v1.9.0 — LLM composition; increment 4a in v1.10.0 — tick, auto-close, in-app nudges.)*
 
 - [x] Schema + migration `0008`: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` ([DATA_MODEL.md](DATA_MODEL.md)).
 - [x] Candidate collection (plain SQL, no LLM): due follow-ups, `todo`/`in_progress` prep topics, fresh matching vacancies, manual backlog, carried debt. *(browser-verified 2026-07-23: all four kinds on one screen, already-planned items disappear from the list)*
@@ -87,11 +87,11 @@ A personal execution surface over existing app state: `planner/` on the API, `/a
 - [x] Morning ritual: explicit plan acceptance (app; the bot path comes with the nudge increment) — until accepted the day counts as unplanned.
 - [x] Block queue UI: add from candidates or by hand, reorder, edit estimates, drop-with-reason, day intent. *(deep links into the source application / topic / vacancy still open — `sourceRef` is stored)*
 - [x] Focus timer: start / pause / resume / stop → `focus_sessions`, `actual_minutes` on the block. *(one running session per user; starting another block auto-pauses the first — live-verified)*
-- [x] Evening close-out: per-block `done` / `partial` / `skipped` + reason, day review stored on the plan, unresolved blocks marked `unreported`. *(the manual close is shipped; the automatic end-of-day close needs `planner:tick`)*
+- [x] Evening close-out: per-block `done` / `partial` / `skipped` + reason, day review stored on the plan, auto-close at end of day marking unresolved blocks `unreported`. *(manual close in v1.8.0; the tick's automatic close in v1.10.0 — live-verified on a stale open day)*
 - [x] Rolling debt: carry unfinished blocks into the next plan first, `carry_count`, rotting (≥3) pinned + escalated, explicit drop-with-reason as the only other exit. *(close-out now produces the unfinished blocks that the candidate collector offers back the next day)*
 - [x] Estimation calibration: `estimation_factor` (global + per category) from the last N blocks, surfaced on the day surface and applied to new blocks. *(median over ≤20 timed blocks, needs ≥5, clamped to [0.5, 4]; live-verified ×2.00 after five 30→60 min blocks)*
-- [ ] `planner:tick` BullMQ repeatable job (1 min): due nudges, midway checks, day rollover per timezone, idempotent claim-before-send.
-- [ ] Telegram bot channel: `TELEGRAM_BOT_TOKEN` outbound `sendMessage` + `POST /planner/telegram/webhook` (secret-token guarded), inline *Start / Done / +15 min / Skip*; degrades to in-app-only without a token.
+- [x] `planner:tick` BullMQ repeatable job (1 min): due nudges, midway checks, day rollover per timezone, idempotent claim-before-send. *(live-verified: stale day auto-closed, morning + debt + block_start raised once each, escalation repeated then recorded as ignored)*
+- [ ] Telegram bot channel: `TELEGRAM_BOT_TOKEN` outbound `sendMessage` + `POST /planner/telegram/webhook` (secret-token guarded), inline *Start / Done / +15 min / Skip*. *(in-app delivery + `GET /planner/nudges` + ack shipped in v1.10.0; the bot plugs into the same `planner_nudges` rows once a token exists)*
 - [ ] Planner stats on the dashboard: completion rate, debt (count + minutes), per-category time vs targets, estimation factor.
 
 ### Other extensions

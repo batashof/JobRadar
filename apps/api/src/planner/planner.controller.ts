@@ -25,6 +25,7 @@ import {
   type GenerateDayPlanInput,
   generateDayPlanSchema,
   type PlanCandidatesResponse,
+  type PlannerNudgeItem,
   type PlannerSettings,
   type PlannerTodayResponse,
   type ReorderPlanBlocksInput,
@@ -55,6 +56,19 @@ export class PlannerController {
   @Get('candidates')
   getCandidates(@CurrentUser() user: AuthUser): Promise<PlanCandidatesResponse> {
     return this.planner.getCandidates(user.id, user.language);
+  }
+
+  @Get('nudges')
+  getNudges(@CurrentUser() user: AuthUser): Promise<PlannerNudgeItem[]> {
+    return this.planner.listNudges(user.id);
+  }
+
+  @Post('nudges/:id/ack')
+  acknowledgeNudge(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<PlannerNudgeItem[]> {
+    return this.planner.acknowledgeNudge(user.id, id);
   }
 
   @Get('settings')
