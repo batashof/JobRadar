@@ -33,6 +33,7 @@ import {
   completeBlock,
   createDayPlan,
   dropBlock,
+  generateDayPlan,
   getCandidates,
   pauseBlock,
   reorderBlocks,
@@ -200,7 +201,14 @@ export function DayPlanner({
           {!plan ? (
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm text-[var(--color-muted-foreground)]">{t('day.unplanned')}</p>
-              <Button disabled={busy} onClick={() => void run(() => createDayPlan())}>
+              <Button disabled={busy} onClick={() => void run(() => generateDayPlan())}>
+                {t('day.compose')}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void run(() => createDayPlan())}
+              >
                 {t('day.start')}
               </Button>
             </div>
@@ -229,6 +237,24 @@ export function DayPlanner({
                   >
                     {t('day.accept')}
                   </Button>
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(() =>
+                        blocks.length === 0
+                          ? generateDayPlan()
+                          : generateDayPlan({ regenerate: true }),
+                      )
+                    }
+                  >
+                    {blocks.length === 0 ? t('day.compose') : t('day.recompose')}
+                  </Button>
+                  {plan.generatedBy !== 'manual' && (
+                    <Badge variant="muted">
+                      {t(`day.generatedBy.${plan.generatedBy}` as TranslationKey)}
+                    </Badge>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-[var(--color-muted-foreground)]">

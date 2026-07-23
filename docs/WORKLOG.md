@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-23 — Day planner increment 3: the assistant composes the day (ADR-015, v1.9.0)
+
+- **`POST /planner/plans/generate`.** Collects candidates (unchanged SQL), then asks the ADR-005 gateway to order and size them within the remaining capacity, in the account language. The prompt hands over the keys, capacity, estimation factor and the day's intent; `parseComposeReply` keeps only keys that were actually offered, drops repeats and out-of-range estimates — a hallucinated task cannot reach the plan.
+- **Fallback is a first-class path, not an error branch.** No key, a failing gateway or an unusable answer all land on `fallbackCompose`: debt first (most-carried ahead), then follow-ups, prep topics, courses, vacancies. `day_plans.generated_by` records which path ran and the UI names it.
+- **Capacity guard shared by both paths** (`fitToCapacity`): keep while corrected minutes fit, max 6 blocks, always keep the first one.
+- **Regeneration is safe.** Without `regenerate` a second call is a 409; with it, only untouched blocks (pending, never started, zero banked minutes) are deleted and rebuilt — started or resolved work is kept and its candidates are excluded from the new selection. The result stays a **draft**, so the accept ritual is untouched.
+- **Tests**: 318 API (13 new — parser, capacity fitting, fallback ordering, prompt contents, schema, controller) and 99 web (3 new); lint + typecheck clean.
+- **Live-verified against the running API**: with Groq+Gemini configured → `generatedBy: llm`, two blocks totalling exactly the 240-minute capacity (debt first, then the deepest-stage follow-up), titles rewritten by the model; with all three keys blanked and the API restarted → `generatedBy: fallback`, five blocks, 210/240 min, debt first; second generate without `regenerate` → 409. `.env` restored afterwards.
+- **Next step:** increment 4 — `planner:tick` (1-minute BullMQ repeatable job) and the Telegram bot: morning/block/midway/evening/escalation nudges, inline Start/Done/+15/Skip, plus the automatic end-of-day close that the tick brings.
+
 ## 2026-07-23 — Day planner increment 2: focus timer, close-out, estimation factor (ADR-015, v1.8.0)
 
 - **Focus timer.** `POST /planner/blocks/:id/start|pause|complete` writes `focus_sessions` and banks whole minutes onto `plan_blocks.actual_minutes`. The invariant is one running session per user: starting another block ends the current session as `paused` and returns that block to `pending`. `DayPlanDetail` gained `activeSession { blockId, startedAt, bankedMinutes }` so the client can tick a live counter without polling.

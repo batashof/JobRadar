@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   type AddPlanBlockInput,
   type CloseDayPlanInput,
@@ -7,17 +14,20 @@ import {
   type DayPlanDetail,
   type DropPlanBlockInput,
   ESTIMATION_WINDOW,
+  type GenerateDayPlanInput,
   estimationFactor,
   type Language,
   localDayKey,
   type PlanBlockCategory,
   type PlanBlockItem,
   PLAN_BLOCK_CATEGORIES,
+  type PlanCandidate,
   type PlanCandidatesResponse,
   type PlannerSettings,
   type PlannerTodayResponse,
   PLANNER_DEFAULTS,
   correctEstimate,
+  plannedMinutes,
   type ReorderPlanBlocksInput,
   summarizeDay,
   type UpdatePlanBlockInput,
@@ -27,7 +37,10 @@ import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { dayPlans, focusSessions, planBlocks, plannerSettings } from '../db/schema';
+import { LlmService } from '../llm/llm.service';
 import { CandidatesService } from './candidates.service';
+import { fallbackCompose, fitToCapacity } from './compose';
+import { buildComposePrompt, type ComposedBlock, parseComposeReply } from './prompts';
 
 type SettingsRow = typeof plannerSettings.$inferSelect;
 type PlanRow = typeof dayPlans.$inferSelect;
@@ -45,9 +58,12 @@ const MAX_BLOCKS = 20;
 
 @Injectable()
 export class PlannerService {
+  private readonly logger = new Logger(PlannerService.name);
+
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly candidates: CandidatesService,
+    private readonly llm: LlmService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -128,6 +144,136 @@ export class PlannerService {
     if (plan) return this.toDetail(plan);
 
     return this.toDetail(await this.requirePlan(userId, today));
+  }
+
+  /**
+   * Composes today's plan from the SQL-collected candidates (ADR-015 §2). The
+   * LLM only selects and sequences; if it is unavailable or answers with
+   * nothing usable, a deterministic ordering takes over, so the feature never
+   * hard-depends on an API key. The result is a **draft** — the morning ritual
+   * still requires an explicit accept.
+   */
+  async generatePlan(
+    userId: string,
+    lang: Language,
+    input: GenerateDayPlanInput,
+  ): Promise<DayPlanDetail> {
+    const settings = await this.settingsRow(userId);
+    const today = localDayKey(new Date(), settings.timezone);
+    const plan = (await this.findPlan(userId, today)) ?? (await this.createPlanRow(userId, today));
+    if (plan.status === 'closed') throw new ConflictException('This day is already closed');
+
+    const existing = await this.loadBlocks(plan.id);
+    if (existing.length > 0 && !input.regenerate) {
+      throw new ConflictException(
+        'Today already has blocks — pass regenerate to rebuild the untouched ones',
+      );
+    }
+
+    // Regenerating never destroys work: only untouched, never-started blocks go.
+    const untouched = existing.filter(
+      (block) => block.status === 'pending' && block.actualMinutes === 0 && !block.startedAt,
+    );
+    const kept = existing.filter((block) => !untouched.includes(block));
+    if (untouched.length > 0) {
+      await this.db.delete(planBlocks).where(
+        inArray(
+          planBlocks.id,
+          untouched.map((block) => block.id),
+        ),
+      );
+    }
+
+    const collected = await this.candidates.collect(userId, lang, today);
+    const taken = new Set(
+      kept.map(blockCandidateKey).filter((key): key is string => key !== null),
+    );
+    const available = collected.candidates.filter((candidate) => !taken.has(candidate.key));
+
+    const capacityLeft = Math.max(
+      0,
+      settings.capacityMinutes - plannedMinutes(kept.map(toBlockItem)),
+    );
+    const { blocks: composed, generatedBy } = await this.compose(available, {
+      capacityMinutes: capacityLeft,
+      estimationFactor: settings.estimationFactor,
+      intent: input.intent ?? plan.intent,
+      lang,
+    });
+
+    const byKey = new Map(available.map((candidate) => [candidate.key, candidate]));
+    let position = nextPosition(kept);
+    for (const block of composed) {
+      const candidate = byKey.get(block.key);
+      if (!candidate) continue;
+      const estimate = block.estimateMinutes ?? candidate.estimateMinutes;
+      await this.db.insert(planBlocks).values({
+        planId: plan.id,
+        userId,
+        position: position++,
+        title: block.title ?? candidate.title,
+        details: candidate.reason,
+        category: candidate.category,
+        sourceKind: candidate.sourceKind,
+        sourceRef: candidate.sourceRef ?? null,
+        estimateMinutes: estimate,
+        correctedEstimateMinutes: correctEstimate(estimate, settings.estimationFactor),
+        carriedFromBlockId: candidate.carriedFromBlockId ?? null,
+        carryCount: candidate.carryCount ?? 0,
+      });
+    }
+
+    const [updated] = await this.db
+      .update(dayPlans)
+      .set({
+        generatedBy,
+        intent: input.intent ?? plan.intent,
+        updatedAt: new Date(),
+      })
+      .where(eq(dayPlans.id, plan.id))
+      .returning();
+
+    return this.toDetail(requireRow(updated, 'Plan not found'));
+  }
+
+  /** LLM first, deterministic ordering as the safety net (ADR-005 discipline). */
+  private async compose(
+    candidates: PlanCandidate[],
+    context: {
+      capacityMinutes: number;
+      estimationFactor: number;
+      intent: string | null;
+      lang: Language;
+    },
+  ): Promise<{ blocks: ComposedBlock[]; generatedBy: 'llm' | 'fallback' }> {
+    if (candidates.length === 0) return { blocks: [], generatedBy: 'fallback' };
+
+    if (this.llm.isConfigured()) {
+      try {
+        const prompt = buildComposePrompt(candidates, context);
+        const result = await this.llm.complete({ ...prompt, maxTokens: 700, temperature: 0.3 });
+        const parsed = parseComposeReply(result.text, candidates);
+        const fitted = fitToCapacity(
+          parsed,
+          candidates,
+          context.capacityMinutes,
+          context.estimationFactor,
+        );
+        if (fitted.length > 0) return { blocks: fitted, generatedBy: 'llm' };
+        this.logger.warn('LLM returned no usable blocks — falling back to the fixed ordering');
+      } catch (err) {
+        this.logger.warn(
+          `Plan composition fell back to the fixed ordering: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    return {
+      blocks: fallbackCompose(candidates, context.capacityMinutes, context.estimationFactor),
+      generatedBy: 'fallback',
+    };
   }
 
   /**

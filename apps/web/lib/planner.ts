@@ -5,6 +5,7 @@ import type {
   CreateDayPlanInput,
   DayPlanDetail,
   DropPlanBlockInput,
+  GenerateDayPlanInput,
   PlanCandidatesResponse,
   PlannerSettings,
   PlannerTodayResponse,
@@ -26,6 +27,13 @@ export function getCandidates(): Promise<PlanCandidatesResponse> {
 
 export function createDayPlan(input: CreateDayPlanInput = {}): Promise<DayPlanDetail> {
   return apiFetch<DayPlanDetail>('/planner/plans', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function generateDayPlan(input: GenerateDayPlanInput = {}): Promise<DayPlanDetail> {
+  return apiFetch<DayPlanDetail>('/planner/plans/generate', {
     method: 'POST',
     body: JSON.stringify(input),
   });

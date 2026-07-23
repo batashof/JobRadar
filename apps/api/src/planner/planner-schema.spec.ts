@@ -2,6 +2,7 @@ import {
   addPlanBlockSchema,
   closeDayPlanSchema,
   completePlanBlockSchema,
+  generateDayPlanSchema,
   correctEstimate,
   isRotting,
   localDayKey,
@@ -65,6 +66,12 @@ describe('planner schemas (shared contract, ADR-015)', () => {
     expect(completePlanBlockSchema.safeParse({ status: 'done', reason: 'nope' }).success).toBe(
       false,
     );
+  });
+
+  it('generate takes an optional intent and an explicit regenerate flag', () => {
+    expect(generateDayPlanSchema.parse({})).toEqual({});
+    expect(generateDayPlanSchema.parse({ regenerate: true })).toEqual({ regenerate: true });
+    expect(generateDayPlanSchema.safeParse({ regenerate: 'yes' }).success).toBe(false);
   });
 
   it('close takes an optional note', () => {

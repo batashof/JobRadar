@@ -72,6 +72,12 @@ describe('PlannerController', () => {
     });
   });
 
+  it('composes the plan in the account language', async () => {
+    const generatePlan = jest.fn().mockResolvedValue({});
+    await controllerWith({ generatePlan }).generatePlan(user, { regenerate: true });
+    expect(generatePlan).toHaveBeenCalledWith(user.id, 'ru', { regenerate: true });
+  });
+
   it('closes the day with the review note', async () => {
     const closePlan = jest.fn().mockResolvedValue({});
     await controllerWith({ closePlan }).closePlan(user, 'plan-1', { note: 'ok day' });

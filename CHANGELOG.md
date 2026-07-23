@@ -7,6 +7,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.9.0] — 2026-07-23
+
+**Day planner, increment 3 (ADR-015): the assistant composes the day.** `POST /planner/plans/generate` turns the SQL-collected candidates into an ordered, capacity-fitting draft.
+
+### Added
+
+- **LLM composition**: the model receives the candidate list plus the day's capacity, the estimation factor and the day's intent, and returns an ordered selection with per-block titles and estimates. It **selects and sequences only** — any key it did not receive is dropped on parse, so the planner can never invent work.
+- **Deterministic fallback**: with no LLM key, a failing gateway or an unusable answer, composition falls back to a fixed priority order (debt, rotting first → follow-ups → prep topics → courses → vacancies). The plan surface shows which of the two produced it.
+- **Capacity guard on both paths**: blocks are kept while they fit the capacity measured in corrected minutes, capped at 6 blocks a day; the first block is always kept.
+- **Idempotent per day**: generating over an existing plan needs an explicit `regenerate`, and even then only untouched blocks (pending, never started, no time banked) are replaced — anything started or resolved survives.
+- The result is a **draft**: the morning accept ritual is unchanged.
+- Web: "Compose the day for me" on an empty day, "Rebuild the untouched blocks" on a draft, and a badge naming the composer.
+
 ## [1.8.0] — 2026-07-23
 
 **Day planner, increment 2 (ADR-015): focus timer, evening close-out, real estimation factor.** The day surface now measures what actually happens instead of only what was planned.

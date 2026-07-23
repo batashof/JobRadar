@@ -207,6 +207,17 @@ export const createDayPlanSchema = z.object({
 });
 export type CreateDayPlanInput = z.infer<typeof createDayPlanSchema>;
 
+/**
+ * POST /planner/plans/generate — compose today's plan from the candidate list
+ * (ADR-015 §2). Idempotent per day: rebuilding an existing plan needs an
+ * explicit `regenerate`, and only untouched blocks are replaced.
+ */
+export const generateDayPlanSchema = z.object({
+  intent: z.string().trim().max(200).optional(),
+  regenerate: z.boolean().optional(),
+});
+export type GenerateDayPlanInput = z.infer<typeof generateDayPlanSchema>;
+
 /** POST /planner/blocks — add a block to today's plan. */
 export const addPlanBlockSchema = z.object({
   title: z.string().trim().min(1).max(200),

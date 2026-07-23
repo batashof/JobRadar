@@ -22,6 +22,8 @@ import {
   type DayPlanDetail,
   type DropPlanBlockInput,
   dropPlanBlockSchema,
+  type GenerateDayPlanInput,
+  generateDayPlanSchema,
   type PlanCandidatesResponse,
   type PlannerSettings,
   type PlannerTodayResponse,
@@ -74,6 +76,15 @@ export class PlannerController {
     @Body(new ZodValidationPipe(createDayPlanSchema)) body: CreateDayPlanInput,
   ): Promise<DayPlanDetail> {
     return this.planner.createPlan(user.id, body);
+  }
+
+  /** Composes the day from candidates; titles follow the account language. */
+  @Post('plans/generate')
+  generatePlan(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(generateDayPlanSchema)) body: GenerateDayPlanInput,
+  ): Promise<DayPlanDetail> {
+    return this.planner.generatePlan(user.id, user.language, body);
   }
 
   @Post('plans/:id/accept')

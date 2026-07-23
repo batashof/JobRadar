@@ -116,7 +116,7 @@ apps/api/src/
 ├── interview/      # resume-driven prep plans, generated Q&A, LLM-reviewed live-coding, text mock interview
 │
 │   # phase 4 (ADR-015):
-└── planner/        # day plans, blocks, focus timer, estimation stats, `planner:tick` scheduler, Telegram-bot nudges + webhook
+└── planner/        # day plans, blocks, focus timer, estimation stats, LLM composition (+ deterministic fallback), `planner:tick` scheduler, Telegram-bot nudges + webhook
 ```
 
 ## Scheduling: two clocks

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   completeBlock: vi.fn(),
   createDayPlan: vi.fn(),
   dropBlock: vi.fn(),
+  generateDayPlan: vi.fn(),
   getCandidates: vi.fn(),
   pauseBlock: vi.fn(),
   reorderBlocks: vi.fn(),
@@ -104,6 +105,32 @@ describe('DayPlanner', () => {
     expect(screen.getByText('Today is not planned yet.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Start today’s plan' }));
     expect(mocks.createDayPlan).toHaveBeenCalled();
+  });
+
+  it('composes the day from candidates on request', () => {
+    mocks.generateDayPlan.mockResolvedValue(plan());
+    render(<DayPlanner initial={today({ plan: null })} initialCandidates={noCandidates} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compose the day for me' }));
+    expect(mocks.generateDayPlan).toHaveBeenCalledWith();
+  });
+
+  it('rebuilds an existing draft only with an explicit regenerate', () => {
+    mocks.generateDayPlan.mockResolvedValue(plan());
+    render(<DayPlanner initial={today()} initialCandidates={noCandidates} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild the untouched blocks' }));
+    expect(mocks.generateDayPlan).toHaveBeenCalledWith({ regenerate: true });
+  });
+
+  it('says who composed the plan', () => {
+    render(
+      <DayPlanner
+        initial={today({ plan: plan({ generatedBy: 'fallback' }) })}
+        initialCandidates={noCandidates}
+      />,
+    );
+    expect(screen.getByText('Composed by priority order')).toBeTruthy();
   });
 
   it('shows planned vs capacity and the personal estimation factor', () => {

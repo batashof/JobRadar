@@ -79,11 +79,11 @@ Standalone prep module inside JobRadar (no new service/infra): `interview/` on t
 
 ### Day planner (accountability loop, ADR-015)
 
-A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(ADR-015 accepted 2026-07-23; increment 1 in v1.7.0 — schema, candidates, manual plan; increment 2 in v1.8.0 — timer, close-out, estimation factor.)*
+A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(ADR-015 accepted 2026-07-23; increment 1 in v1.7.0 — schema, candidates, manual plan; increment 2 in v1.8.0 — timer, close-out, estimation factor; increment 3 in v1.9.0 — LLM composition.)*
 
 - [x] Schema + migration `0008`: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` ([DATA_MODEL.md](DATA_MODEL.md)).
 - [x] Candidate collection (plain SQL, no LLM): due follow-ups, `todo`/`in_progress` prep topics, fresh matching vacancies, manual backlog, carried debt. *(browser-verified 2026-07-23: all four kinds on one screen, already-planned items disappear from the list)*
-- [ ] Plan generation: one LLM call per plan (ADR-005 gateway, `users.language`) selecting + sequencing candidates within the corrected capacity; deterministic fallback ordering when no LLM key is available.
+- [x] Plan generation: one LLM call per plan (ADR-005 gateway, `users.language`) selecting + sequencing candidates within the corrected capacity; deterministic fallback ordering when no LLM key is available. *(live-verified both paths: with keys → `llm`, keys blanked → `fallback`; hallucinated keys are dropped on parse)*
 - [x] Morning ritual: explicit plan acceptance (app; the bot path comes with the nudge increment) — until accepted the day counts as unplanned.
 - [x] Block queue UI: add from candidates or by hand, reorder, edit estimates, drop-with-reason, day intent. *(deep links into the source application / topic / vacancy still open — `sourceRef` is stored)*
 - [x] Focus timer: start / pause / resume / stop → `focus_sessions`, `actual_minutes` on the block. *(one running session per user; starting another block auto-pauses the first — live-verified)*
