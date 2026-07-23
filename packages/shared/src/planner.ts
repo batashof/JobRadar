@@ -181,6 +181,16 @@ export interface DayPlanDetail {
   autoClosed: boolean;
   review: DayPlanReview | null;
   blocks: PlanBlockItem[];
+  /** The focus session running right now, if any. At most one per user. */
+  activeSession: ActiveFocusSession | null;
+}
+
+export interface ActiveFocusSession {
+  blockId: string;
+  /** ISO instant the current run started; the client ticks from here. */
+  startedAt: string;
+  /** Minutes already banked on the block from earlier runs. */
+  bankedMinutes: number;
 }
 
 /** GET /planner/today — the plan plus everything the day surface needs. */
@@ -233,6 +243,24 @@ export const reorderPlanBlocksSchema = z.object({
   blockIds: z.array(z.string().uuid()).min(1).max(50),
 });
 export type ReorderPlanBlocksInput = z.infer<typeof reorderPlanBlocksSchema>;
+
+/**
+ * POST /planner/blocks/:id/complete — resolve a block at the end of a run or
+ * during the evening review. `skipped` and `partial` both keep the block in
+ * debt; only `done` clears it.
+ */
+export const completePlanBlockSchema = z.object({
+  status: z.enum(['done', 'partial', 'skipped']),
+  reason: z.enum(PLAN_SKIP_REASONS).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+export type CompletePlanBlockInput = z.infer<typeof completePlanBlockSchema>;
+
+/** POST /planner/plans/:id/close — the evening review. */
+export const closeDayPlanSchema = z.object({
+  note: z.string().trim().max(500).optional(),
+});
+export type CloseDayPlanInput = z.infer<typeof closeDayPlanSchema>;
 
 /** DELETE /planner/blocks/:id — dropping is deliberate and recorded (ADR-015). */
 export const dropPlanBlockSchema = z.object({
@@ -288,6 +316,82 @@ export function plannedMinutes(blocks: Pick<PlanBlockItem, 'status' | 'corrected
 
 export function isRotting(block: Pick<PlanBlockItem, 'carryCount'>): boolean {
   return block.carryCount >= PLAN_ROTTING_CARRY_COUNT;
+}
+
+/** How many timed blocks are needed before the factor stops being 1. */
+export const ESTIMATION_MIN_SAMPLES = 5;
+/** How far back the factor looks. */
+export const ESTIMATION_WINDOW = 20;
+/** Guard rails: one freak block must not turn the factor into nonsense. */
+export const ESTIMATION_FACTOR_BOUNDS = { min: 0.5, max: 4 } as const;
+
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+export interface EstimationSample {
+  estimateMinutes: number;
+  actualMinutes: number;
+}
+
+/**
+ * The personal `actual / estimate` median. Returns 1 until there is enough
+ * evidence — a planner that "corrects" from two data points is just noise.
+ */
+export function estimationFactor(samples: EstimationSample[]): number {
+  const ratios = samples
+    .filter((s) => s.estimateMinutes > 0 && s.actualMinutes > 0)
+    .slice(0, ESTIMATION_WINDOW)
+    .map((s) => s.actualMinutes / s.estimateMinutes);
+  if (ratios.length < ESTIMATION_MIN_SAMPLES) return 1;
+  const value = median(ratios) ?? 1;
+  return Math.min(
+    ESTIMATION_FACTOR_BOUNDS.max,
+    Math.max(ESTIMATION_FACTOR_BOUNDS.min, Math.round(value * 100) / 100),
+  );
+}
+
+/** Blocks that still owe work after the day is closed — tomorrow's debt. */
+export function debtBlocks<T extends Pick<PlanBlockItem, 'status'>>(blocks: T[]): T[] {
+  return blocks.filter((block) =>
+    (PLAN_BLOCK_UNFINISHED_STATUSES as readonly PlanBlockStatus[]).includes(block.status),
+  );
+}
+
+/** The close-out summary for a day. Pure, so the UI can preview it live. */
+export function summarizeDay(
+  blocks: Pick<
+    PlanBlockItem,
+    'status' | 'category' | 'correctedEstimateMinutes' | 'actualMinutes'
+  >[],
+  note?: string,
+): DayPlanReview {
+  const counted = blocks.filter((block) => block.status !== 'dropped');
+  const minutesByCategory: Partial<Record<PlanBlockCategory, number>> = {};
+  for (const block of counted) {
+    if (block.actualMinutes > 0) {
+      minutesByCategory[block.category] =
+        (minutesByCategory[block.category] ?? 0) + block.actualMinutes;
+    }
+  }
+  return {
+    completedBlocks: counted.filter((block) => block.status === 'done').length,
+    totalBlocks: counted.length,
+    plannedMinutes: plannedMinutes(counted),
+    actualMinutes: counted.reduce((total, block) => total + block.actualMinutes, 0),
+    minutesByCategory,
+    debtCreated: debtBlocks(counted).length,
+    ...(note ? { note } : {}),
+  };
+}
+
+/** Whole minutes elapsed in a running focus session, banked time included. */
+export function elapsedMinutes(session: ActiveFocusSession, now: Date): number {
+  const running = (now.getTime() - new Date(session.startedAt).getTime()) / 60_000;
+  return session.bankedMinutes + Math.max(0, Math.floor(running));
 }
 
 /**

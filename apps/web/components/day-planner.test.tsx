@@ -13,11 +13,15 @@ import { DayPlanner } from './day-planner';
 const mocks = vi.hoisted(() => ({
   addBlock: vi.fn(),
   acceptDayPlan: vi.fn(),
+  closeDayPlan: vi.fn(),
+  completeBlock: vi.fn(),
   createDayPlan: vi.fn(),
   dropBlock: vi.fn(),
   getCandidates: vi.fn(),
+  pauseBlock: vi.fn(),
   reorderBlocks: vi.fn(),
   setPlanIntent: vi.fn(),
+  startBlock: vi.fn(),
   updateBlock: vi.fn(),
   updatePlannerSettings: vi.fn(),
 }));
@@ -73,6 +77,7 @@ function plan(overrides: Partial<DayPlanDetail> = {}): DayPlanDetail {
     closedAt: null,
     autoClosed: false,
     review: null,
+    activeSession: null,
     blocks: [block()],
     ...overrides,
   };
@@ -207,5 +212,109 @@ describe('DayPlanner', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Take on the day' }));
     expect((await screen.findByRole('alert')).textContent).toBe('This day is already closed');
+  });
+
+  it('runs the focus timer on one block and shows elapsed against the estimate', () => {
+    const running = plan({
+      status: 'accepted',
+      blocks: [block({ status: 'active', actualMinutes: 10 })],
+      activeSession: {
+        blockId: 'block-1',
+        startedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+        bankedMinutes: 10,
+      },
+    });
+    mocks.pauseBlock.mockResolvedValue(plan());
+    render(<DayPlanner initial={today({ plan: running })} initialCandidates={noCandidates} />);
+
+    expect(screen.getByText('15 / 54 min')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(mocks.pauseBlock).toHaveBeenCalledWith('block-1');
+  });
+
+  it('starts a block from the queue', () => {
+    mocks.startBlock.mockResolvedValue(plan());
+    render(<DayPlanner initial={today({ plan: plan({ status: 'accepted' }) })} initialCandidates={noCandidates} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(mocks.startBlock).toHaveBeenCalledWith('block-1');
+  });
+
+  it('resolves a block as partly done with a reason and a note', () => {
+    mocks.completeBlock.mockResolvedValue(plan());
+    render(<DayPlanner initial={today({ plan: plan({ status: 'accepted' }) })} initialCandidates={noCandidates} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    fireEvent.change(screen.getByLabelText('How did it go?'), { target: { value: 'partial' } });
+    fireEvent.change(screen.getByLabelText('Why?'), { target: { value: 'no_energy' } });
+    fireEvent.change(screen.getByLabelText('Note (optional)'), { target: { value: 'half of it' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(mocks.completeBlock).toHaveBeenCalledWith('block-1', {
+      status: 'partial',
+      reason: 'no_energy',
+      note: 'half of it',
+    });
+  });
+
+  it('sends no reason when the block is simply done', () => {
+    mocks.completeBlock.mockResolvedValue(plan());
+    render(<DayPlanner initial={today({ plan: plan({ status: 'accepted' }) })} initialCandidates={noCandidates} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(mocks.completeBlock).toHaveBeenCalledWith('block-1', { status: 'done' });
+  });
+
+  it('previews the day review before the day is closed', () => {
+    const blocks = [
+      block({ id: 'b1', status: 'done', actualMinutes: 40 }),
+      block({ id: 'b2', status: 'skipped', skipReason: 'no_time' }),
+    ];
+    render(
+      <DayPlanner
+        initial={today({ plan: plan({ status: 'accepted', blocks }) })}
+        initialCandidates={noCandidates}
+      />,
+    );
+
+    expect(screen.getByText(/1 of 2 blocks done/)).toBeTruthy();
+    expect(screen.getByText(/planned 108 min, actual 40 min/)).toBeTruthy();
+    expect(screen.getByText(/1 going into debt/)).toBeTruthy();
+  });
+
+  it('closes the day with an optional note', () => {
+    mocks.closeDayPlan.mockResolvedValue(plan({ status: 'closed' }));
+    render(<DayPlanner initial={today({ plan: plan({ status: 'accepted' }) })} initialCandidates={noCandidates} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close the day' }));
+    fireEvent.change(screen.getByLabelText('How was the day?'), { target: { value: 'rough' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Close it' }));
+
+    expect(mocks.closeDayPlan).toHaveBeenCalledWith('plan-1', { note: 'rough' });
+  });
+
+  it('locks a closed day: no timer, no suggestions, no new blocks', () => {
+    const closed = plan({
+      status: 'closed',
+      autoClosed: true,
+      blocks: [block({ status: 'skipped', skipReason: 'unreported' })],
+      review: {
+        completedBlocks: 0,
+        totalBlocks: 1,
+        plannedMinutes: 54,
+        actualMinutes: 0,
+        minutesByCategory: {},
+        debtCreated: 1,
+      },
+    });
+    render(<DayPlanner initial={today({ plan: closed })} initialCandidates={noCandidates} />);
+
+    expect(screen.getByText('Day auto-closed without a review.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close the day' })).toBeNull();
+    expect(screen.queryByText('Suggestions')).toBeNull();
+    expect(screen.queryByLabelText('Block')).toBeNull();
   });
 });

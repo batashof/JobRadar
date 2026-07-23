@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.7.0** (day planner increment 1 — schema, SQL-collected candidates and a manually assembled timebox queue with the morning accept ritual, ADR-015, 2026-07-23; keep this line in sync on every bump).
+- **Current version: 1.8.0** (day planner increment 2 — focus timer, evening close-out with rolling debt, and the estimation factor computed from real actuals, ADR-015, 2026-07-23; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

@@ -2,7 +2,9 @@
 
 import {
   type AddPlanBlockInput,
+  type CompletePlanBlockInput,
   type DayPlanDetail,
+  elapsedMinutes,
   isRotting,
   type PlanBlockCategory,
   type PlanBlockItem,
@@ -13,8 +15,9 @@ import {
   type PlanSkipReason,
   PLAN_BLOCK_CATEGORIES,
   plannedMinutes,
+  summarizeDay,
 } from '@jobradar/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,11 +29,15 @@ import type { TranslationKey } from '@/lib/i18n/dictionaries';
 import {
   acceptDayPlan,
   addBlock,
+  closeDayPlan,
+  completeBlock,
   createDayPlan,
   dropBlock,
   getCandidates,
+  pauseBlock,
   reorderBlocks,
   setPlanIntent,
+  startBlock,
   updateBlock,
   updatePlannerSettings,
 } from '@/lib/planner';
@@ -44,9 +51,13 @@ const DROP_REASONS: PlanSkipReason[] = [
   'avoided',
 ];
 
+/** How a block can be resolved at the end of a run (dropping has its own path). */
+const OUTCOMES = ['done', 'partial', 'skipped'] as const;
+type Outcome = (typeof OUTCOMES)[number];
+
 /** Blocks that are done with, one way or another. */
 function isTerminal(block: PlanBlockItem): boolean {
-  return block.status === 'dropped' || block.status === 'done';
+  return block.status !== 'pending' && block.status !== 'active';
 }
 
 /**
@@ -69,12 +80,29 @@ export function DayPlanner({
   const [error, setError] = useState<string | null>(null);
   const [droppingId, setDroppingId] = useState<string | null>(null);
   const [dropReason, setDropReason] = useState<PlanSkipReason>('changed_priority');
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<Outcome>('done');
+  const [outcomeReason, setOutcomeReason] = useState<PlanSkipReason>('no_time');
+  const [outcomeNote, setOutcomeNote] = useState('');
+  const [closing, setClosing] = useState(false);
+  const [closeNote, setCloseNote] = useState('');
+  // Ticks only while a session runs, so the elapsed counter stays honest.
+  const [now, setNow] = useState(() => Date.now());
+  const activeSession = plan?.activeSession ?? null;
+
+  useEffect(() => {
+    if (!activeSession) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activeSession]);
 
   const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const blocks = plan?.blocks ?? [];
   const liveBlocks = blocks.filter((block) => block.status !== 'dropped');
   const planned = plannedMinutes(blocks);
   const overCapacity = planned > settings.capacityMinutes;
+  const isClosed = plan?.status === 'closed';
+  const preview = summarizeDay(blocks);
 
   /** Every mutation returns the whole plan, so the queue can never drift. */
   async function run(action: () => Promise<DayPlanDetail | null>) {
@@ -203,7 +231,9 @@ export function DayPlanner({
                   </Button>
                 </div>
               ) : (
-                <p className="text-sm text-[var(--color-muted-foreground)]">{t('day.accepted')}</p>
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  {isClosed ? t('day.closed') : t('day.accepted')}
+                </p>
               )}
             </>
           )}
@@ -246,10 +276,27 @@ export function DayPlanner({
                               {t('day.carried', { count: block.carryCount })}
                             </Badge>
                           )}
-                          {block.status === 'dropped' && block.skipReason && (
+                          {block.status !== 'pending' && (
+                            <Badge
+                              variant={block.status === 'done' ? 'primary' : 'muted'}
+                            >
+                              {t(`blockStatus.${block.status}` as TranslationKey)}
+                            </Badge>
+                          )}
+                          {block.skipReason && (
                             <Badge variant="muted">
                               {t(`skipReason.${block.skipReason}` as TranslationKey)}
                             </Badge>
+                          )}
+                          {block.actualMinutes > 0 && block.id !== activeSession?.blockId && (
+                            <Badge variant="muted">
+                              {t('day.took', { minutes: block.actualMinutes })}
+                            </Badge>
+                          )}
+                          {block.outcomeNote && (
+                            <span className="text-xs text-[var(--color-muted-foreground)]">
+                              {block.outcomeNote}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -296,15 +343,55 @@ export function DayPlanner({
                         >
                           ↓
                         </Button>
-                        {!isTerminal(block) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => setDroppingId(block.id)}
-                          >
-                            {t('day.drop')}
-                          </Button>
+                        {!isTerminal(block) && !isClosed && (
+                          <>
+                            {activeSession?.blockId === block.id ? (
+                              <>
+                                <Badge variant="primary">
+                                  {t('day.elapsed', {
+                                    actual: elapsedMinutes(activeSession, new Date(now)),
+                                    estimate: block.correctedEstimateMinutes,
+                                  })}
+                                </Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={busy}
+                                  onClick={() => void run(() => pauseBlock(block.id))}
+                                >
+                                  {t('day.pause')}
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => void run(() => startBlock(block.id))}
+                              >
+                                {t('day.startBlock')}
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => {
+                                setResolvingId(block.id);
+                                setOutcome('done');
+                                setOutcomeNote('');
+                              }}
+                            >
+                              {t('day.finish')}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => setDroppingId(block.id)}
+                            >
+                              {t('day.drop')}
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -344,6 +431,73 @@ export function DayPlanner({
                         </Button>
                       </div>
                     )}
+
+                    {resolvingId === block.id && (
+                      <div className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--color-border)] p-2">
+                        <label className="text-sm" htmlFor={`outcome-${block.id}`}>
+                          {t('day.outcomeLabel')}
+                        </label>
+                        <select
+                          id={`outcome-${block.id}`}
+                          className="rounded-md border border-[var(--color-border)] bg-transparent px-2 py-1 text-sm"
+                          value={outcome}
+                          onChange={(event) => setOutcome(event.target.value as Outcome)}
+                        >
+                          {OUTCOMES.map((value) => (
+                            <option key={value} value={value}>
+                              {t(`blockStatus.${value}` as TranslationKey)}
+                            </option>
+                          ))}
+                        </select>
+                        {outcome !== 'done' && (
+                          <>
+                            <label className="text-sm" htmlFor={`outcome-reason-${block.id}`}>
+                              {t('day.outcomeReason')}
+                            </label>
+                            <select
+                              id={`outcome-reason-${block.id}`}
+                              className="rounded-md border border-[var(--color-border)] bg-transparent px-2 py-1 text-sm"
+                              value={outcomeReason}
+                              onChange={(event) =>
+                                setOutcomeReason(event.target.value as PlanSkipReason)
+                              }
+                            >
+                              {DROP_REASONS.map((reason) => (
+                                <option key={reason} value={reason}>
+                                  {t(`skipReason.${reason}` as TranslationKey)}
+                                </option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                        <Input
+                          className="w-56"
+                          aria-label={t('day.outcomeNote')}
+                          placeholder={t('day.outcomeNote')}
+                          value={outcomeNote}
+                          onChange={(event) => setOutcomeNote(event.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            const input: CompletePlanBlockInput = {
+                              status: outcome,
+                              ...(outcome === 'done' ? {} : { reason: outcomeReason }),
+                              ...(outcomeNote.trim() ? { note: outcomeNote.trim() } : {}),
+                            };
+                            setResolvingId(null);
+                            setOutcomeNote('');
+                            void run(() => completeBlock(block.id, input));
+                          }}
+                        >
+                          {t('day.confirmFinish')}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setResolvingId(null)}>
+                          {t('common.cancel')}
+                        </Button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -352,6 +506,72 @@ export function DayPlanner({
         </Card>
       )}
 
+      {plan && (
+        <Card>
+          <CardHeader className="pb-2">
+            <h2 className="text-lg font-semibold">{t('day.review')}</h2>
+            <p className="text-sm text-[var(--color-muted-foreground)]">{t('day.reviewHint')}</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm">
+              {t('day.reviewBlocks', {
+                done: (plan.review ?? preview).completedBlocks,
+                total: (plan.review ?? preview).totalBlocks,
+              })}{' '}
+              ·{' '}
+              {t('day.reviewTime', {
+                planned: (plan.review ?? preview).plannedMinutes,
+                actual: (plan.review ?? preview).actualMinutes,
+              })}{' '}
+              ·{' '}
+              {t('day.reviewDebt', { count: (plan.review ?? preview).debtCreated })}
+            </p>
+            {isClosed ? (
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                {plan.autoClosed ? t('day.closedAuto') : t('day.closed')}
+                {plan.review?.note ? ` — ${plan.review.note}` : ''}
+              </p>
+            ) : closing ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="w-72"
+                  aria-label={t('day.reviewNote')}
+                  placeholder={t('day.reviewNote')}
+                  value={closeNote}
+                  onChange={(event) => setCloseNote(event.target.value)}
+                />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    const note = closeNote.trim();
+                    setClosing(false);
+                    setCloseNote('');
+                    void run(() => closeDayPlan(plan.id, note ? { note } : {}));
+                  }}
+                >
+                  {t('day.confirmClose')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setClosing(false)}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="outline" disabled={busy} onClick={() => setClosing(true)}>
+                  {t('day.closeDay')}
+                </Button>
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  {t('day.closeHint')}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isClosed && (
       <Card>
         <CardHeader className="pb-2">
           <h2 className="text-lg font-semibold">{t('day.candidates')}</h2>
@@ -395,11 +615,15 @@ export function DayPlanner({
         </CardContent>
       </Card>
 
-      <ManualBlockForm
-        busy={busy}
-        defaultMinutes={settings.defaultBlockMinutes}
-        onSubmit={(input) => void run(() => addBlock(input))}
-      />
+      )}
+
+      {!isClosed && (
+        <ManualBlockForm
+          busy={busy}
+          defaultMinutes={settings.defaultBlockMinutes}
+          onSubmit={(input) => void run(() => addBlock(input))}
+        />
+      )}
     </div>
   );
 }

@@ -13,6 +13,10 @@ import {
   type AddPlanBlockInput,
   addPlanBlockSchema,
   type AuthUser,
+  type CloseDayPlanInput,
+  closeDayPlanSchema,
+  type CompletePlanBlockInput,
+  completePlanBlockSchema,
   type CreateDayPlanInput,
   createDayPlanSchema,
   type DayPlanDetail,
@@ -98,6 +102,15 @@ export class PlannerController {
     return this.planner.reorder(user.id, id, body);
   }
 
+  @Post('plans/:id/close')
+  closePlan(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(closeDayPlanSchema)) body: CloseDayPlanInput,
+  ): Promise<DayPlanDetail> {
+    return this.planner.closePlan(user.id, id, body);
+  }
+
   @Post('blocks')
   addBlock(
     @CurrentUser() user: AuthUser,
@@ -113,6 +126,31 @@ export class PlannerController {
     @Body(new ZodValidationPipe(updatePlanBlockSchema)) body: UpdatePlanBlockInput,
   ): Promise<DayPlanDetail> {
     return this.planner.updateBlock(user.id, id, body);
+  }
+
+  @Post('blocks/:id/start')
+  startBlock(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<DayPlanDetail> {
+    return this.planner.startBlock(user.id, id);
+  }
+
+  @Post('blocks/:id/pause')
+  pauseBlock(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<DayPlanDetail> {
+    return this.planner.pauseBlock(user.id, id);
+  }
+
+  @Post('blocks/:id/complete')
+  completeBlock(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(completePlanBlockSchema)) body: CompletePlanBlockInput,
+  ): Promise<DayPlanDetail> {
+    return this.planner.completeBlock(user.id, id, body);
   }
 
   @Delete('blocks/:id')

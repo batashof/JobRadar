@@ -54,6 +54,30 @@ describe('PlannerController', () => {
     expect(dropBlock).toHaveBeenCalledWith(user.id, 'block-1', { reason: 'avoided' });
   });
 
+  it('delegates the focus timer to the owning user', async () => {
+    const startBlock = jest.fn().mockResolvedValue({});
+    const pauseBlock = jest.fn().mockResolvedValue({});
+    const completeBlock = jest.fn().mockResolvedValue({});
+    const controller = controllerWith({ startBlock, pauseBlock, completeBlock });
+
+    await controller.startBlock(user, 'block-1');
+    await controller.pauseBlock(user, 'block-1');
+    await controller.completeBlock(user, 'block-1', { status: 'partial', reason: 'no_time' });
+
+    expect(startBlock).toHaveBeenCalledWith(user.id, 'block-1');
+    expect(pauseBlock).toHaveBeenCalledWith(user.id, 'block-1');
+    expect(completeBlock).toHaveBeenCalledWith(user.id, 'block-1', {
+      status: 'partial',
+      reason: 'no_time',
+    });
+  });
+
+  it('closes the day with the review note', async () => {
+    const closePlan = jest.fn().mockResolvedValue({});
+    await controllerWith({ closePlan }).closePlan(user, 'plan-1', { note: 'ok day' });
+    expect(closePlan).toHaveBeenCalledWith(user.id, 'plan-1', { note: 'ok day' });
+  });
+
   it('sends the reorder list through to the service', async () => {
     const reorder = jest.fn().mockResolvedValue({});
     const body = { blockIds: ['b1', 'b2'] };

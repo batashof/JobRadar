@@ -1,25 +1,32 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   type AddPlanBlockInput,
+  type CloseDayPlanInput,
+  type CompletePlanBlockInput,
   type CreateDayPlanInput,
   type DayPlanDetail,
   type DropPlanBlockInput,
+  ESTIMATION_WINDOW,
+  estimationFactor,
   type Language,
   localDayKey,
+  type PlanBlockCategory,
   type PlanBlockItem,
+  PLAN_BLOCK_CATEGORIES,
   type PlanCandidatesResponse,
   type PlannerSettings,
   type PlannerTodayResponse,
   PLANNER_DEFAULTS,
   correctEstimate,
   type ReorderPlanBlocksInput,
+  summarizeDay,
   type UpdatePlanBlockInput,
   type UpdatePlannerSettingsInput,
 } from '@jobradar/shared';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { dayPlans, planBlocks, plannerSettings } from '../db/schema';
+import { dayPlans, focusSessions, planBlocks, plannerSettings } from '../db/schema';
 import { CandidatesService } from './candidates.service';
 
 type SettingsRow = typeof plannerSettings.$inferSelect;
@@ -27,7 +34,11 @@ type PlanRow = typeof dayPlans.$inferSelect;
 type BlockRow = typeof planBlocks.$inferSelect;
 
 /** Blocks that are finished one way or another and must not be edited. */
-const TERMINAL_STATUSES = ['done', 'dropped'] as const;
+const TERMINAL_STATUSES: readonly string[] = ['done', 'dropped', 'partial', 'skipped'];
+
+function isTerminal(status: string): boolean {
+  return TERMINAL_STATUSES.includes(status);
+}
 
 /** Max blocks in one day — the plan is a commitment, not a backlog (ADR-015). */
 const MAX_BLOCKS = 20;
@@ -200,7 +211,7 @@ export class PlannerService {
     input: UpdatePlanBlockInput,
   ): Promise<DayPlanDetail> {
     const block = await this.requireOwnBlock(userId, blockId);
-    if ((TERMINAL_STATUSES as readonly string[]).includes(block.status)) {
+    if (isTerminal(block.status)) {
       throw new ConflictException('This block is already finished');
     }
     const settings = await this.settingsRow(userId);
@@ -270,6 +281,233 @@ export class PlannerService {
     });
 
     return this.toDetail(plan);
+  }
+
+  // -------------------------------------------------------------------------
+  // Focus timer (ADR-015 §5)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Starts (or resumes) work on a block. At most one session runs per user, so
+   * starting a second block banks the first one's time and pauses it.
+   */
+  async startBlock(userId: string, blockId: string): Promise<DayPlanDetail> {
+    const block = await this.requireOwnBlock(userId, blockId);
+    const plan = await this.requirePlanById(userId, block.planId);
+    if (plan.status === 'closed') throw new ConflictException('This day is already closed');
+    if (isTerminal(block.status)) throw new ConflictException('This block is already finished');
+
+    const running = await this.runningSession(userId);
+    if (running && running.blockId !== block.id) {
+      await this.endSession(running.id, running.blockId, running.startedAt, 'paused');
+      await this.db
+        .update(planBlocks)
+        .set({ status: 'pending', updatedAt: new Date() })
+        .where(eq(planBlocks.id, running.blockId));
+    }
+
+    if (!running || running.blockId !== block.id) {
+      await this.db.insert(focusSessions).values({ blockId: block.id, userId });
+    }
+    await this.db
+      .update(planBlocks)
+      .set({
+        status: 'active',
+        startedAt: block.startedAt ?? new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(planBlocks.id, block.id));
+
+    return this.toDetail(plan);
+  }
+
+  /** Stops the clock without resolving the block — it stays in the queue. */
+  async pauseBlock(userId: string, blockId: string): Promise<DayPlanDetail> {
+    const block = await this.requireOwnBlock(userId, blockId);
+    const running = await this.runningSession(userId);
+    if (running?.blockId === block.id) {
+      await this.endSession(running.id, block.id, running.startedAt, 'paused');
+    }
+    if (block.status === 'active') {
+      await this.db
+        .update(planBlocks)
+        .set({ status: 'pending', updatedAt: new Date() })
+        .where(eq(planBlocks.id, block.id));
+    }
+    return this.toDetail(await this.requirePlanById(userId, block.planId));
+  }
+
+  /**
+   * Resolves a block: `done` clears it, `partial` and `skipped` leave it owing
+   * work, which is what makes it tomorrow's debt (ADR-015 §4).
+   */
+  async completeBlock(
+    userId: string,
+    blockId: string,
+    input: CompletePlanBlockInput,
+  ): Promise<DayPlanDetail> {
+    const block = await this.requireOwnBlock(userId, blockId);
+    const plan = await this.requirePlanById(userId, block.planId);
+    if (plan.status === 'closed') throw new ConflictException('This day is already closed');
+    if (isTerminal(block.status)) throw new ConflictException('This block is already finished');
+    if (input.status !== 'done' && !input.reason) {
+      throw new BadRequestException('A block that is not done needs a reason');
+    }
+
+    const running = await this.runningSession(userId);
+    if (running?.blockId === block.id) {
+      await this.endSession(running.id, block.id, running.startedAt, 'completed');
+    }
+
+    await this.db
+      .update(planBlocks)
+      .set({
+        status: input.status,
+        skipReason: input.status === 'done' ? null : (input.reason ?? null),
+        outcomeNote: input.note ?? null,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(planBlocks.id, block.id));
+
+    return this.toDetail(plan);
+  }
+
+  // -------------------------------------------------------------------------
+  // Evening close-out (ADR-015 §3)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Closes the day: anything left unresolved is recorded as `skipped` with the
+   * `unreported` reason, the review is stored, and the estimation factor is
+   * recomputed from what actually happened.
+   */
+  async closePlan(
+    userId: string,
+    planId: string,
+    input: CloseDayPlanInput,
+    options: { auto?: boolean } = {},
+  ): Promise<DayPlanDetail> {
+    const plan = await this.requirePlanById(userId, planId);
+    if (plan.status === 'closed') throw new ConflictException('This day is already closed');
+
+    const running = await this.runningSession(userId);
+    if (running) {
+      await this.endSession(running.id, running.blockId, running.startedAt, 'auto');
+    }
+
+    const open = (await this.loadBlocks(plan.id)).filter(
+      (block) => block.status === 'pending' || block.status === 'active',
+    );
+    if (open.length > 0) {
+      await this.db
+        .update(planBlocks)
+        .set({
+          status: 'skipped',
+          skipReason: 'unreported',
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          inArray(
+            planBlocks.id,
+            open.map((block) => block.id),
+          ),
+        );
+    }
+
+    const blocks = await this.loadBlocks(plan.id);
+    const review = summarizeDay(blocks.map(toBlockItem), input.note);
+
+    const [closed] = await this.db
+      .update(dayPlans)
+      .set({
+        status: 'closed',
+        closedAt: new Date(),
+        autoClosed: options.auto ?? false,
+        review,
+        updatedAt: new Date(),
+      })
+      .where(eq(dayPlans.id, plan.id))
+      .returning();
+
+    await this.recomputeEstimationFactor(userId);
+    return this.toDetail(requireRow(closed, 'Plan not found'));
+  }
+
+  /**
+   * Median actual/estimate over the user's recent timed blocks, stored on the
+   * settings row so plan generation and capacity checks can use it directly.
+   */
+  private async recomputeEstimationFactor(userId: string): Promise<void> {
+    const samples = await this.db
+      .select({
+        estimateMinutes: planBlocks.estimateMinutes,
+        actualMinutes: planBlocks.actualMinutes,
+        category: planBlocks.category,
+      })
+      .from(planBlocks)
+      .where(
+        and(
+          eq(planBlocks.userId, userId),
+          inArray(planBlocks.status, ['done', 'partial']),
+          gt(planBlocks.actualMinutes, 0),
+        ),
+      )
+      .orderBy(desc(planBlocks.completedAt))
+      .limit(ESTIMATION_WINDOW * PLAN_BLOCK_CATEGORIES.length);
+
+    const byCategory: Partial<Record<PlanBlockCategory, number>> = {};
+    for (const category of PLAN_BLOCK_CATEGORIES) {
+      const scoped = samples.filter((sample) => sample.category === category);
+      const factor = estimationFactor(scoped);
+      // Only record a category once it has earned its own number.
+      if (factor !== 1) byCategory[category] = factor;
+    }
+
+    await this.db
+      .update(plannerSettings)
+      .set({
+        estimationFactor: estimationFactor(samples.slice(0, ESTIMATION_WINDOW)),
+        estimationFactorByCategory: Object.keys(byCategory).length > 0 ? byCategory : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(plannerSettings.userId, userId));
+  }
+
+  private async runningSession(userId: string) {
+    const [session] = await this.db
+      .select()
+      .from(focusSessions)
+      .where(and(eq(focusSessions.userId, userId), isNull(focusSessions.endedAt)))
+      .orderBy(desc(focusSessions.startedAt))
+      .limit(1);
+    return session;
+  }
+
+  /** Closes a session and banks its whole minutes onto the block. */
+  private async endSession(
+    sessionId: string,
+    blockId: string,
+    startedAt: Date,
+    reason: 'completed' | 'paused' | 'abandoned' | 'auto',
+  ): Promise<void> {
+    const endedAt = new Date();
+    const durationSeconds = Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 1000));
+    await this.db
+      .update(focusSessions)
+      .set({ endedAt, durationSeconds, endedReason: reason })
+      .where(eq(focusSessions.id, sessionId));
+    const minutes = Math.floor(durationSeconds / 60);
+    if (minutes > 0) {
+      await this.db
+        .update(planBlocks)
+        .set({
+          actualMinutes: sql`${planBlocks.actualMinutes} + ${minutes}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(planBlocks.id, blockId));
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -347,7 +585,13 @@ export class PlannerService {
   }
 
   private async toDetail(plan: PlanRow): Promise<DayPlanDetail> {
-    const blocks = await this.loadBlocks(plan.id);
+    const [blocks, running] = await Promise.all([
+      this.loadBlocks(plan.id),
+      this.runningSession(plan.userId),
+    ]);
+    const runningBlock = running
+      ? blocks.find((block) => block.id === running.blockId)
+      : undefined;
     return {
       id: plan.id,
       planDate: plan.planDate,
@@ -359,6 +603,14 @@ export class PlannerService {
       autoClosed: plan.autoClosed,
       review: plan.review ?? null,
       blocks: blocks.map(toBlockItem),
+      activeSession:
+        running && runningBlock
+          ? {
+              blockId: running.blockId,
+              startedAt: running.startedAt.toISOString(),
+              bankedMinutes: runningBlock.actualMinutes,
+            }
+          : null,
     };
   }
 }

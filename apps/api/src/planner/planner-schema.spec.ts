@@ -1,5 +1,7 @@
 import {
   addPlanBlockSchema,
+  closeDayPlanSchema,
+  completePlanBlockSchema,
   correctEstimate,
   isRotting,
   localDayKey,
@@ -49,6 +51,25 @@ describe('planner schemas (shared contract, ADR-015)', () => {
     expect(reorderPlanBlocksSchema.safeParse({ blockIds: [UUID] }).success).toBe(true);
     expect(reorderPlanBlocksSchema.safeParse({ blockIds: [] }).success).toBe(false);
     expect(reorderPlanBlocksSchema.safeParse({ blockIds: ['nope'] }).success).toBe(false);
+  });
+
+  it('complete accepts done/partial/skipped only, with an optional reason', () => {
+    expect(completePlanBlockSchema.safeParse({ status: 'done' }).success).toBe(true);
+    expect(
+      completePlanBlockSchema.safeParse({ status: 'skipped', reason: 'avoided', note: 'meh' })
+        .success,
+    ).toBe(true);
+    // `dropped` has its own endpoint; `pending` is not an outcome.
+    expect(completePlanBlockSchema.safeParse({ status: 'dropped' }).success).toBe(false);
+    expect(completePlanBlockSchema.safeParse({ status: 'pending' }).success).toBe(false);
+    expect(completePlanBlockSchema.safeParse({ status: 'done', reason: 'nope' }).success).toBe(
+      false,
+    );
+  });
+
+  it('close takes an optional note', () => {
+    expect(closeDayPlanSchema.safeParse({}).success).toBe(true);
+    expect(closeDayPlanSchema.safeParse({ note: 'x'.repeat(501) }).success).toBe(false);
   });
 
   it('settings validate ritual times as HH:MM', () => {

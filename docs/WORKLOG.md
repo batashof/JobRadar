@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-23 — Day planner increment 2: focus timer, close-out, estimation factor (ADR-015, v1.8.0)
+
+- **Focus timer.** `POST /planner/blocks/:id/start|pause|complete` writes `focus_sessions` and banks whole minutes onto `plan_blocks.actual_minutes`. The invariant is one running session per user: starting another block ends the current session as `paused` and returns that block to `pending`. `DayPlanDetail` gained `activeSession { blockId, startedAt, bankedMinutes }` so the client can tick a live counter without polling.
+- **Outcomes and close-out.** Completing a block takes `done` / `partial` / `skipped`; anything short of done requires a reason (400 otherwise) and a finished block cannot be re-resolved (409). `POST /planner/plans/:id/close` marks the leftovers `skipped` + `unreported`, stores the review (done/total, planned vs actual, minutes per category, debt created) on the plan, and locks the day.
+- **Estimation factor, for real.** Median `actual / estimate` over ≤20 timed blocks, global and per category, recomputed at close; needs ≥5 samples (otherwise ×1.00) and is clamped to [0.5, 4]. Lives in `packages/shared` as pure functions (`estimationFactor`, `summarizeDay`, `debtBlocks`, `elapsedMinutes`) so the UI can preview the review before committing to it.
+- **Web.** Per-block Start/Pause + live `elapsed / estimate`, a Finish panel (outcome + reason + note), a Day-review card with a live preview and a close-with-note flow, status/`took N min` badges, and a locked closed state. New `day.*` / `blockStatus.*` keys in EN and RU.
+- **Tests**: 305 API (13 new — estimation/summary/elapsed helpers, complete/close schemas, controller delegation) and 96 web (7 new); lint + typecheck clean.
+- **Live-verified against the running API**: auto-pause on switching blocks (`focus_sessions` shows one `paused` + one open row), 400 on a reasonless `partial`, 409 on re-completing and on re-closing, close → `Anthropic course` recorded `skipped/unreported`, review `{completed 1, total 2, planned 60, debt 1}` (the dropped block correctly excluded), and the factor recomputed to **×2.00** (per-category `learning: 2`) from five seeded 30→60 min blocks. The closed day renders locked in the UI.
+- **Next step:** increment 3 — LLM plan composition over the existing candidate list (with the deterministic fallback), then increment 4 — `planner:tick` + Telegram bot nudges, which also brings the automatic end-of-day close.
+
 ## 2026-07-23 — Day planner increment 1: schema, candidates, manual plan (ADR-015, v1.7.0)
 
 - **Schema (migration `0008`)**: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` — the full ADR-015 shape at once, so increments 2–4 add behaviour, not migrations. New enums prefixed `plan_*` / `planner_*` (`plan_block_source`, not `source_kind`, which `sources.kind` already owns).

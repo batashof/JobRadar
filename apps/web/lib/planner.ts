@@ -1,5 +1,7 @@
 import type {
   AddPlanBlockInput,
+  CloseDayPlanInput,
+  CompletePlanBlockInput,
   CreateDayPlanInput,
   DayPlanDetail,
   DropPlanBlockInput,
@@ -60,6 +62,31 @@ export function updateBlock(
 ): Promise<DayPlanDetail> {
   return apiFetch<DayPlanDetail>(`/planner/blocks/${blockId}`, {
     method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export function startBlock(blockId: string): Promise<DayPlanDetail> {
+  return apiFetch<DayPlanDetail>(`/planner/blocks/${blockId}/start`, { method: 'POST' });
+}
+
+export function pauseBlock(blockId: string): Promise<DayPlanDetail> {
+  return apiFetch<DayPlanDetail>(`/planner/blocks/${blockId}/pause`, { method: 'POST' });
+}
+
+export function completeBlock(
+  blockId: string,
+  input: CompletePlanBlockInput,
+): Promise<DayPlanDetail> {
+  return apiFetch<DayPlanDetail>(`/planner/blocks/${blockId}/complete`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function closeDayPlan(planId: string, input: CloseDayPlanInput = {}): Promise<DayPlanDetail> {
+  return apiFetch<DayPlanDetail>(`/planner/plans/${planId}/close`, {
+    method: 'POST',
     body: JSON.stringify(input),
   });
 }

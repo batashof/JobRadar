@@ -7,6 +7,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.8.0] — 2026-07-23
+
+**Day planner, increment 2 (ADR-015): focus timer, evening close-out, real estimation factor.** The day surface now measures what actually happens instead of only what was planned.
+
+### Added
+
+- **Focus timer**: start / pause / resume per block, recorded as `focus_sessions` rows and banked onto the block's `actual_minutes`. At most one session runs per user — starting a second block pauses the first one automatically. The queue shows a live `elapsed / estimate` counter.
+- **Block outcomes**: `done` / `partial` / `skipped` with a required reason for anything short of done, plus an optional note. `partial` and `skipped` keep the block owing work, which is what turns it into tomorrow's debt.
+- **Evening close-out** (`POST /planner/plans/:id/close`): anything still unresolved is recorded as `skipped` with the `unreported` reason, the day's review (blocks done, planned vs actual minutes, minutes per category, debt created) is stored on the plan, and the day is locked — no timer, no suggestions, no new blocks.
+- **Estimation factor computed for real**: median `actual / estimate` over the last 20 timed blocks, globally and per category, recomputed at close. It stays at ×1.00 until at least 5 timed blocks exist and is clamped to [0.5, 4] so one freak block cannot distort the plan. New blocks are corrected by it, and capacity is checked against the corrected estimate.
+- **Live review preview** before closing, so the cost of closing is visible in advance.
+
+### Notes
+
+- LLM plan composition and Telegram nudges are still ahead (increments 3–4); `planner:tick` remains unscheduled, so an unclosed day is not auto-closed yet.
+
 ## [1.7.0] — 2026-07-23
 
 **Day planner, increment 1 (ADR-015).** A new `/app/day` surface: an ordered queue of timeboxes for today — deliberately not a calendar — assembled by hand from candidates collected out of the app's own data.
