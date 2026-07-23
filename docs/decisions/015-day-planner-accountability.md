@@ -1,6 +1,6 @@
 # ADR-015: Day planner with accountability loop (LLM-composed timebox queue, Telegram nudges, rolling debt)
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-07-23
 
 ## Context

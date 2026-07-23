@@ -14,6 +14,7 @@ import { InterviewModule } from './interview/interview.module';
 import { LlmModule } from './llm/llm.module';
 import { MatchingModule } from './matching/matching.module';
 import { OutreachModule } from './outreach/outreach.module';
+import { PlannerModule } from './planner/planner.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { ResumesModule } from './resumes/resumes.module';
 import { VacanciesModule } from './vacancies/vacancies.module';
@@ -50,6 +51,7 @@ import { redisConnectionFromUrl } from './redis';
     MatchingModule,
     InterviewModule,
     OutreachModule,
+    PlannerModule,
     ProfilesModule,
     ResumesModule,
     VacanciesModule,

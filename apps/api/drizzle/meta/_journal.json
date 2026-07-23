@@ -57,6 +57,13 @@
       "when": 1784667011919,
       "tag": "0007_young_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784802727915,
+      "tag": "0008_nasty_sister_grimm",
+      "breakpoints": true
     }
   ]
 }

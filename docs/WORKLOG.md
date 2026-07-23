@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-23 — Day planner increment 1: schema, candidates, manual plan (ADR-015, v1.7.0)
+
+- **Schema (migration `0008`)**: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` — the full ADR-015 shape at once, so increments 2–4 add behaviour, not migrations. New enums prefixed `plan_*` / `planner_*` (`plan_block_source`, not `source_kind`, which `sources.kind` already owns).
+- **API `planner/`**: `GET /planner/today|candidates|settings`, `PATCH /planner/settings`, `POST /planner/plans` (idempotent per local day) + `/accept` + `/reorder`, `PATCH /planner/plans/:id` (intent), `POST|PATCH|DELETE /planner/blocks`. Candidates come from plain SQL over existing state — debt, due follow-ups, open prep topics, profile-matched vacancies not yet on the board — and are titled in the account language (`planner/labels.ts`, ADR-014), because a planned block persists its title as text.
+- **Guardrails**: dropping a block writes `status=dropped` + a reason instead of deleting; accepting a day requires at least one live block; reorder must list exactly the plan's blocks; estimates are stored raw *and* corrected by `estimation_factor`, and capacity is checked against the corrected value. Per-user IANA timezone decides what "today" is (`localDayKey`, `Intl` only — no date library).
+- **Web `/app/day`**: queue with reorder / inline estimates / drop-with-reason, candidate list with one-click add, manual block form, day intent, accept banner, capacity + factor + debt badges, and a "use device timezone" prompt. Nav gained **Day**; dictionaries gained the `day.*` / `planCategory.*` / `planSource.*` / `skipReason.*` blocks in EN and RU.
+- **Tests**: 292 API (23 new: schemas, helpers, labels, controller delegation, candidate-key dedup) and 89 web (8 new component tests) — all green, lint + typecheck clean.
+- **Browser-verified locally** on seeded data: all four candidate kinds listed; adding a debt candidate created today's plan and carried `carry_count` 2×; added items disappear from suggestions; reorder, drop-with-reason (`Avoided it`, capacity 60→45 min), intent save, accept ("День принят") and the EN/RU switch all behaved as specified.
+- **Next step:** increment 2 — focus timer (`focus_sessions`), evening close-out that creates debt, and the estimation factor computed from real actuals.
+
 ## 2026-07-23 — Day planner: design docs (ADR-015, no code yet)
 
 - **Problem framed with the developer.** Three parallel tracks (applying, interview prep, Anthropic courses), the bottleneck is execution and estimation, not finding work. A plain calendar is explicitly rejected — it is ignorable and one shifted slot invalidates the rest of the day.

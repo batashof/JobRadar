@@ -7,6 +7,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.7.0] — 2026-07-23
+
+**Day planner, increment 1 (ADR-015).** A new `/app/day` surface: an ordered queue of timeboxes for today — deliberately not a calendar — assembled by hand from candidates collected out of the app's own data.
+
+### Added
+
+- **Schema (migration `0008`)**: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges`. The full ADR-015 shape lands at once (timer, close-out and nudge columns included) so later increments never have to migrate the stored data again.
+- **Candidates, plain SQL, no LLM**: unfinished blocks from earlier days (debt), applications past their follow-up threshold, open topics of the active interview-prep plan, and profile-matched vacancies that are not on the board yet. Titles are generated in the account language (ADR-014) because a planned block persists its title as text.
+- **Manual day plan**: start today's plan, add blocks from candidates or by hand, edit estimates, reorder the queue, set the day's intent.
+- **Morning ritual**: the plan starts as a draft and has to be explicitly accepted; a day that is never accepted counts as unplanned.
+- **Debt handling**: candidates carry a `carriedFromBlockId` backlink and a carry counter; a block carried three times is marked as rotting. Dropping a block is recorded with a reason instead of deleting the row.
+- **Estimation factor**: estimates are stored both raw and corrected by the user's personal `actual / estimate` factor; capacity is checked against the corrected value. The factor stays 1 until the timer increment starts producing actuals.
+- **Per-user timezone**, with a one-click "use device timezone" prompt when the browser and the planner disagree.
+
+### Notes
+
+- No focus timer, evening close-out, LLM composition or Telegram nudges yet — those are increments 2–4 of ADR-015.
+- `planner:tick` is not scheduled yet; nothing runs in the background.
+
 ## [1.6.0] — 2026-07-22
 
 **Two-language interface (English / Russian).** A user-controlled language, stored on the account, now drives both the whole UI and the language the AI sections generate in — an interface in Russian produces a Russian brief and fit rationale; in English, English (ADR-014).

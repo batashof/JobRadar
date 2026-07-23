@@ -284,7 +284,7 @@ A text-chat mock interview and its final feedback report.
 
 ## Phase 4 additions (ADR-015 — day planner)
 
-> Planned: migration `0008`. One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
+> Shipped: migration `0008` (v1.7.0, increment 1). The full ADR-015 shape lands at once — timer, close-out and nudge columns exist even though only settings / plans / blocks are written so far. One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
 
 ### planner_settings
 

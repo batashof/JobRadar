@@ -79,17 +79,17 @@ Standalone prep module inside JobRadar (no new service/infra): `interview/` on t
 
 ### Day planner (accountability loop, ADR-015)
 
-A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(Proposed 2026-07-23; ADR-015.)*
+A personal execution surface over existing app state: `planner/` on the API, `/app/day` on the web, plus a Telegram **bot** channel. Not a calendar — an ordered queue of timeboxes with a morning-accept / evening-close ritual, a focus timer, rolling debt, and escalating nudges. *(ADR-015 accepted 2026-07-23; increment 1 shipped in v1.7.0 — schema, candidates, manual plan.)*
 
-- [ ] Schema + migration `0008`: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` ([DATA_MODEL.md](DATA_MODEL.md)).
-- [ ] Candidate collection (plain SQL, no LLM): due follow-ups, `todo`/`in_progress` prep topics, fresh matching vacancies, manual backlog, carried debt.
+- [x] Schema + migration `0008`: `planner_settings`, `day_plans`, `plan_blocks`, `focus_sessions`, `planner_nudges` ([DATA_MODEL.md](DATA_MODEL.md)).
+- [x] Candidate collection (plain SQL, no LLM): due follow-ups, `todo`/`in_progress` prep topics, fresh matching vacancies, manual backlog, carried debt. *(browser-verified 2026-07-23: all four kinds on one screen, already-planned items disappear from the list)*
 - [ ] Plan generation: one LLM call per plan (ADR-005 gateway, `users.language`) selecting + sequencing candidates within the corrected capacity; deterministic fallback ordering when no LLM key is available.
-- [ ] Morning ritual: explicit plan acceptance (app or bot); until accepted the dashboard leads with the acceptance card and the day counts as unplanned.
-- [ ] Block queue UI: current block front and centre, reorder / add / edit / drop, deep links into the application, prep topic, or vacancy behind a block.
+- [x] Morning ritual: explicit plan acceptance (app; the bot path comes with the nudge increment) — until accepted the day counts as unplanned.
+- [x] Block queue UI: add from candidates or by hand, reorder, edit estimates, drop-with-reason, day intent. *(deep links into the source application / topic / vacancy still open — `sourceRef` is stored)*
 - [ ] Focus timer: start / pause / resume / stop → `focus_sessions`, `actual_minutes` on the block.
 - [ ] Evening close-out: per-block `done` / `partial` / `skipped` + reason, day review stored on the plan, auto-close at end of day marking unresolved blocks `unreported`.
-- [ ] Rolling debt: carry unfinished blocks into the next plan first, `carry_count`, rotting (≥3) pinned + escalated, explicit drop-with-reason as the only other exit.
-- [ ] Estimation calibration: `estimation_factor` (global + per category) from the last N blocks, surfaced on the dashboard and fed back into generation.
+- [ ] Rolling debt: carry unfinished blocks into the next plan first, `carry_count`, rotting (≥3) pinned + escalated, explicit drop-with-reason as the only other exit. *(carry chain, counter and drop-with-reason shipped in increment 1; the close-out that creates debt comes with increment 2)*
+- [ ] Estimation calibration: `estimation_factor` (global + per category) from the last N blocks, surfaced on the dashboard and fed back into generation. *(storage, correction and display shipped; the factor stays 1 until the timer produces actuals)*
 - [ ] `planner:tick` BullMQ repeatable job (1 min): due nudges, midway checks, day rollover per timezone, idempotent claim-before-send.
 - [ ] Telegram bot channel: `TELEGRAM_BOT_TOKEN` outbound `sendMessage` + `POST /planner/telegram/webhook` (secret-token guarded), inline *Start / Done / +15 min / Skip*; degrades to in-app-only without a token.
 - [ ] Planner stats on the dashboard: completion rate, debt (count + minutes), per-category time vs targets, estimation factor.

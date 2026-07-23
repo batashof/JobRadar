@@ -10,6 +10,7 @@ export * from './auth';
 export * from './interview';
 export * from './matches';
 export * from './outreach';
+export * from './planner';
 export * from './profiles';
 export * from './reminders';
 export * from './resumes';

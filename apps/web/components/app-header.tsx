@@ -14,6 +14,7 @@ import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
 const NAV: { href: string; key: TranslationKey }[] = [
   { href: '/app', key: 'nav.dashboard' },
+  { href: '/app/day', key: 'nav.day' },
   { href: '/app/feed', key: 'nav.feed' },
   { href: '/app/board', key: 'nav.board' },
   { href: '/app/profiles', key: 'nav.profiles' },
