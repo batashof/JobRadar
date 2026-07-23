@@ -1,9 +1,14 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { PlannerTickService } from './planner-tick.service';
 
-/** Minute granularity: the finest thing the planner ever reacts to (ADR-015 §7). */
-export const TICK_INTERVAL_MS = 60_000;
+/**
+ * Interval between ticks. Configurable so it can be relaxed without a deploy —
+ * only the midway ping wants minute precision. `PLANNER_TICK_INTERVAL_MS`
+ * overrides it; defaults to one minute.
+ */
+export const DEFAULT_TICK_INTERVAL_MS = 60_000;
 
 /**
  * Runs `planner:tick` on a plain in-process interval — deliberately **not** a
@@ -23,13 +28,33 @@ export class PlannerScheduler implements OnModuleInit, OnModuleDestroy {
   private timer: NodeJS.Timeout | null = null;
   private running = false;
 
-  constructor(private readonly tick: PlannerTickService) {}
+  constructor(
+    private readonly tick: PlannerTickService,
+    private readonly config: ConfigService,
+  ) {}
 
   onModuleInit(): void {
-    this.timer = setInterval(() => void this.fire(), TICK_INTERVAL_MS);
+    // Kill switch: set PLANNER_TICK_DISABLED=1 (e.g. in the Render dashboard) to
+    // stop nudges and auto-close entirely, no deploy needed.
+    if (this.isDisabled()) {
+      this.logger.warn('planner:tick disabled via PLANNER_TICK_DISABLED — nudges and auto-close are off');
+      return;
+    }
+    const interval = this.intervalMs();
+    this.timer = setInterval(() => void this.fire(), interval);
     // Do not keep the event loop alive just for the tick (clean shutdown).
     this.timer.unref?.();
-    this.logger.log(`planner:tick scheduled every ${TICK_INTERVAL_MS / 1000}s (in-process)`);
+    this.logger.log(`planner:tick scheduled every ${interval / 1000}s (in-process)`);
+  }
+
+  private isDisabled(): boolean {
+    const raw = (this.config.get<string>('PLANNER_TICK_DISABLED') ?? '').toLowerCase();
+    return raw === '1' || raw === 'true';
+  }
+
+  private intervalMs(): number {
+    const raw = Number(this.config.get<string>('PLANNER_TICK_INTERVAL_MS'));
+    return Number.isFinite(raw) && raw >= 10_000 ? raw : DEFAULT_TICK_INTERVAL_MS;
   }
 
   onModuleDestroy(): void {

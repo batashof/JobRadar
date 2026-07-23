@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-24 — Planner tick: kill switch, configurable pace, verifiable /health (v1.10.2)
+
+- **Context.** Watching prod Upstash usage (255k/500k) it was unclear whether the 1.10.1 fix (tick off BullMQ) had actually deployed, because `GET /health` reads `apps/api/package.json` — stuck at 1.4.0 — and so under-reported the deployed version. Bumped `apps/api/package.json` (and root) to 1.10.2 so /health now tells the truth; future deploys are confirmable with one curl.
+- **Kill switch + pace.** `PlannerScheduler` now reads `PLANNER_TICK_DISABLED` (1/true → the timer is never armed, nudges + auto-close off) and `PLANNER_TICK_INTERVAL_MS` (override the 60s pace, min 10s). Both are env-only, changeable from the Render dashboard with no deploy — a belt-and-suspenders lever regardless of whether the tick still touches Redis (it doesn't).
+- **Note on the Upstash number.** Once 1.10.1 is live the planner spends zero Redis commands; the remaining steady consumer is the ingestion BullMQ worker's continuous idle polling, which predates the planner. Stopping the planner tick does not change that. ~245k of runway at the observed rate should outlast the monthly reset.
+- **Tests**: `planner.scheduler.spec` gained a kill-switch case (constructor now takes ConfigService); full API suite green, lint + typecheck + build clean.
+- **Developer action:** confirm Render redeployed (curl `/health` → version should read 1.10.2); optionally set `PLANNER_TICK_DISABLED=1` if you want it off until the billing cycle resets.
+
 ## 2026-07-23 — Fix: planner tick off BullMQ, onto an in-process interval (revised ADR-015 §7, v1.10.1)
 
 - **Problem, seen in prod metering.** The `planner:tick` from v1.10.0 rode a BullMQ repeatable job. BullMQ keeps a worker polling Redis continuously (blocking reads, stalled-job checks, delayed-set scans), so a minute tick plus a second queue drove Upstash to ~247k of its 500k monthly free-tier commands within days — on track to blow the budget, which would also stall ingestion.

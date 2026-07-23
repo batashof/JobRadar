@@ -7,6 +7,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.10.2] — 2026-07-24
+
+**Ops safety for the planner tick.** Follow-up to the 1.10.1 Upstash fix.
+
+### Added / changed
+
+- **Kill switch**: `PLANNER_TICK_DISABLED=1` stops nudges and auto-close entirely with no deploy — set it in the Render dashboard if the tick ever needs to be off.
+- **Configurable pace**: `PLANNER_TICK_INTERVAL_MS` overrides the 60s interval (min 10s), so it can be relaxed without shipping code.
+- **Truthful `/health` version**: `apps/api/package.json` was stuck at 1.4.0, so `GET /health` under-reported the deployed version; it is now synced with the release version, making deploys verifiable at a glance.
+
 ## [1.10.1] — 2026-07-23
 
 **Fix: `planner:tick` no longer uses BullMQ/Redis.** The tick shipped in 1.10.0 on a BullMQ repeatable job; BullMQ's continuous worker polling reached ~247k of the 500k monthly Upstash free-tier command budget within days. The tick only ever reads and writes Postgres, so the queue added no safety. It now runs on a plain in-process `setInterval` (lifecycle-managed, non-overlapping, failure-isolated) — zero Redis commands, same idempotency guarantees, same behaviour. Ingestion keeps using BullMQ, which its jobs genuinely need. Revised ADR-015 §7; risk #8 in docs/RISKS.md updated.
