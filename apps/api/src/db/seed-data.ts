@@ -20,7 +20,9 @@ export const SEED_SOURCES: SourceSeed[] = [
     // added; resume feeds, spam chats and non-dev boards are rejected.
     // Verified live 2026-07-21: react/general (job_react, geekjobs,
     // remote_it_jobs) + frontend (rabotafrontend), Go/backend (golang_jobs)
-    // and QA (qa_jobs).
+    // and QA (qa_jobs). 2026-07-24: FreeVacanciesIT (IT freelance/contract) —
+    // the one clean IT board out of the freelance candidates probed; the rest
+    // were dead archives, marketing/content boards or spam.
     slug: 'telegram',
     kind: 'telegram',
     isActive: true,
@@ -32,6 +34,7 @@ export const SEED_SOURCES: SourceSeed[] = [
         'rabotafrontend',
         'golang_jobs',
         'qa_jobs',
+        'FreeVacanciesIT',
       ],
       messagesPerChannel: 50,
     },

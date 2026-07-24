@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-24 — One more Telegram channel: freelance (v1.10.4)
+
+- **Added `FreeVacanciesIT`** (IT freelance/contract postings) to the Telegram source — 7 channels total.
+- **Probed freelance candidates over MTProto** (existing session): freelance-dedicated boards were mostly low quality — dead archives (`freelance_projects` 2019, `Remotelist`/`freelance_zakaz` 2023), non-dev marketing/content (`Koteyka_Freelancer`, `jobforfreelance`, `digitalbroccoli`) and spam (`kwork`). `FreeVacanciesIT` was the one clean IT board (Full Stack, Android/AOSP, Go/Java/Python backend, DevOps, Data Engineer; low volume but on-target).
+- **Applied to prod** via `db:migrate:prod`; verified all 7 channels present in `sources.config`. `seed-data.ts` updated; existing username-guard test still passes.
+- **Noticed drift** (flagged, not fixed): prod has `remotive`/`jobicy`/`workingnomads` sources with services in `ingestion.module.ts`, but they're missing from `SEED_SOURCES` — a fresh `db:seed` won't create them.
+- **Next step:** watch a cron run to confirm `FreeVacanciesIT` yields vacancies without noise.
+
 ## 2026-07-24 — Cut the ingestion worker's idle Redis polling (v1.10.3)
 
 - **Diagnosis confirmed from prod.** `GET /health` reported `version: 1.10.2`, so both the planner-off-Redis fix (1.10.1) and the ops-safety change were live — the planner spends zero Redis commands. Yet Upstash kept climbing (255k → 272k overnight), which pinned the consumer to the one thing left: the ingestion BullMQ worker.
