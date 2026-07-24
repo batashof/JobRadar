@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.10.3] — 2026-07-24
+
+**Fix: cut the ingestion worker's idle Redis polling.** With the planner off Redis (1.10.1), the remaining Upstash consumer was the ingestion BullMQ worker, which polled Redis on the defaults (`drainDelay` 5s, `stalledInterval` 30s) 24/7 — roughly 20k commands/day for jobs that arrive at most every 4h (ADR-006). Raised `drainDelay` to 60s and `stalledInterval` to 5min on the ingestion processor: about 12× fewer idle commands (~20k/day → ~2k/day), with no added latency for real jobs (a newly enqueued job still wakes the blocking pop immediately). Verified in prod that 1.10.2 was live and the planner is off Redis, so this is the last steady consumer.
+
 ## [1.10.2] — 2026-07-24
 
 **Ops safety for the planner tick.** Follow-up to the 1.10.1 Upstash fix.

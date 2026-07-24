@@ -22,6 +22,17 @@ import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 /** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
 const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
+/**
+ * Idle-polling budget on Upstash (ADR-001, ADR-007). A BullMQ worker blocks on
+ * Redis waiting for a job and re-issues that command every `drainDelay`, and
+ * runs a stalled-job sweep every `stalledInterval` — both count against the
+ * Upstash free-tier command quota (500k/mo). Jobs here arrive at most every 4h
+ * (ADR-006 cron), so the defaults (5s / 30s ≈ 20k commands/day) are pure waste.
+ * A newly enqueued job still wakes the blocking pop immediately, so relaxing
+ * these adds no latency to real work — only ~12× fewer idle commands.
+ */
+const IDLE_POLL_OPTIONS = { drainDelay: 60, stalledInterval: 300_000 };
+
 type JobOutcome =
   | IngestResult
   | DedupResult
@@ -29,7 +40,7 @@ type JobOutcome =
   | (MatchRunResult & { resumeMatching: ResumeMatchRunResult })
   | { skipped: string };
 
-@Processor(INGESTION_QUEUE)
+@Processor(INGESTION_QUEUE, IDLE_POLL_OPTIONS)
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
 

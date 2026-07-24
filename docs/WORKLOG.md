@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-24 — Cut the ingestion worker's idle Redis polling (v1.10.3)
+
+- **Diagnosis confirmed from prod.** `GET /health` reported `version: 1.10.2`, so both the planner-off-Redis fix (1.10.1) and the ops-safety change were live — the planner spends zero Redis commands. Yet Upstash kept climbing (255k → 272k overnight), which pinned the consumer to the one thing left: the ingestion BullMQ worker.
+- **Root cause.** `@Processor(INGESTION_QUEUE)` ran on BullMQ defaults — `drainDelay` 5s (blocking-poll re-issue) and `stalledInterval` 30s — i.e. ~20k Redis commands/day of pure idle polling, for jobs that arrive at most every 4h (ADR-006 cron).
+- **Fix.** `@Processor(INGESTION_QUEUE, { drainDelay: 60, stalledInterval: 300_000 })`. A newly enqueued job still wakes the blocking pop immediately, so real ingestion latency is unchanged; only the idle chatter drops (~20k/day → ~2k/day, ~12×).
+- **Tests.** api typecheck + ingestion.processor spec + full suite green.
+- **Developer action:** after Render redeploys (curl `/health` → 1.10.3), watch the Upstash daily delta flatten. Remaining runway on the current cycle should now be comfortable; the monthly reset does the rest.
+
 ## 2026-07-24 — Planner tick: kill switch, configurable pace, verifiable /health (v1.10.2)
 
 - **Context.** Watching prod Upstash usage (255k/500k) it was unclear whether the 1.10.1 fix (tick off BullMQ) had actually deployed, because `GET /health` reads `apps/api/package.json` — stuck at 1.4.0 — and so under-reported the deployed version. Bumped `apps/api/package.json` (and root) to 1.10.2 so /health now tells the truth; future deploys are confirmable with one curl.
