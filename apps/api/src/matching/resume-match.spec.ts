@@ -20,6 +20,28 @@ describe('buildResumeMatchPrompt', () => {
     expect(user).toContain('Vacancy: Senior React — Acme');
     expect(user).toContain('Candidate resume:');
   });
+
+  it('instructs the model to weigh location compatibility in both languages', () => {
+    expect(buildResumeMatchPrompt(VACANCY, 'x').system).toContain('локацию');
+    expect(buildResumeMatchPrompt(VACANCY, 'x', 'en').system).toContain('location');
+  });
+
+  it('includes the vacancy location line when present', () => {
+    const withLoc = { ...VACANCY, location: 'Kyiv, Ukraine (remote)' };
+    expect(buildResumeMatchPrompt(withLoc, 'from Minsk').user).toContain(
+      'Локация вакансии: Kyiv, Ukraine (remote)',
+    );
+    expect(buildResumeMatchPrompt(withLoc, 'from Minsk', 'en').user).toContain(
+      'Vacancy location: Kyiv, Ukraine (remote)',
+    );
+  });
+
+  it('omits the location line when the vacancy has no location', () => {
+    expect(buildResumeMatchPrompt(VACANCY, 'x').user).not.toContain('Локация вакансии');
+    expect(buildResumeMatchPrompt({ ...VACANCY, location: null }, 'x').user).not.toContain(
+      'Локация вакансии',
+    );
+  });
 });
 
 describe('parseResumeMatchReply', () => {

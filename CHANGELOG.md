@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.10.6] — 2026-07-27
+
+**Location awareness in "How well it fits me".** The resume ↔ vacancy fit score (ADR-011) now weighs where the candidate is (from the resume text) against the vacancy location and employer country. Even for remote roles the model judges whether the employer could realistically work with a candidate from that location — sanctions or legal/payment barriers between the two countries, an incompatible timezone, or an on-site/relocation requirement — lowers the score and names the barrier in the explanation. Unknown locations or openly global-remote roles are not penalized.
+
+### Changed
+
+- **Resume-match prompt.** `ResumeMatchVacancy` gained an optional `location`; the vacancy location is now passed into the prompt (both languages) and the batch candidate query selects it. No output-shape change — still `{score, explanation}`.
+
 ## [1.10.5] — 2026-07-27
 
 **Fix: drop non-vacancy noise from Telegram at ingestion.** Anti-spam bot notices ("тебя заблокировали (Lols Ban)"), giveaways and ads passed the length-only `isLikelyVacancy` gate and surfaced as fake vacancies. Added a deny-list to `isLikelyVacancy` (moderation-bot bans, giveaways/repost contests, ads) so junk is rejected before it hits the DB. Deny-list only — no positive-signal requirement, since genuine channel posts are free-form (ADR-009) and easy to reject by accident. Cyrillic word boundaries use Unicode lookarounds (JS `\b` is ASCII-only even with `/u`). Off-profile vacancies (e.g. QA leaking into a frontend feed) are intentionally out of scope here — that's a matching, not an ingestion, concern.

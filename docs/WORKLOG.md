@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-27 — Location awareness in resume-match fit score (v1.10.6)
+
+- **Goal:** the "How well it fits me" score should account for location — e.g. a candidate in Minsk (BY) vs an employer in Ukraine, where even remote collaboration may be blocked by sanctions/payments/politics.
+- **Change:** `buildResumeMatchPrompt` now passes the vacancy location (RU/EN line) and instructs the model to compare it with the candidate location (read from resume text) and the employer country, factoring sanctions/legal/payment barriers, timezone, and on-site/relocation needs. A real barrier lowers the score and is named in `explanation`; unknown locations or global-remote roles are not penalized.
+- **Plumbing:** `ResumeMatchVacancy.location?` added; batch candidate query in `resume-matching.service.ts` now selects `location`; outreach's `loadVacancy` already carried it. Output shape unchanged (`{score, explanation}`), so cache/DB untouched.
+- **Limitation:** candidate location is only as good as the resume text — no structured field. If a resume omits it, the model can't weigh it (acceptable; degrades to today's behavior).
+- **Tests:** `resume-match.spec.ts` extended (location line present/omitted, instruction in both langs); matching + outreach suites green (64 tests), typecheck + lint clean.
+- **Next step:** eyeball a few real scores in prod to confirm the model reacts sensibly (doesn't over-penalize plain remote roles).
+
 ## 2026-07-27 — Junk filter for Telegram ingestion (v1.10.5)
 
 - **Problem:** bot/moderation notices ("тебя заблокировали (Lols Ban)"), giveaways and ads leaked into the vacancy feed — the only ingestion gate was `isLikelyVacancy` = "text ≥ 80 chars".

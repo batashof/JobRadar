@@ -66,6 +66,7 @@ export class ResumeMatchingService {
         title: vacancies.title,
         company: vacancies.companyRaw,
         description: vacancies.description,
+        location: vacancies.location,
       })
       .from(profileMatches)
       .innerJoin(searchProfiles, eq(searchProfiles.id, profileMatches.profileId))
