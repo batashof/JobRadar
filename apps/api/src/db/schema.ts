@@ -26,6 +26,7 @@ import type {
   InterviewTurn,
   PlanBlockCategory,
   PlanBlockSourceRef,
+  ResumeMatchDimension,
 } from '@jobradar/shared';
 
 // ---------------------------------------------------------------------------
@@ -342,6 +343,10 @@ export const resumeMatches = pgTable(
     // score itself is language-neutral and generated once.
     explanation: text('explanation').notNull().default(''),
     explanationEn: text('explanation_en').notNull().default(''),
+    // Per-criterion breakdown cached per language (ADR-012); null for rows
+    // scored before the breakdown existed. Dimension scores are language-neutral.
+    breakdown: jsonb('breakdown').$type<ResumeMatchDimension[]>(),
+    breakdownEn: jsonb('breakdown_en').$type<ResumeMatchDimension[]>(),
     matchedAt: timestamp('matched_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.resumeId, t.vacancyId] })],

@@ -7,6 +7,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.11.0] — 2026-07-27
+
+**Per-criterion resume-fit breakdown.** "How well it fits me" now scores four criteria separately — Technologies & stack, Role & direction, Experience & level, Location & logistics — each with its own percentage and a one-line note, rendered as colored bars under the overall gauge. The overall score is a **weighted average** computed on the backend (`stack` 0.40, `role` 0.25, `experience` 0.20, `location` 0.15 — technologies weigh the most, per the developer's request), so "tech first" holds regardless of the model. Location logic from 1.10.6 folds into its own criterion.
+
+### Added
+
+- `resume_matches.breakdown` / `breakdown_en` (jsonb, nullable) — per-criterion cache per language (migration `0009`). Apply to prod with `db:migrate:prod`.
+- `MatchBreakdown` component + `detail.fitDim.*` / `detail.fitOverall` i18n strings (EN/RU).
+
+### Changed
+
+- Resume-match prompt asks for `{stack,role,experience,location,summary}`; `parseResumeMatchReply` returns `{score, explanation, breakdown}` and still accepts the legacy flat `{score, explanation}` shape, so existing cached rows keep working (they render as the overall gauge only). `maxTokens` raised 300 → 500 for the larger reply.
+
 ## [1.10.6] — 2026-07-27
 
 **Location awareness in "How well it fits me".** The resume ↔ vacancy fit score (ADR-011) now weighs where the candidate is (from the resume text) against the vacancy location and employer country. Even for remote roles the model judges whether the employer could realistically work with a candidate from that location — sanctions or legal/payment barriers between the two countries, an incompatible timezone, or an on-site/relocation requirement — lowers the score and names the barrier in the explanation. Unknown locations or openly global-remote roles are not penalized.

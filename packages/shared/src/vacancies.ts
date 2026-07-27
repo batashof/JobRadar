@@ -73,6 +73,22 @@ export interface VacancyListItem {
   resumeExplanation?: string | null;
 }
 
+/**
+ * Per-criterion resume-fit breakdown (ADR-012). The overall `resumeScore` is a
+ * weighted average of these — technologies weigh the most (see resume-match.ts).
+ * Order is display order; `note` is localized, `score` is language-neutral.
+ */
+export const RESUME_MATCH_DIMENSIONS = ['stack', 'role', 'experience', 'location'] as const;
+export type ResumeMatchDimensionKey = (typeof RESUME_MATCH_DIMENSIONS)[number];
+
+export interface ResumeMatchDimension {
+  key: ResumeMatchDimensionKey;
+  /** Per-criterion fit in [0, 1]. */
+  score: number;
+  /** One-sentence rationale for this criterion, in the viewer's language. */
+  note: string;
+}
+
 export interface VacancyFeed {
   items: VacancyListItem[];
   total: number;
@@ -98,6 +114,8 @@ export interface VacancyDetail extends VacancyListItem {
    */
   summary: string | null;
   ingestedAt: string;
+  /** Per-criterion resume-fit breakdown in the viewer's language; null when unscored or legacy. */
+  resumeBreakdown?: ResumeMatchDimension[] | null;
 }
 
 /** POST /vacancies/:id/brief — on-demand brief in the user's language (ADR-011/014). */
@@ -116,10 +134,12 @@ export interface CoverLetterResponse {
 
 /** POST /vacancies/:id/resume-match — on-demand LLM resume-fit score (ADR-012). */
 export interface ResumeMatchResponse {
-  /** Fit score in [0, 1]. */
+  /** Overall fit score in [0, 1] — weighted average of `breakdown`. */
   score: number;
-  /** Short rationale in the requested language: main overlap and the main gap. */
+  /** Short overall rationale in the requested language. */
   explanation: string;
+  /** Per-criterion breakdown; empty for legacy rows scored before this existed. */
+  breakdown: ResumeMatchDimension[];
   /** True when served from `resume_matches` instead of a fresh LLM call. */
   cached: boolean;
 }

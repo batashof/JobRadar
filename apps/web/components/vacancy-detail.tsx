@@ -1,12 +1,13 @@
 'use client';
 
-import type { VacancyDetail } from '@jobradar/shared';
+import type { ResumeMatchDimension, VacancyDetail } from '@jobradar/shared';
 import { useState } from 'react';
 
 import { ApplyEmailSection } from '@/components/apply-email-section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MatchBreakdown } from '@/components/ui/match-breakdown';
 import { ScoreGauge } from '@/components/ui/score-gauge';
 import { publishedText, salaryText } from '@/components/vacancy-card';
 import { useI18n } from '@/lib/i18n/context';
@@ -41,9 +42,17 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
   const [letterBusy, setLetterBusy] = useState(false);
   const [letterError, setLetterError] = useState<string | null>(null);
 
-  const [match, setMatch] = useState<{ score: number; explanation: string } | null>(
+  const [match, setMatch] = useState<{
+    score: number;
+    explanation: string;
+    breakdown: ResumeMatchDimension[];
+  } | null>(
     detail.resumeScore != null
-      ? { score: detail.resumeScore, explanation: detail.resumeExplanation ?? '' }
+      ? {
+          score: detail.resumeScore,
+          explanation: detail.resumeExplanation ?? '',
+          breakdown: detail.resumeBreakdown ?? [],
+        }
       : null,
   );
   const [matchBusy, setMatchBusy] = useState(false);
@@ -67,7 +76,7 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
     setMatchError(null);
     try {
       const res = await matchResume(detail.id);
-      setMatch({ score: res.score, explanation: res.explanation });
+      setMatch({ score: res.score, explanation: res.explanation, breakdown: res.breakdown ?? [] });
     } catch (err) {
       setMatchError(err instanceof Error ? err.message : t('detail.fitFailed'));
     } finally {
@@ -152,11 +161,19 @@ export function VacancyDetailView({ detail }: { detail: VacancyDetail }) {
             </p>
           ) : null}
           {match ? (
-            <div className="flex items-center gap-4">
-              <ScoreGauge value={match.score} />
-              {match.explanation ? (
-                <p className="flex-1 text-sm leading-relaxed">{match.explanation}</p>
-              ) : null}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <ScoreGauge value={match.score} />
+                <div className="flex-1 space-y-0.5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
+                    {t('detail.fitOverall')}
+                  </p>
+                  {match.explanation ? (
+                    <p className="text-sm leading-relaxed">{match.explanation}</p>
+                  ) : null}
+                </div>
+              </div>
+              <MatchBreakdown dimensions={match.breakdown} />
             </div>
           ) : !matchError ? (
             <p className="text-sm text-[var(--color-muted-foreground)]">{t('detail.fitPlaceholder')}</p>

@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-27 — Per-criterion resume-fit breakdown (v1.11.0)
+
+- **Goal:** "How well it fits me" should break the fit into criteria, each with its own % and note, and combine them into a weighted overall (tech first).
+- **Criteria & weights** (backend-computed in `resume-match.ts`, not the model): stack 0.40, role 0.25, experience 0.20, location 0.15. Location awareness from 1.10.6 became its own criterion.
+- **Backend:** prompt now asks for `{stack,role,experience,location,summary}`; `parseResumeMatchReply` returns `{score, explanation, breakdown}` with a weighted overall (renormalized over present criteria) and a legacy `{score, explanation}` fallback. Parser switched from a non-greedy regex to first-`{`/last-`}` (nested JSON). `overallScore` extracted + unit-tested. `maxTokens` 300 → 500.
+- **Storage:** `resume_matches.breakdown` / `breakdown_en` (jsonb, nullable), migration `drizzle/0009_wealthy_kronos.sql`. Overall `score` and shape unchanged → old cached rows still valid (render as gauge only). Batch + on-demand + second-language paths all persist the breakdown.
+- **Frontend:** new `MatchBreakdown` (labeled colored bars + note per criterion) under the overall gauge; `detail.fitDim.*` / `detail.fitOverall` in EN/RU. Handler defaults breakdown to `[]` for safety.
+- **Tests:** `resume-match.spec.ts` rewritten (weighted overall, criteria, legacy fallback, clamps); `vacancy-detail.test.tsx` covers breakdown render; outreach controller mock updated. API 341, web 101 green; both typecheck + lint clean.
+- **Next step:** apply migration 0009 to prod (`db:migrate:prod`), then eyeball a few real scores; consider surfacing the breakdown in the feed card later if useful.
+
 ## 2026-07-27 — Location awareness in resume-match fit score (v1.10.6)
 
 - **Goal:** the "How well it fits me" score should account for location — e.g. a candidate in Minsk (BY) vs an employer in Ukraine, where even remote collaboration may be blocked by sanctions/payments/politics.

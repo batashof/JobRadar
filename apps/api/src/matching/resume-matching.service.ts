@@ -99,7 +99,7 @@ export class ResumeMatchingService {
       const prompt = buildResumeMatchPrompt(vacancy, resume.text);
       let reply: string;
       try {
-        reply = (await this.llm.complete({ ...prompt, maxTokens: 300, temperature: 0.2 })).text;
+        reply = (await this.llm.complete({ ...prompt, maxTokens: 500, temperature: 0.2 })).text;
       } catch (err) {
         // Providers exhausted — stop the run; unscored vacancies stay pending.
         this.logger.warn(`resume matching stopped early: ${String(err)}`);
@@ -117,6 +117,8 @@ export class ResumeMatchingService {
           vacancyId: vacancy.id,
           score: parsed.score,
           explanation: parsed.explanation,
+          // Batch runs in the default (Russian) language slot.
+          breakdown: parsed.breakdown,
         })
         .onConflictDoNothing();
       scored += 1;

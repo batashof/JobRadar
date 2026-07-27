@@ -167,11 +167,13 @@ PK `(profile_id, vacancy_id)`.
 | resume_id | uuid FK → resumes | |
 | vacancy_id | uuid FK → vacancies | |
 | score | real | LLM fit score (language-neutral, generated once) |
-| explanation | text | short LLM fit explanation in Russian (ADR-014) |
-| explanation_en | text not null default `''` | short LLM fit explanation in English (ADR-014) |
+| explanation | text | short overall LLM fit rationale in Russian (ADR-014) |
+| explanation_en | text not null default `''` | short overall LLM fit rationale in English (ADR-014) |
+| breakdown | jsonb null | per-criterion fit `[{key, score, note}]` in Russian; null for pre-breakdown rows (ADR-012) |
+| breakdown_en | jsonb null | per-criterion fit in English; null until scored in English (ADR-012) |
 | matched_at | timestamptz | |
 
-PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005). The score is generated once; each language's `explanation` is filled on first request in that language (ADR-014). Populated two ways: the capped background batch over profile-matched vacancies (ADR-011), and on-demand when the user scores a single vacancy from its detail page (ADR-012).
+PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at most once per resume — token discipline, ADR-005). The score is generated once; each language's `explanation`/`breakdown` is filled on first request in that language (ADR-014). The overall `score` is a weighted average of the breakdown criteria (`stack` 0.40, `role` 0.25, `experience` 0.20, `location` 0.15 — technologies weigh the most), computed in `resume-match.ts`, not by the model. Populated two ways: the capped background batch over profile-matched vacancies (ADR-011), and on-demand when the user scores a single vacancy from its detail page (ADR-012).
 
 ### outreach_emails (sent applications)
 

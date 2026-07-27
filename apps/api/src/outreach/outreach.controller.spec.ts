@@ -37,7 +37,12 @@ describe('OutreachController', () => {
   });
 
   it('delegates the resume-match score', async () => {
-    const result: ResumeMatchResponse = { score: 0.72, explanation: 'React совпал', cached: true };
+    const result: ResumeMatchResponse = {
+      score: 0.72,
+      explanation: 'React совпал',
+      breakdown: [{ key: 'stack', score: 0.9, note: 'React' }],
+      cached: true,
+    };
     const resumeMatch = jest.fn().mockResolvedValue(result);
     const controller = new OutreachController({ resumeMatch } as unknown as OutreachService);
 

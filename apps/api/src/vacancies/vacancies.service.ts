@@ -141,6 +141,8 @@ export class VacanciesService {
         resumeScore: resumeMatches.score,
         resumeExplanation: resumeMatches.explanation,
         resumeExplanationEn: resumeMatches.explanationEn,
+        resumeBreakdown: resumeMatches.breakdown,
+        resumeBreakdownEn: resumeMatches.breakdownEn,
       })
       .from(vacancies)
       .innerJoin(sources, eq(sources.id, vacancies.sourceId))
@@ -154,7 +156,7 @@ export class VacanciesService {
       .where(eq(vacancies.id, id));
     if (!row) throw new NotFoundException('Vacancy not found');
 
-    const { summaryRu, summaryEn, resumeExplanationEn, ...rest } = row;
+    const { summaryRu, summaryEn, resumeExplanationEn, resumeBreakdownEn, ...rest } = row;
     return {
       ...rest,
       publishedAt: row.publishedAt?.toISOString() ?? null,
@@ -164,6 +166,7 @@ export class VacanciesService {
       summary: (lang === 'en' ? summaryEn : summaryRu) ?? null,
       resumeScore: row.resumeScore ?? null,
       resumeExplanation: (lang === 'en' ? resumeExplanationEn : row.resumeExplanation) || null,
+      resumeBreakdown: (lang === 'en' ? resumeBreakdownEn : row.resumeBreakdown) ?? null,
     };
   }
 

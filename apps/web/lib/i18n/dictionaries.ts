@@ -122,6 +122,11 @@ export const en = {
   'detail.fitPlaceholder':
     'How well your active resume matches this vacancy — a percentage and a short explanation, on the button.',
   'detail.fitFailed': 'Scoring failed',
+  'detail.fitOverall': 'Overall fit',
+  'detail.fitDim.stack': 'Technologies & stack',
+  'detail.fitDim.role': 'Role & direction',
+  'detail.fitDim.experience': 'Experience & level',
+  'detail.fitDim.location': 'Location & logistics',
   'detail.briefTitle': 'Vacancy brief',
   'detail.briefGenerating': 'Generating…',
   'detail.briefRegen': 'Regenerate brief',
@@ -517,6 +522,11 @@ export const ru: Record<TranslationKey, string> = {
   'detail.fitPlaceholder':
     'Насколько ваше активное резюме подходит под эту вакансию — процент и краткое пояснение по кнопке.',
   'detail.fitFailed': 'Не удалось оценить',
+  'detail.fitOverall': 'Итоговая совместимость',
+  'detail.fitDim.stack': 'Технологии и стек',
+  'detail.fitDim.role': 'Роль и направление',
+  'detail.fitDim.experience': 'Опыт и уровень',
+  'detail.fitDim.location': 'Локация и логистика',
   'detail.briefTitle': 'Бриф по вакансии',
   'detail.briefGenerating': 'Генерация…',
   'detail.briefRegen': 'Сгенерировать заново',

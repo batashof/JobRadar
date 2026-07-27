@@ -14,7 +14,11 @@ import { and, eq, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { applications, outreachEmails, resumeMatches, users, vacancies } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
-import { buildResumeMatchPrompt, parseResumeMatchReply } from '../matching/resume-match';
+import {
+  buildResumeMatchPrompt,
+  parseResumeMatchReply,
+  type ParsedResumeMatch,
+} from '../matching/resume-match';
 import { ResumesService } from '../resumes/resumes.service';
 import { GmailService } from './gmail.service';
 import {
@@ -117,30 +121,37 @@ export class OutreachService {
         score: resumeMatches.score,
         explanation: resumeMatches.explanation,
         explanationEn: resumeMatches.explanationEn,
+        breakdown: resumeMatches.breakdown,
+        breakdownEn: resumeMatches.breakdownEn,
       })
       .from(resumeMatches)
       .where(and(eq(resumeMatches.resumeId, resume.id), eq(resumeMatches.vacancyId, vacancyId)));
 
     if (cached) {
       const localized = lang === 'en' ? cached.explanationEn : cached.explanation;
+      const breakdown = (lang === 'en' ? cached.breakdownEn : cached.breakdown) ?? [];
       if (localized) {
-        return { score: cached.score, explanation: localized, cached: true };
+        return { score: cached.score, explanation: localized, breakdown, cached: true };
       }
       // Score already known, just this language's rationale is missing.
-      const explanation = await this.generateMatchExplanation(vacancy, resume.extractedText, lang);
+      const details = await this.generateMatchDetails(vacancy, resume.extractedText, lang);
       await this.db
         .update(resumeMatches)
-        .set(lang === 'en' ? { explanationEn: explanation } : { explanation })
+        .set(
+          lang === 'en'
+            ? { explanationEn: details.explanation, breakdownEn: details.breakdown }
+            : { explanation: details.explanation, breakdown: details.breakdown },
+        )
         .where(and(eq(resumeMatches.resumeId, resume.id), eq(resumeMatches.vacancyId, vacancyId)));
-      return { score: cached.score, explanation, cached: false };
+      return {
+        score: cached.score,
+        explanation: details.explanation,
+        breakdown: details.breakdown,
+        cached: false,
+      };
     }
 
-    const prompt = buildResumeMatchPrompt(vacancy, resume.extractedText, lang);
-    const result = await this.llm.complete({ ...prompt, maxTokens: 300, temperature: 0.2 });
-    const parsed = parseResumeMatchReply(result.text);
-    if (!parsed) {
-      throw new BadRequestException('Could not score this vacancy — please try again');
-    }
+    const parsed = await this.generateMatchDetails(vacancy, resume.extractedText, lang);
 
     await this.db
       .insert(resumeMatches)
@@ -150,25 +161,32 @@ export class OutreachService {
         score: parsed.score,
         explanation: lang === 'en' ? '' : parsed.explanation,
         explanationEn: lang === 'en' ? parsed.explanation : '',
+        breakdown: lang === 'en' ? null : parsed.breakdown,
+        breakdownEn: lang === 'en' ? parsed.breakdown : null,
       })
       .onConflictDoNothing();
 
-    return { score: parsed.score, explanation: parsed.explanation, cached: false };
+    return {
+      score: parsed.score,
+      explanation: parsed.explanation,
+      breakdown: parsed.breakdown,
+      cached: false,
+    };
   }
 
-  /** Generates just the fit rationale in the requested language (score reused). */
-  private async generateMatchExplanation(
+  /** Scores the vacancy in the requested language (criteria + overall + notes). */
+  private async generateMatchDetails(
     vacancy: VacancyPromptInput,
     resumeText: string,
     lang: Language,
-  ): Promise<string> {
+  ): Promise<ParsedResumeMatch> {
     const prompt = buildResumeMatchPrompt(vacancy, resumeText, lang);
-    const result = await this.llm.complete({ ...prompt, maxTokens: 300, temperature: 0.2 });
+    const result = await this.llm.complete({ ...prompt, maxTokens: 500, temperature: 0.2 });
     const parsed = parseResumeMatchReply(result.text);
     if (!parsed) {
       throw new BadRequestException('Could not score this vacancy — please try again');
     }
-    return parsed.explanation;
+    return parsed;
   }
 
   /**

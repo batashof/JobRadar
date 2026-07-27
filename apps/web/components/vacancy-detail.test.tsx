@@ -139,6 +139,26 @@ describe('VacancyDetailView', () => {
     expect(screen.getByText('Частичное совпадение.')).toBeTruthy();
   });
 
+  it('renders the per-criterion breakdown returned by the API', async () => {
+    matchResume.mockResolvedValue({
+      score: 0.79,
+      explanation: 'Strong overall.',
+      breakdown: [
+        { key: 'stack', score: 0.9, note: 'React/TS overlap' },
+        { key: 'location', score: 0.3, note: 'Belarus vs Ukraine barrier' },
+      ],
+      cached: false,
+    });
+    render(<VacancyDetailView detail={detail()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Score against resume' }));
+
+    await waitFor(() => expect(screen.getByText('Technologies & stack')).toBeTruthy());
+    expect(screen.getByText('Location & logistics')).toBeTruthy();
+    expect(screen.getByText('90%')).toBeTruthy();
+    expect(screen.getByText('Belarus vs Ukraine barrier')).toBeTruthy();
+  });
+
   it('surfaces generation errors (e.g. no LLM provider configured)', async () => {
     generateCoverLetter.mockRejectedValue(new Error('No LLM provider configured'));
     render(<VacancyDetailView detail={detail()} />);
