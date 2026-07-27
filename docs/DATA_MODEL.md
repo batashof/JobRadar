@@ -12,6 +12,7 @@ User 1──n Application n──1 Vacancy
 Vacancy n──1 Source
 Vacancy n──n Vacancy          (duplicate links)
 SearchProfile n──n Vacancy    (matches, materialized)
+User n──n Vacancy             (hidden_vacancies, manual feed mute)
 
 Phase 4 (ADR-011):
 User 1──n Resume
@@ -143,6 +144,16 @@ Constraint: unique `(user_id, vacancy_id)`.
 | digested_at | timestamptz nullable | null = not yet included in a digest |
 
 PK `(profile_id, vacancy_id)`.
+
+### hidden_vacancies (manual feed mute)
+
+| Column | Type | Notes |
+|---|---|---|
+| user_id | uuid FK → users (cascade) | |
+| vacancy_id | uuid FK → vacancies (cascade) | |
+| hidden_at | timestamptz default now() | |
+
+PK `(user_id, vacancy_id)`. A per-user mute list: the feed excludes these rows unless the request passes `includeHidden=true` (the "show hidden" toggle). Populated from the feed's per-card Hide button; removed by Unhide (migration `0010`).
 
 ## Phase 4 additions (ADR-011)
 

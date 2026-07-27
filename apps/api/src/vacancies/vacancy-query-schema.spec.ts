@@ -7,6 +7,7 @@ describe('vacancyQuerySchema (shared contract)', () => {
       employmentType: [],
       sources: [],
       resumeFit: false,
+      includeHidden: false,
       page: 1,
       pageSize: 20,
     });

@@ -71,6 +71,13 @@
       "when": 1785149653886,
       "tag": "0009_wealthy_kronos",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785173249814,
+      "tag": "0010_omniscient_hannibal_king",
+      "breakpoints": true
     }
   ]
 }

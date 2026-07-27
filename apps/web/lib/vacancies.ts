@@ -19,6 +19,8 @@ export interface FeedFilters {
   salaryMin: number | null;
   /** Hide roles clearly below the active resume's level (ADR-012). */
   resumeFit: boolean;
+  /** Show vacancies the user manually hid (off by default). */
+  includeHidden: boolean;
 }
 
 export const EMPTY_FILTERS: FeedFilters = {
@@ -28,6 +30,7 @@ export const EMPTY_FILTERS: FeedFilters = {
   sources: [],
   salaryMin: null,
   resumeFit: false,
+  includeHidden: false,
 };
 
 export function fetchFeed(filters: FeedFilters, page: number, pageSize = 20): Promise<VacancyFeed> {
@@ -38,9 +41,22 @@ export function fetchFeed(filters: FeedFilters, page: number, pageSize = 20): Pr
   if (filters.sources.length) params.set('sources', filters.sources.join(','));
   if (filters.salaryMin != null) params.set('salaryMin', String(filters.salaryMin));
   if (filters.resumeFit) params.set('resumeFit', 'true');
+  if (filters.includeHidden) params.set('includeHidden', 'true');
   params.set('page', String(page));
   params.set('pageSize', String(pageSize));
   return apiFetch<VacancyFeed>(`/vacancies?${params.toString()}`);
+}
+
+export function fetchHiddenIds(): Promise<string[]> {
+  return apiFetch<string[]>('/vacancies/hidden');
+}
+
+export function hideVacancy(id: string): Promise<void> {
+  return apiFetch<void>(`/vacancies/${id}/hide`, { method: 'POST' });
+}
+
+export function unhideVacancy(id: string): Promise<void> {
+  return apiFetch<void>(`/vacancies/${id}/hide`, { method: 'DELETE' });
 }
 
 export function fetchSources(): Promise<SourceOption[]> {

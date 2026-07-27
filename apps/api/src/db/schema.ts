@@ -392,6 +392,22 @@ export const profileMatches = pgTable(
   (t) => [primaryKey({ columns: [t.profileId, t.vacancyId] })],
 );
 
+// Vacancies the user manually hid from the feed. Excluded by default; the
+// "show hidden" toggle brings them back. A plain per-user mute list.
+export const hiddenVacancies = pgTable(
+  'hidden_vacancies',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    vacancyId: uuid('vacancy_id')
+      .notNull()
+      .references(() => vacancies.id, { onDelete: 'cascade' }),
+    hiddenAt: timestamp('hidden_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.vacancyId] })],
+);
+
 // ---------------------------------------------------------------------------
 // Interview-prep module (ADR-013)
 // ---------------------------------------------------------------------------

@@ -19,7 +19,13 @@ import { ApiError } from '@/lib/api';
 import { createApplication } from '@/lib/applications';
 import { useI18n } from '@/lib/i18n/context';
 import { sourceLabel } from '@/lib/labels';
-import { EMPTY_FILTERS, fetchFeed, type FeedFilters } from '@/lib/vacancies';
+import {
+  EMPTY_FILTERS,
+  fetchFeed,
+  hideVacancy,
+  unhideVacancy,
+  type FeedFilters,
+} from '@/lib/vacancies';
 
 function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -28,17 +34,21 @@ function toggle<T>(list: T[], value: T): T[] {
 export function FeedBrowser({
   initial,
   trackedIds,
+  hiddenIds,
   sourceOptions,
   hasResume,
 }: {
   initial: VacancyFeed;
   trackedIds: string[];
+  hiddenIds: string[];
   sourceOptions: SourceOption[];
   hasResume: boolean;
 }) {
   const { t } = useI18n();
   const [tracked, setTracked] = useState<Set<string>>(() => new Set(trackedIds));
   const [saving, setSaving] = useState<Set<string>>(() => new Set());
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set(hiddenIds));
+  const [hiding, setHiding] = useState<Set<string>>(() => new Set());
   const [qInput, setQInput] = useState('');
   const [workFormat, setWorkFormat] = useState<WorkFormat[]>([]);
   const [employmentType, setEmploymentType] = useState<EmploymentType[]>([]);
@@ -88,8 +98,9 @@ export function FeedBrowser({
       employmentType,
       sources: selectedSources,
       salaryMin: salaryMin != null && Number.isFinite(salaryMin) ? salaryMin : null,
-      // The resume toggle applies on its own; keep its current state on submit.
+      // The toggles apply on their own; keep their current state on submit.
       resumeFit: prev.resumeFit,
+      includeHidden: prev.includeHidden,
     }));
     setPage(1);
   }
@@ -97,6 +108,38 @@ export function FeedBrowser({
   function toggleResumeFit(next: boolean) {
     setFilters((prev) => ({ ...prev, resumeFit: next }));
     setPage(1);
+  }
+
+  function toggleShowHidden(next: boolean) {
+    setFilters((prev) => ({ ...prev, includeHidden: next }));
+    setPage(1);
+  }
+
+  function withHiding(id: string, run: Promise<void>) {
+    setHiding((prev) => new Set(prev).add(id));
+    run
+      .catch(() => setError(t('feed.hideFailed')))
+      .finally(() =>
+        setHiding((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        }),
+      );
+  }
+
+  function handleHide(id: string) {
+    setHidden((prev) => new Set(prev).add(id));
+    withHiding(id, hideVacancy(id));
+  }
+
+  function handleUnhide(id: string) {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    withHiding(id, unhideVacancy(id));
   }
 
   function handleSave(id: string) {
@@ -151,19 +194,34 @@ export function FeedBrowser({
                 <Button type="submit">{t('feed.search')}</Button>
               </div>
             </div>
-            {hasResume ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+              {hasResume ? (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={filters.resumeFit}
+                    onChange={(e) => toggleResumeFit(e.target.checked)}
+                  />
+                  {t('feed.hideBelow')}
+                  <span className="text-xs text-[var(--color-muted-foreground)]">
+                    {t('feed.hideBelowHint')}
+                  </span>
+                </label>
+              ) : null}
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={filters.resumeFit}
-                  onChange={(e) => toggleResumeFit(e.target.checked)}
+                  checked={filters.includeHidden}
+                  onChange={(e) => toggleShowHidden(e.target.checked)}
                 />
-                {t('feed.hideBelow')}
-                <span className="text-xs text-[var(--color-muted-foreground)]">
-                  {t('feed.hideBelowHint')}
-                </span>
+                {t('feed.showHidden')}
+                {hidden.size > 0 ? (
+                  <span className="text-xs text-[var(--color-muted-foreground)]">
+                    ({hidden.size})
+                  </span>
+                ) : null}
               </label>
-            ) : null}
+            </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               <fieldset className="flex flex-wrap items-center gap-3">
                 <Label className="text-[var(--color-muted-foreground)]">{t('feed.format')}</Label>
@@ -228,26 +286,37 @@ export function FeedBrowser({
         </p>
       ) : null}
 
-      {feed.items.length === 0 && !loading ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-[var(--color-muted-foreground)]">
-            {t('feed.noMatch')}
-          </CardContent>
-        </Card>
-      ) : (
-        <ul className="space-y-4">
-          {feed.items.map((v) => (
-            <li key={v.id}>
-              <VacancyCard
-                v={v}
-                tracked={tracked.has(v.id)}
-                saving={saving.has(v.id)}
-                onSave={handleSave}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      {(() => {
+        // When hidden vacancies are off, a just-hidden card disappears at once
+        // (optimistic) without waiting for a refetch.
+        const visible = filters.includeHidden
+          ? feed.items
+          : feed.items.filter((v) => !hidden.has(v.id));
+        return visible.length === 0 && !loading ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-[var(--color-muted-foreground)]">
+              {t('feed.noMatch')}
+            </CardContent>
+          </Card>
+        ) : (
+          <ul className="space-y-4">
+            {visible.map((v) => (
+              <li key={v.id}>
+                <VacancyCard
+                  v={v}
+                  tracked={tracked.has(v.id)}
+                  saving={saving.has(v.id)}
+                  onSave={handleSave}
+                  hidden={hidden.has(v.id)}
+                  hiding={hiding.has(v.id)}
+                  onHide={handleHide}
+                  onUnhide={handleUnhide}
+                />
+              </li>
+            ))}
+          </ul>
+        );
+      })()}
 
       <div className="flex items-center justify-center gap-4">
         <Button

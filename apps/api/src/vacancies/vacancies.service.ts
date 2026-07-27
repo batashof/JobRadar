@@ -10,10 +10,21 @@ import {
   type VacancyFeed,
   type VacancyQuery,
 } from '@jobradar/shared';
-import { and, desc, eq, inArray, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  notExists,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { resumeMatches, resumes, sources, vacancies } from '../db/schema';
+import { hiddenVacancies, resumeMatches, resumes, sources, vacancies } from '../db/schema';
 
 // Placeholder id for the resume-match left join when the user has no active
 // resume — matches nothing, so every resumeScore comes back null.
@@ -30,6 +41,23 @@ export class VacanciesService {
 
     // Feed operates on canonical vacancies only (duplicates are collapsed).
     const conditions: SQL[] = [isNull(vacancies.canonicalVacancyId)];
+
+    // Manually hidden vacancies stay out of the feed unless explicitly requested.
+    if (!query.includeHidden) {
+      conditions.push(
+        notExists(
+          this.db
+            .select({ one: sql`1` })
+            .from(hiddenVacancies)
+            .where(
+              and(
+                eq(hiddenVacancies.vacancyId, vacancies.id),
+                eq(hiddenVacancies.userId, userId),
+              ),
+            ),
+        ),
+      );
+    }
 
     const tsQuery = q ? sql`websearch_to_tsquery('simple', ${q})` : null;
     if (tsQuery) conditions.push(sql`${vacancies.searchVector} @@ ${tsQuery}`);
@@ -179,6 +207,29 @@ export class VacanciesService {
       .where(isNull(vacancies.canonicalVacancyId))
       .groupBy(sources.slug)
       .orderBy(desc(sql`count(*)`), sources.slug);
+  }
+
+  /** Vacancy ids the user has hidden — seeds the feed's "show hidden" toggle. */
+  async listHidden(userId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ vacancyId: hiddenVacancies.vacancyId })
+      .from(hiddenVacancies)
+      .where(eq(hiddenVacancies.userId, userId));
+    return rows.map((r) => r.vacancyId);
+  }
+
+  /** Hides a vacancy for the user (idempotent). */
+  async hide(userId: string, vacancyId: string): Promise<void> {
+    await this.db.insert(hiddenVacancies).values({ userId, vacancyId }).onConflictDoNothing();
+  }
+
+  /** Un-hides a previously hidden vacancy (idempotent). */
+  async unhide(userId: string, vacancyId: string): Promise<void> {
+    await this.db
+      .delete(hiddenVacancies)
+      .where(
+        and(eq(hiddenVacancies.userId, userId), eq(hiddenVacancies.vacancyId, vacancyId)),
+      );
   }
 
   /** The caller's active resume (id + extracted text), or null. */

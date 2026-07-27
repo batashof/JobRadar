@@ -39,6 +39,12 @@ export const vacancyQuerySchema = z.object({
   // Hide roles clearly below the active resume's level (ADR-012). A string flag
   // from the query string: only the literal "true"/"1" enables it.
   resumeFit: z.preprocess((v) => v === 'true' || v === true || v === '1', z.boolean().default(false)),
+  // Include vacancies the user manually hid; off by default (they stay out of
+  // the feed until the "show hidden" toggle is on).
+  includeHidden: z.preprocess(
+    (v) => v === 'true' || v === true || v === '1',
+    z.boolean().default(false),
+  ),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce
     .number()

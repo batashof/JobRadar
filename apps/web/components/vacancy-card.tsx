@@ -40,12 +40,20 @@ export function VacancyCard({
   tracked,
   saving,
   onSave,
+  hidden,
+  hiding,
+  onHide,
+  onUnhide,
   leadingBadge,
 }: {
   v: VacancyListItem;
   tracked: boolean;
   saving: boolean;
   onSave: (id: string) => void;
+  hidden: boolean;
+  hiding: boolean;
+  onHide: (id: string) => void;
+  onUnhide: (id: string) => void;
   /** Extra badge shown before the source badge (e.g. the match score). */
   leadingBadge?: ReactNode;
 }) {
@@ -78,6 +86,27 @@ export function VacancyCard({
             ) : (
               <Button size="sm" variant="outline" disabled={saving} onClick={() => onSave(v.id)}>
                 {saving ? t('vacancy.saving') : t('vacancy.save')}
+              </Button>
+            )}
+            {hidden ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={hiding}
+                onClick={() => onUnhide(v.id)}
+                title={t('vacancy.unhideHint')}
+              >
+                {t('vacancy.unhide')}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={hiding}
+                onClick={() => onHide(v.id)}
+                title={t('vacancy.hideHint')}
+              >
+                {hiding ? t('vacancy.hiding') : t('vacancy.hide')}
               </Button>
             )}
           </div>

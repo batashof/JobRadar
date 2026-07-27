@@ -7,6 +7,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.12.0] — 2026-07-27
+
+**Hide vacancies from the feed (manual filtering).** Each feed card gets a Hide button next to Save; hidden vacancies drop out of the feed immediately. A "Show hidden" checkbox (with a count) brings them back, where each shows an Unhide control. Hidden state is per-user and persistent.
+
+### Added
+
+- `hidden_vacancies` table (migration `0010`) — per-user mute list. Apply to prod with `db:migrate:prod`.
+- API: `GET /vacancies/hidden`, `POST /vacancies/:id/hide`, `DELETE /vacancies/:id/hide`; feed query gains `includeHidden` (default false, excludes hidden via `NOT EXISTS`).
+- Web: Hide/Unhide button on `VacancyCard`, "Show hidden" toggle in the feed, `vacancy.hide*` / `feed.showHidden` i18n strings (EN/RU).
+
 ## [1.11.0] — 2026-07-27
 
 **Per-criterion resume-fit breakdown.** "How well it fits me" now scores four criteria separately — Technologies & stack, Role & direction, Experience & level, Location & logistics — each with its own percentage and a one-line note, rendered as colored bars under the overall gauge. The overall score is a **weighted average** computed on the backend (`stack` 0.40, `role` 0.25, `experience` 0.20, `location` 0.15 — technologies weigh the most, per the developer's request), so "tech first" holds regardless of the model. Location logic from 1.10.6 folds into its own criterion.

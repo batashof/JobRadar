@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-27 — Manually hide vacancies from the feed (v1.12.0)
+
+- **Goal:** let the user hand-filter noise — a Hide button next to Save; hidden vacancies out of the feed by default; a toggle to show them.
+- **DB:** new `hidden_vacancies (user_id, vacancy_id, hidden_at)` per-user mute list, PK `(user_id, vacancy_id)`, both FKs cascade. Migration `drizzle/0010_omniscient_hannibal_king.sql`.
+- **API:** feed excludes hidden via `NOT EXISTS` unless `includeHidden=true` (new query flag, default false, applied to both the items and the count query). Added `GET /vacancies/hidden` (ids), `POST/DELETE /vacancies/:id/hide` (204); `/hidden` declared before `:id` so the static route isn't swallowed.
+- **Web:** `VacancyCard` gets Hide/Unhide (ghost button next to Save); `FeedBrowser` holds a `hidden` Set seeded from server `hiddenIds`, optimistically drops a just-hidden card, and a "Show hidden" checkbox (with count) flips `includeHidden`. Feed page loads `/vacancies/hidden`. i18n EN/RU.
+- **Tests:** feed-browser covers hide (disappears + API called) and show-hidden (refetch `includeHidden`, Unhide control); controller covers listHidden/hide/unhide; query-schema default updated. API 343, web 103 green; typecheck + lint clean.
+- **Next step:** apply migration 0010 to prod (`db:migrate:prod`).
+
 ## 2026-07-27 — Per-criterion resume-fit breakdown (v1.11.0)
 
 - **Goal:** "How well it fits me" should break the fit into criteria, each with its own % and note, and combine them into a weighted overall (tech first).
