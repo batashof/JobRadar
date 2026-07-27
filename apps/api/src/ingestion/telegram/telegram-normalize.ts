@@ -17,8 +17,32 @@ export interface TelegramMessageInput {
 /** Posts shorter than this are service notes/ads, not vacancies. */
 const MIN_VACANCY_LENGTH = 80;
 
+/**
+ * Non-vacancy noise that leaks into job channels: moderation-bot notices,
+ * giveaways, and ads. Deny-list only — no positive-signal requirement, since
+ * genuine posts are free-form (ADR-009) and easy to reject by accident.
+ */
+const JUNK_PATTERNS: RegExp[] = [
+  // Anti-spam bot notices (e.g. "тебя заблокировали (Lols Ban)").
+  /lols\s*ban/iu,
+  /тебя\s+заблокировали/iu,
+  /глобальн\w*\s+блокировк/iu,
+  /отмечен\w*\s+к\s+глобальной\s+блокировке/iu,
+  // Giveaways / repost contests / ads — not jobs. Cyrillic word boundaries use
+  // Unicode lookarounds; JS `\b` only sees ASCII word chars, even with /u.
+  /розыгрыш|giveaway/iu,
+  /конкурс\s+репостов/iu,
+  /(?<![\p{L}\p{N}])реклам[аеуы](?![\p{L}\p{N}])/iu,
+];
+
+/** True for moderation notices, giveaways, ads — anything that isn't a job. */
+export function isJunkPost(text: string): boolean {
+  return JUNK_PATTERNS.some((re) => re.test(text));
+}
+
 export function isLikelyVacancy(text: string): boolean {
-  return text.trim().length >= MIN_VACANCY_LENGTH;
+  const trimmed = text.trim();
+  return trimmed.length >= MIN_VACANCY_LENGTH && !isJunkPost(trimmed);
 }
 
 /** First non-empty line, stripped of markdown/emoji decoration — the title. */

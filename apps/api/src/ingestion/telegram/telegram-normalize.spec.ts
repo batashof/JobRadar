@@ -4,6 +4,7 @@ import {
   extractSalary,
   extractTitle,
   extractWorkFormat,
+  isJunkPost,
   isLikelyVacancy,
   normalizeTelegramMessage,
 } from './telegram-normalize';
@@ -34,6 +35,24 @@ describe('telegram-normalize', () => {
   it('filters out short service posts', () => {
     expect(isLikelyVacancy('Канал вернулся из отпуска!')).toBe(false);
     expect(isLikelyVacancy(RU_POST)).toBe(true);
+  });
+
+  it('rejects moderation-bot notices, giveaways and ads even when long enough', () => {
+    const banNotice =
+      '⛔ vlad pushkov, тебя заблокировали (Lols Ban)\n\n' +
+      'Пользователь отмечен к глобальной блокировке в боте (Lols ban) — ' +
+      'подробнее о том, что делать в таком случае, можно почитать по ссылке.';
+    expect(isJunkPost(banNotice)).toBe(true);
+    expect(isLikelyVacancy(banNotice)).toBe(false);
+
+    expect(isJunkPost('Розыгрыш MacBook среди подписчиков! Условия участия внутри поста.')).toBe(
+      true,
+    );
+    expect(isJunkPost('Реклама: наш партнёрский канал с курсами по программированию.')).toBe(true);
+
+    // A real vacancy that merely mentions "заблокировать доступ" is not junk.
+    expect(isJunkPost(RU_POST)).toBe(false);
+    expect(isJunkPost(EN_POST)).toBe(false);
   });
 
   it('extracts the first line as the title, stripping markdown and emoji', () => {

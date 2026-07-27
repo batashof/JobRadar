@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.10.5] — 2026-07-27
+
+**Fix: drop non-vacancy noise from Telegram at ingestion.** Anti-spam bot notices ("тебя заблокировали (Lols Ban)"), giveaways and ads passed the length-only `isLikelyVacancy` gate and surfaced as fake vacancies. Added a deny-list to `isLikelyVacancy` (moderation-bot bans, giveaways/repost contests, ads) so junk is rejected before it hits the DB. Deny-list only — no positive-signal requirement, since genuine channel posts are free-form (ADR-009) and easy to reject by accident. Cyrillic word boundaries use Unicode lookarounds (JS `\b` is ASCII-only even with `/u`). Off-profile vacancies (e.g. QA leaking into a frontend feed) are intentionally out of scope here — that's a matching, not an ingestion, concern.
+
+### Changed
+
+- **Telegram ingestion.** `isLikelyVacancy` now rejects known junk shapes via `isJunkPost`; short-post length gate unchanged.
+
 ## [1.10.4] — 2026-07-24
 
 **One more Telegram channel (freelance).** Probed freelance-oriented candidates over MTProto; most were dead archives, marketing/content boards or spam, so only one clean IT channel was added.

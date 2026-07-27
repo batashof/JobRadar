@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-27 — Junk filter for Telegram ingestion (v1.10.5)
+
+- **Problem:** bot/moderation notices ("тебя заблокировали (Lols Ban)"), giveaways and ads leaked into the vacancy feed — the only ingestion gate was `isLikelyVacancy` = "text ≥ 80 chars".
+- **Fix:** added `isJunkPost` (deny-list: Lols Ban / global-block notices, розыгрыш/giveaway, конкурс репостов, реклама) and wired it into `isLikelyVacancy` so junk is dropped before the DB. Deny-list only, no positive-signal gate — channel posts are free-form (ADR-009), requiring keywords would reject real vacancies.
+- **Detail:** Cyrillic word boundaries use Unicode lookarounds (`(?<![\p{L}\p{N}])…`), matching `match-logic.ts` — JS `\b` is ASCII-only even under `/u`.
+- **Scope:** intentionally only the noise filter (slot 0). Off-profile vacancies (QA in a frontend feed) left as-is per developer request — that's matching, not ingestion.
+- **Tests:** extended `telegram-normalize.spec.ts` (junk rejected, real RU/EN posts still pass); full `src/ingestion` suite green (72 tests), lint clean.
+- **Next step:** watch a cron run to confirm the Lols-Ban-style posts stop appearing; consider a matching-side fit threshold later if off-profile noise bothers.
+
 ## 2026-07-24 — One more Telegram channel: freelance (v1.10.4)
 
 - **Added `FreeVacanciesIT`** (IT freelance/contract postings) to the Telegram source — 7 channels total.
