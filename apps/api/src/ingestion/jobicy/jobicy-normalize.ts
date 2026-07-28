@@ -1,5 +1,6 @@
 import type { NewVacancy } from '../hh/hh-normalize';
 import { normalizeCompanyName } from '../company-name';
+import { cleanDescription, hasSubstantialDescription } from '../description';
 
 /** Item shape of https://jobicy.com/api/v2/remote-jobs (payload under `jobs`). */
 export interface JobicyItem {
@@ -17,17 +18,6 @@ export interface JobicyItem {
   pubDate?: string;
 }
 
-const stripHtml = (value: string): string =>
-  value
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#?\w+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 /** Jobicy's jobType is an array of labels like "Full-Time" / "Freelance". */
 export function mapJobicyEmployment(types?: string[]): NewVacancy['employmentType'] {
   const t = types?.[0]?.toLowerCase() ?? '';
@@ -38,7 +28,10 @@ export function mapJobicyEmployment(types?: string[]): NewVacancy['employmentTyp
 }
 
 export const isJobicyJobItem = (item: JobicyItem): boolean =>
-  item.id !== undefined && typeof item.jobTitle === 'string' && item.jobTitle.length > 0;
+  item.id !== undefined &&
+  typeof item.jobTitle === 'string' &&
+  item.jobTitle.length > 0 &&
+  hasSubstantialDescription(item.jobDescription || item.jobExcerpt);
 
 export function normalizeJobicyItem(item: JobicyItem, sourceId: string): NewVacancy {
   const companyRaw = item.companyName?.trim() || 'Unknown';
@@ -51,7 +44,7 @@ export function normalizeJobicyItem(item: JobicyItem, sourceId: string): NewVaca
     title: item.jobTitle ?? '',
     companyRaw,
     companyNormalized: normalizeCompanyName(companyRaw),
-    description: rawDescription ? stripHtml(rawDescription) : '',
+    description: cleanDescription(rawDescription),
     // Jobicy is a remote-only board.
     workFormat: 'remote',
     employmentType: mapJobicyEmployment(item.jobType),

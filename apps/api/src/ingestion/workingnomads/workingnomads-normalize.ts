@@ -1,5 +1,6 @@
 import type { NewVacancy } from '../hh/hh-normalize';
 import { normalizeCompanyName } from '../company-name';
+import { cleanDescription, hasSubstantialDescription } from '../description';
 
 /** Item shape of https://www.workingnomads.com/api/exposed_jobs/ (a flat array). */
 export interface WorkingNomadsItem {
@@ -19,19 +20,10 @@ export interface WorkingNomadsItem {
  */
 export const WORKINGNOMADS_TECH_CATEGORIES = new Set(['Development']);
 
-const stripHtml = (value: string): string =>
-  value
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#?\w+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 export const isWorkingNomadsJobItem = (item: WorkingNomadsItem): boolean =>
-  Boolean(item.url && item.title) && WORKINGNOMADS_TECH_CATEGORIES.has(item.category_name ?? '');
+  Boolean(item.url && item.title) &&
+  WORKINGNOMADS_TECH_CATEGORIES.has(item.category_name ?? '') &&
+  hasSubstantialDescription(item.description);
 
 export function normalizeWorkingNomadsItem(
   item: WorkingNomadsItem,
@@ -50,7 +42,7 @@ export function normalizeWorkingNomadsItem(
     title: item.title ?? '',
     companyRaw,
     companyNormalized: normalizeCompanyName(companyRaw),
-    description: item.description ? stripHtml(item.description) : '',
+    description: cleanDescription(item.description),
     // Working Nomads is a remote-only board.
     workFormat: 'remote',
     // The feed carries no structured employment/salary fields.

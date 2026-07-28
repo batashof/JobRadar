@@ -7,6 +7,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.13.0] — 2026-07-28
+
+**Clean vacancy text and a better board mix (ADR-016).** Job-board descriptions no longer carry cookie banners or the *"Please mention the word \*\*AMICABILITY\*\* and tag …"* anti-spam footers, and items whose whole body was that boilerplate are not ingested at all. RemoteOK is deactivated — its free API turned into a scraped web index with no IT vacancies in it — and the lost volume is more than replaced by WeWorkRemotely's five category feeds, a second Jobicy industry, and Himalayas as a new source.
+
+### Added
+
+- `ingestion/description.ts` — the shared sanitizer every board worker uses: named/numeric/double-encoded entity decoding, Latin-1/CP1252 mojibake repair (`Â£45k` → `£45k`), board-boilerplate removal, and a `MIN_DESCRIPTION_LENGTH` (200) quality gate applied in each worker's item predicate.
+- **Himalayas** source (`https://himalayas.app/jobs/api`) — richest free feed available: annual salary, seniority, employment type, location restrictions. Paged (10 × 20 items/run) with a client-side tech filter, since the API has no category filter.
+- Multi-feed support for WeWorkRemotely (`feedUrls`: programming, full-stack, back-end, front-end, devops-sysadmin) and Jobicy (`dev` + `data-science`), both deduping across feeds; WWR reports `notModified` only when *every* feed returns 304.
+- `pnpm --filter @jobradar/api cleanup:junk [--prod] [--dry-run]` — one-off cleanup of rows ingested before the sanitizer; never deletes a vacancy with an application or an outreach draft.
+
+### Changed
+
+- RemoteOK: `is_active = false` (worker and config kept, reversible). Re-run `db:seed` to apply.
+- All five board normalizers drop their private `stripHtml` in favour of `cleanDescription()`; entities like `&#39;` are now decoded instead of blanked.
+
 ## [1.12.0] — 2026-07-27
 
 **Hide vacancies from the feed (manual filtering).** Each feed card gets a Hide button next to Save; hidden vacancies drop out of the feed immediately. A "Show hidden" checkbox (with a count) brings them back, where each shows an Unhide control. Hidden state is per-user and persistent.

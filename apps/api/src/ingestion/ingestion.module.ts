@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { DedupModule } from '../dedup/dedup.module';
 import { MatchingModule } from '../matching/matching.module';
 import { HhIngestService } from './hh/hh.service';
+import { HimalayasIngestService } from './himalayas/himalayas.service';
 import { JobicyIngestService } from './jobicy/jobicy.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
@@ -24,6 +25,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
     RemoteOkIngestService,
     RemotiveIngestService,
     JobicyIngestService,
+    HimalayasIngestService,
     WorkingNomadsIngestService,
     TelegramIngestService,
     WwrIngestService,

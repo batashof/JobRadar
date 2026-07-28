@@ -2,6 +2,15 @@ import { isJobItem, normalizeRemoteOkItem, type RemoteOkItem } from './remoteok-
 
 const SOURCE_ID = '00000000-0000-0000-0000-000000000002';
 
+/** Every item of their feed carries this footer; nothing else is a vacancy. */
+const ANTI_SPAM_FOOTER =
+  '<br/><br/>Please mention the word **AMICABILITY** and tag RNzQuMjIwLjQ4LjI5 when applying ' +
+  'to show you read the job post completely (#RNzQuMjIwLjQ4LjI5). This is a beta feature to ' +
+  'avoid spam applicants. Companies can search these words to find applicants that read this ' +
+  "and see they're human.";
+
+const BODY = `<p>Build &amp; ship <strong>great</strong> UI. ${'We work in React and TypeScript across a mature design system. '.repeat(4)}</p>`;
+
 const item: RemoteOkItem = {
   id: '1135035',
   slug: 'remote-senior-react-dev-1135035',
@@ -9,7 +18,7 @@ const item: RemoteOkItem = {
   company: 'Acme Inc',
   position: 'Senior React Developer',
   tags: ['react', 'typescript'],
-  description: '<p>Build &amp; ship <strong>great</strong> UI</p>',
+  description: BODY + ANTI_SPAM_FOOTER,
   location: 'Worldwide',
   salary_min: 90000,
   salary_max: 120000,
@@ -20,6 +29,20 @@ describe('remoteok normalize', () => {
   it('filters out the legal-notice element', () => {
     expect(isJobItem({ legal: 'API Terms of Service...' })).toBe(false);
     expect(isJobItem(item)).toBe(true);
+  });
+
+  it('rejects scraped pages whose body is only boilerplate', () => {
+    const cookieNotice =
+      'This website uses cookies to enhance usability and provide you with a more personal ' +
+      'experience. By using this website, you agree to our use of cookies as explained in our ' +
+      'Privacy Policy.';
+    expect(
+      isJobItem({
+        id: '99',
+        position: 'From the Office of the Mayor',
+        description: cookieNotice + ANTI_SPAM_FOOTER,
+      }),
+    ).toBe(false);
   });
 
   it('maps a job item to the vacancy shape with link-back url', () => {
@@ -39,8 +62,11 @@ describe('remoteok normalize', () => {
     });
   });
 
-  it('strips HTML and decodes basic entities in the description', () => {
-    expect(normalizeRemoteOkItem(item, SOURCE_ID).description).toBe('Build & ship great UI');
+  it('strips HTML, decodes entities and drops the anti-spam footer', () => {
+    const { description } = normalizeRemoteOkItem(item, SOURCE_ID);
+    expect(description).toContain('Build & ship great UI.');
+    expect(description).not.toContain('AMICABILITY');
+    expect(description).not.toContain('spam applicants');
   });
 
   it('handles sparse items and epoch-only dates', () => {

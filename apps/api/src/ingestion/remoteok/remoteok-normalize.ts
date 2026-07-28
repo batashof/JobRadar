@@ -1,5 +1,6 @@
 import type { NewVacancy } from '../hh/hh-normalize';
 import { normalizeCompanyName } from '../company-name';
+import { cleanDescription, hasSubstantialDescription } from '../description';
 
 /** Item shape of https://remoteok.com/api (first array element is a legal notice, not a job). */
 export interface RemoteOkItem {
@@ -18,19 +19,16 @@ export interface RemoteOkItem {
   legal?: string;
 }
 
-const stripHtml = (value: string): string =>
-  value
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#?\w+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
+/**
+ * Their feed carries scraped pages whose whole "description" is the site's
+ * cookie banner plus the anti-spam footer — junk, not vacancies (ADR-016), so
+ * the description gate is part of the item check.
+ */
 export const isJobItem = (item: RemoteOkItem): boolean =>
-  item.id !== undefined && typeof item.position === 'string' && item.position.length > 0;
+  item.id !== undefined &&
+  typeof item.position === 'string' &&
+  item.position.length > 0 &&
+  hasSubstantialDescription(item.description);
 
 export function normalizeRemoteOkItem(item: RemoteOkItem, sourceId: string): NewVacancy {
   const companyRaw = item.company?.trim() || 'Unknown';
@@ -44,7 +42,7 @@ export function normalizeRemoteOkItem(item: RemoteOkItem, sourceId: string): New
     title: item.position ?? '',
     companyRaw,
     companyNormalized: normalizeCompanyName(companyRaw),
-    description: item.description ? stripHtml(item.description) : '',
+    description: cleanDescription(item.description),
     workFormat: 'remote',
     employmentType: null,
     salaryMin: item.salary_min ?? null,

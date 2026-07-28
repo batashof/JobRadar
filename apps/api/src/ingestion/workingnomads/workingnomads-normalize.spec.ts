@@ -9,7 +9,9 @@ const SOURCE_ID = '00000000-0000-0000-0000-000000000007';
 const item: WorkingNomadsItem = {
   url: 'https://www.workingnomads.com/job/go/1742437/',
   title: 'Senior React & Ruby Developer',
-  description: '<p>Build &amp; ship <strong>great</strong> UI</p>',
+  description:
+    '<p>Build &amp; ship <strong>great</strong> UI</p>' +
+    `<p>${'You will pair with our senior engineers on React and Ruby services. '.repeat(4)}</p>`,
   company_name: 'Lemon.io',
   category_name: 'Development',
   tags: 'react,ruby,aws',
@@ -22,6 +24,7 @@ describe('workingnomads normalize', () => {
     expect(isWorkingNomadsJobItem(item)).toBe(true);
     expect(isWorkingNomadsJobItem({ ...item, category_name: 'Marketing' })).toBe(false);
     expect(isWorkingNomadsJobItem({ ...item, url: undefined })).toBe(false);
+    expect(isWorkingNomadsJobItem({ ...item, description: '<p>Apply now</p>' })).toBe(false);
   });
 
   it('maps a job item to the vacancy shape', () => {
@@ -42,7 +45,9 @@ describe('workingnomads normalize', () => {
   });
 
   it('strips HTML and decodes basic entities in the description', () => {
-    expect(normalizeWorkingNomadsItem(item, SOURCE_ID).description).toBe('Build & ship great UI');
+    expect(normalizeWorkingNomadsItem(item, SOURCE_ID).description).toContain(
+      'Build & ship great UI',
+    );
   });
 
   it('falls back to the URL as external id when no numeric suffix', () => {

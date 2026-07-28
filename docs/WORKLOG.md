@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-28 — Board quality gate + better source mix (v1.13.0)
+
+- **Trigger:** vacancies whose entire description was *"This website uses cookies… Please mention the word \*\*AMICABILITY\*\* and tag RNzQu… This is a beta feature to avoid spam applicants…"*. Traced to RemoteOK: **every** item of their public API carries that footer, and a live sample of 100 items (also with `?tag=dev`) had **0 IT vacancies** in it — municipal pages, marketing glossary entries, 404 pages, Lorem ipsum.
+- **Shared sanitizer** `ingestion/description.ts` replaces five copies of `stripHtml`: named + numeric + double-encoded entity decoding (`&#39;` was previously blanked to a space), Latin-1/CP1252 mojibake repair guarded against destroying real Cyrillic/CJK, boilerplate removal (anti-spam footers, cookie banners, stapled apply CTAs), and `hasSubstantialDescription()` (200 chars) wired into every worker's item predicate. Measured floor of real postings across active boards is ~1200 chars, so the gate only catches stubs.
+- **RemoteOK deactivated** (ADR-016) — `is_active=false`, worker/config kept so a flag flip revives it. A strict relevance filter would have left ~0 items/run and made the `empty` Sentry alert permanent noise.
+- **Volume replaced and grown:** WWR now polls 5 category feeds (154 items in full-stack alone vs 25 in the general programming feed) with per-feed conditional GET — `notModified` only when all 5 return 304; Jobicy adds the `data-science` industry; both dedupe across feeds. New source **Himalayas** (`himalayas.app/jobs/api`): richest free feed (annual salary, seniority, employment type, location restrictions), no server-side category filter and `limit` clamped to 20, so the worker pages 10×20 and filters tech client-side via `parentCategories` allowlist → `categories` regex fallback (~20% of items). Their RSS is Cloudflare-gated; API only.
+- **Probed and rejected:** Arbeitnow (only 11/110 remote, German general board), Rise/joinrise (no descriptions), devitjobs.uk (8.5 MB stale UK feed), Jobspresso (10 items), NoDesk/startup.jobs/remote.co (404/403).
+- **Cleanup:** `cleanup:junk` script re-cleans existing descriptions and deletes boilerplate-only rows, skipping Telegram (own rules) and anything with an application or outreach draft.
+- **Tests:** new `description.spec.ts` (11), `himalayas-normalize.spec.ts`, `himalayas.service.spec.ts` (paging, early stop, dedupe, error), `wwr.service.spec.ts` (multi-feed dedupe, conditional GET, partial 304, legacy config), `jobicy.service.spec.ts`; existing normalize specs updated for the gate. API 375 green, typecheck + lint clean.
+- **Next step:** deploy, then run `db:seed` (flips RemoteOK off, registers Himalayas + new feed URLs) and `cleanup:junk --prod`.
+
 ## 2026-07-27 — Manually hide vacancies from the feed (v1.12.0)
 
 - **Goal:** let the user hand-filter noise — a Hide button next to Save; hidden vacancies out of the feed by default; a toggle to show them.

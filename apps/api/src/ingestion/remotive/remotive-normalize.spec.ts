@@ -18,7 +18,9 @@ const item: RemotiveItem = {
   publication_date: '2026-07-16T13:28:02',
   candidate_required_location: 'Worldwide',
   salary: '$150k - $230k',
-  description: '<p>Build &amp; ship <strong>great</strong> UI</p>',
+  description:
+    '<p>Build &amp; ship <strong>great</strong> UI</p>' +
+    `<p>${'You will lead the front-end guild and mentor two mid-level engineers. '.repeat(4)}</p>`,
 };
 
 describe('remotive normalize', () => {
@@ -26,6 +28,7 @@ describe('remotive normalize', () => {
     expect(isRemotiveJobItem(item)).toBe(true);
     expect(isRemotiveJobItem({ ...item, category: 'Medical' })).toBe(false);
     expect(isRemotiveJobItem({ ...item, title: '' })).toBe(false);
+    expect(isRemotiveJobItem({ ...item, description: '<p>Apply on our site</p>' })).toBe(false);
   });
 
   it('maps a job item to the vacancy shape', () => {
@@ -49,7 +52,7 @@ describe('remotive normalize', () => {
   });
 
   it('strips HTML and decodes basic entities in the description', () => {
-    expect(normalizeRemotiveItem(item, SOURCE_ID).description).toBe('Build & ship great UI');
+    expect(normalizeRemotiveItem(item, SOURCE_ID).description).toContain('Build & ship great UI');
   });
 
   it('handles sparse items and unknown company', () => {

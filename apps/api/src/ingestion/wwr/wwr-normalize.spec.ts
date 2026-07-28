@@ -7,7 +7,9 @@ const item: WwrRssItem = {
   link: 'https://weworkremotely.com/remote-jobs/khibraty-lead-full-stack-developer',
   guid: 'https://weworkremotely.com/remote-jobs/khibraty-lead-full-stack-developer',
   pubDate: 'Fri, 17 Jul 2026 10:00:00 +0000',
-  description: '<p><strong>Headquarters:</strong> Amman, Jordan</p><p>Great &amp; remote job</p>',
+  description:
+    '<p><strong>Headquarters:</strong> Amman, Jordan</p><p>Great &amp; remote job</p>' +
+    `<p>${'You will own the whole stack, from the Rails API to the React front-end. '.repeat(4)}</p>`,
   region: 'Anywhere in the World',
   category: 'Full-Stack Programming',
   type: 'Full-Time',
@@ -30,6 +32,10 @@ describe('wwr normalize', () => {
   it('detects job items', () => {
     expect(isWwrJobItem(item)).toBe(true);
     expect(isWwrJobItem({ description: 'no title or guid' })).toBe(false);
+  });
+
+  it('rejects feed entries without a real posting body', () => {
+    expect(isWwrJobItem({ ...item, description: '<p>See our careers page</p>' })).toBe(false);
   });
 
   it('maps an RSS item to the vacancy shape', () => {

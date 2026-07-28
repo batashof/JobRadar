@@ -40,17 +40,31 @@ export const SEED_SOURCES: SourceSeed[] = [
     },
   },
   {
+    // Deactivated 2026-07-28 (ADR-016): their free API degraded into a scraped
+    // web index — 0 of 100 items in a live sample were IT vacancies, and every
+    // item carries an anti-spam footer as its whole "description".
     slug: 'remoteok',
     kind: 'api',
-    isActive: true,
+    isActive: false,
     // API terms require linking back to the original posting.
     config: { feedUrl: 'https://remoteok.com/api', linkBackRequired: true },
   },
   {
+    // The general programming feed is the smallest one WWR publishes; the
+    // per-speciality feeds carry an order of magnitude more postings and
+    // overlap, so the worker fetches all of them and dedupes by guid.
     slug: 'weworkremotely',
     kind: 'rss',
     isActive: true,
-    config: { feedUrl: 'https://weworkremotely.com/categories/remote-programming-jobs.rss' },
+    config: {
+      feedUrls: [
+        'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+        'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
+        'https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss',
+        'https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss',
+        'https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss',
+      ],
+    },
   },
   {
     // Free public JSON feed, no auth. Server-side category filter is unreliable,
@@ -71,9 +85,22 @@ export const SEED_SOURCES: SourceSeed[] = [
     kind: 'api',
     isActive: true,
     config: {
-      feedUrl: 'https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50',
+      feedUrls: [
+        'https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50',
+        'https://jobicy.com/api/v2/remote-jobs?industry=data-science&count=50',
+      ],
       linkBackRequired: true,
     },
+  },
+  {
+    // Remote-only board with the richest structured data of the free feeds
+    // (annual salary, seniority, employment type, location restrictions). The
+    // API has no server-side category filter and clamps a page to 20 items, so
+    // the worker pages through the newest postings and keeps tech roles only.
+    slug: 'himalayas',
+    kind: 'api',
+    isActive: true,
+    config: { feedUrl: 'https://himalayas.app/jobs/api', pages: 10, linkBackRequired: true },
   },
   {
     // Free public JSON feed, no auth. Aggregates remote/contract roles

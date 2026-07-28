@@ -2,6 +2,8 @@
 
 > Global politeness rules apply to **every** source: fetch at most once per 4 hours, cache responses, exponential backoff on errors, honest User-Agent, no proxies. Proxies are a "success problem" — revisit only if the project outgrows these rules. An ingestion run returning zero items sets `sources.last_run_status = 'empty'` and triggers a Sentry alert (likely breakage or ban).
 
+> **Quality gate (ADR-016).** Every board worker sanitizes descriptions through the shared `ingestion/description.ts`: HTML/entity decoding, mojibake repair, and removal of board boilerplate (anti-spam footers, cookie banners). An item whose cleaned description is shorter than 200 characters is **not ingested** — it is a stub or a scraped page, not a vacancy. Telegram is exempt (raw post text, own rules per ADR-009).
+
 ## v1.0 sources
 
 ### 1. Telegram job channels — MTProto — **primary source (ADR-009)**
@@ -20,25 +22,25 @@
 | Notes | Store the session string as a secret; a run yielding zero items across all channels sets `last_run_status='empty'` and alerts (likely a broken template or ban) |
 | Setup | Generate the session string locally with `pnpm --filter @jobradar/api telegram:session` (interactive, asks phone/code/2FA). Channels live in `sources.config.channels` (usernames without `@`, `messagesPerChannel` defaults to 50). The worker skips politely (no alert) while secrets or the channel list are missing |
 
-### 2. RemoteOK — JSON feed — **active in v1.0 (secondary)**
+### 2. WeWorkRemotely — RSS — **active (secondary)**
 
 | | |
 |---|---|
-| Kind | Public JSON feed |
-| Endpoint | `https://remoteok.com/api` |
-| Auth | None. Their API terms require linking back to the original posting — comply |
-| Data quality | Good: tags, company, position, salary sometimes present |
-| Notes | Single feed (~latest postings); filter client-side against profiles |
-
-### 3. WeWorkRemotely — RSS — **active in v1.0 (secondary)**
-
-| | |
-|---|---|
-| Kind | RSS feeds per category |
-| Endpoint | `https://weworkremotely.com/categories/remote-programming-jobs.rss` (and others) |
+| Kind | RSS feeds per category — five of them, fetched in one run |
+| Endpoints | `https://weworkremotely.com/categories/<c>.rss` for `remote-programming-jobs`, `remote-full-stack-programming-jobs`, `remote-back-end-programming-jobs`, `remote-front-end-programming-jobs`, `remote-devops-sysadmin-jobs` |
 | Auth | None |
 | Data quality | Medium: title/company in one string ("Company: Title"), needs parsing; no salary |
-| Notes | Use conditional GET (`If-Modified-Since` / `ETag`) |
+| Notes | Conditional GET (`If-Modified-Since`) on every feed; a run counts as `notModified` only when *all* feeds return 304. The per-speciality feeds are far larger than the general programming one and overlap heavily, so the worker dedupes by guid |
+
+### 3. Himalayas — JSON feed — **active (secondary)**
+
+| | |
+|---|---|
+| Kind | Public JSON API |
+| Endpoint | `https://himalayas.app/jobs/api?limit=20&offset=N` |
+| Auth | None. Terms ask for a credited link back — the vacancy `url` (their posting permalink) provides it |
+| Data quality | Best of the free feeds: annual `minSalary`/`maxSalary` + `currency`, `seniority`, `employmentType`, `locationRestrictions`, `categories`/`parentCategories`, full description |
+| Notes | No server-side category filter and `limit` is silently clamped to 20, so the worker pages (10 pages ≈ 200 newest postings per run) and keeps tech roles client-side: `parentCategories` allowlist when present, else a regex over `categories`. Only `salaryPeriod: annual` figures reach the salary filters. Their RSS feeds are Cloudflare-gated — use the API |
 
 ### 4. Remotive — JSON feed — **active in v1.0 (secondary)**
 
@@ -54,11 +56,11 @@
 
 | | |
 |---|---|
-| Kind | Public JSON feed (API v2) |
-| Endpoint | `https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50` (payload under `jobs`) |
+| Kind | Public JSON feed (API v2) — two industry feeds, fetched in one run |
+| Endpoints | `https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50` and the same with `industry=data-science` (payload under `jobs`) |
 | Auth | None. Terms request a credited link back and apply buttons pointing at the original posting |
 | Data quality | Good: `jobIndustry`, `jobType`, `jobGeo`, `jobLevel`, full `jobDescription` HTML. No structured salary |
-| Notes | `industry=dev` already scopes to software roles. `jobType` maps to the employment enum (`Full-Time`→full_time, `Contract`/`Freelance`→freelance) |
+| Notes | `industry=dev` already scopes to software roles; `data-science` adds ML/data roles the dev feed misses. The feeds overlap, so the worker dedupes by job id. `jobType` maps to the employment enum (`Full-Time`→full_time, `Contract`/`Freelance`→freelance) |
 
 ### 6. Working Nomads — JSON feed — **active in v1.0 (secondary, freelance-leaning)**
 
@@ -84,6 +86,10 @@
 
 ## Explicitly excluded
 
+### RemoteOK — deactivated 2026-07-28 (ADR-016)
+
+Was an active v1.0 secondary source. Their free `https://remoteok.com/api` has degraded into a scraped web index: a live sample of 100 items (and of `?tag=dev`) contained **zero IT vacancies** — municipal pages, marketing glossary entries, 404 pages, product blurbs — and every item carries an anti-spam footer *"Please mention the word \*\*X\*\* and tag … to show you read the job post completely"*, which for half of them was the entire description. The row stays in `sources` with `is_active = false` and the worker is kept: flipping the flag is all it takes if their feed recovers.
+
 ### hh.ru — dropped (ADR-009)
 
 Was the intended primary v1.0 source but never went live: the API geo-403s anonymous calls from non-CIS IPs, and a dev.hh.ru application token requires a Russian phone number the developer doesn't have (a paid/infra workaround is barred by ADR-001). Not part of v1.0 or any later phase. The existing worker + `HH_API_TOKEN` plumbing is inactive legacy code. Telegram replaces it as the primary source.
@@ -95,3 +101,5 @@ Aggressive anti-bot systems, no public API for vacancies, account-ban risk. Comp
 ## Normalization contract
 
 Every source worker maps raw items into the common shape (see [DATA_MODEL.md](DATA_MODEL.md) → `vacancies`): `external_id`, `url`, `title`, `company_raw`, `description`, and whatever of `work_format` / `employment_type` / salary / `location` / `published_at` the source provides. Missing fields stay null — matching rules must tolerate sparse data.
+
+`description` always goes through `cleanDescription()` from `ingestion/description.ts`, and the worker's item predicate rejects anything failing `hasSubstantialDescription()` (ADR-016). Adding a source means reusing both — never a private `stripHtml`.

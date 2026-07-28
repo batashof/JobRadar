@@ -1,5 +1,6 @@
 import type { NewVacancy } from '../hh/hh-normalize';
 import { normalizeCompanyName } from '../company-name';
+import { cleanDescription, hasSubstantialDescription } from '../description';
 
 /** Item shape of https://remotive.com/api/remote-jobs (payload under `jobs`). */
 export interface RemotiveItem {
@@ -37,17 +38,6 @@ const EMPLOYMENT_MAP: Record<string, NewVacancy['employmentType'] & string> = {
   contract: 'freelance',
   freelance: 'freelance',
 };
-
-const stripHtml = (value: string): string =>
-  value
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#?\w+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 
 /**
  * Remotive salaries are free-form strings ("$150k - $230k", "$36k",
@@ -95,7 +85,8 @@ export const isRemotiveJobItem = (item: RemotiveItem): boolean =>
   item.id !== undefined &&
   typeof item.title === 'string' &&
   item.title.length > 0 &&
-  REMOTIVE_TECH_CATEGORIES.has(item.category ?? '');
+  REMOTIVE_TECH_CATEGORIES.has(item.category ?? '') &&
+  hasSubstantialDescription(item.description);
 
 export function normalizeRemotiveItem(item: RemotiveItem, sourceId: string): NewVacancy {
   const companyRaw = item.company_name?.trim() || 'Unknown';
@@ -108,7 +99,7 @@ export function normalizeRemotiveItem(item: RemotiveItem, sourceId: string): New
     title: item.title ?? '',
     companyRaw,
     companyNormalized: normalizeCompanyName(companyRaw),
-    description: item.description ? stripHtml(item.description) : '',
+    description: cleanDescription(item.description),
     // Remotive is a remote-only board.
     workFormat: 'remote',
     employmentType: (item.job_type && EMPLOYMENT_MAP[item.job_type]) || null,
