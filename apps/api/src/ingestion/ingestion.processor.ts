@@ -12,6 +12,7 @@ import { MatchingService, type MatchRunResult } from '../matching/matching.servi
 import { ResumeMatchingService } from '../matching/resume-matching.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { HimalayasIngestService } from './himalayas/himalayas.service';
+import { HnIngestService } from './hn/hn.service';
 import { JobicyIngestService } from './jobicy/jobicy.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
@@ -52,6 +53,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly remotive: RemotiveIngestService,
     private readonly jobicy: JobicyIngestService,
     private readonly himalayas: HimalayasIngestService,
+    private readonly hn: HnIngestService,
     private readonly workingnomads: WorkingNomadsIngestService,
     private readonly telegram: TelegramIngestService,
     private readonly wwr: WwrIngestService,
@@ -108,6 +110,9 @@ export class IngestionProcessor extends WorkerHost {
           break;
         case 'himalayas':
           result = await this.himalayas.ingest(source);
+          break;
+        case 'hn':
+          result = await this.hn.ingest(source);
           break;
         case 'workingnomads':
           result = await this.workingnomads.ingest(source);

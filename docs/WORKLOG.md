@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-28 — HN "Who is hiring?" source + wider Jobicy (v1.14.0)
+
+- **Goal:** more platforms, after v1.13.0 shipped and prod was cleaned.
+- **Probed live, rejected (recorded in DATA_SOURCES.md so they are not re-probed):** The Muse (`descending=true` does not sort; "Café Associate" comes back under Software Engineering — the RemoteOK failure mode again), Arbeitnow (11/110 remote), Landing.jobs (fixed 50 items, 12 remote, half from early 2025), Rise and 4dayweek.io (no description field at all), DevITjobs UK (8.5 MB, 2023 dates), Jobspresso (10 items), NoDesk/startup.jobs/remote.co/RemoteRocketship/remotejobs.io/wfh.io (403/404).
+- **HN "Who is hiring?"** — the one clear win, and already on the roadmap. Uses the **Algolia** HN API, not Firebase: `search?tags=comment,story_<id>&hitsPerPage=100` returns comments in bulk (5 requests vs ~450). Walks 2 threads so the 1st of the month is not a cliff.
+- **Parsing** is shape-based, not positional: the pipe header (`Company | Role | Location | REMOTE | Full-time | $180k-$230k`) has optional segments in varying order. Live measurement on the July 2026 thread: 436 comments → 269 job posts → **150 remote/hybrid vacancies**, 42 with salary, 7 without a company. Onsite-only posts are dropped (remote-work radar), and a header naming no role is dropped rather than producing a card titled "REMOTE (US)".
+- **Shared salary parser** `ingestion/salary.ts` extracted from remotive-normalize (HN needed the same rules). Fixed a real bug while there: only hourly rates were rejected, so `$3.5k/mo` was being stored as an annual figure — now monthly/weekly/daily are rejected too. `parseRemotiveSalary` stays as an alias.
+- **Jobicy** gained `cybersecurity` (28) and `qa-testing` (24). Verified the industry filter actually filters and that `dev` and `engineering` are aliases of one slice.
+- **Tests:** `salary.spec.ts`, `hn-normalize.spec.ts` (header/title/company/format/employment/salary edge cases incl. the roleless and monthly-rate posts), `hn.service.spec.ts` (thread selection vs "Who wants to be hired?", paging, top-level filtering, no-thread and error paths). API 396 green, web 103, typecheck + lint clean.
+- **Next step:** deploy, `db:migrate:prod` (registers `hn`, new Jobicy feeds), then a forced ingest run.
+
 ## 2026-07-28 — Board quality gate + better source mix (v1.13.0)
 
 - **Trigger:** vacancies whose entire description was *"This website uses cookies… Please mention the word \*\*AMICABILITY\*\* and tag RNzQu… This is a beta feature to avoid spam applicants…"*. Traced to RemoteOK: **every** item of their public API carries that footer, and a live sample of 100 items (also with `?tag=dev`) had **0 IT vacancies** in it — municipal pages, marketing glossary entries, 404 pages, Lorem ipsum.

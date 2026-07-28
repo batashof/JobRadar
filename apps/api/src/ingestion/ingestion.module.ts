@@ -5,6 +5,7 @@ import { DedupModule } from '../dedup/dedup.module';
 import { MatchingModule } from '../matching/matching.module';
 import { HhIngestService } from './hh/hh.service';
 import { HimalayasIngestService } from './himalayas/himalayas.service';
+import { HnIngestService } from './hn/hn.service';
 import { JobicyIngestService } from './jobicy/jobicy.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
@@ -26,6 +27,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
     RemotiveIngestService,
     JobicyIngestService,
     HimalayasIngestService,
+    HnIngestService,
     WorkingNomadsIngestService,
     TelegramIngestService,
     WwrIngestService,

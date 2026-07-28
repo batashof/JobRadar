@@ -10,6 +10,7 @@ const SOURCE_LABELS: Record<string, string> = {
   remotive: 'Remotive',
   jobicy: 'Jobicy',
   himalayas: 'Himalayas',
+  hn: 'Hacker News',
   workingnomads: 'Working Nomads',
   hh: 'hh.ru',
 };

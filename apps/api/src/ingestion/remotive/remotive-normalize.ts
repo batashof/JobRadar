@@ -1,6 +1,7 @@
 import type { NewVacancy } from '../hh/hh-normalize';
 import { normalizeCompanyName } from '../company-name';
 import { cleanDescription, hasSubstantialDescription } from '../description';
+import { parseSalaryString } from '../salary';
 
 /** Item shape of https://remotive.com/api/remote-jobs (payload under `jobs`). */
 export interface RemotiveItem {
@@ -40,46 +41,10 @@ const EMPLOYMENT_MAP: Record<string, NewVacancy['employmentType'] & string> = {
 };
 
 /**
- * Remotive salaries are free-form strings ("$150k - $230k", "$36k",
- * "$120 - $170 /hour"). We only map clear *annual* figures — hourly rates and
- * unparseable strings stay null rather than polluting the salary filters.
+ * Remotive publishes salary as a free-form string; the parsing rules are shared
+ * with the other prose-salary sources (see `ingestion/salary.ts`).
  */
-export function parseRemotiveSalary(raw?: string): {
-  min: number | null;
-  max: number | null;
-  currency: string | null;
-} {
-  const none = { min: null, max: null, currency: null };
-  if (!raw) return none;
-  const s = raw.trim();
-  if (!s || /\/\s*(hour|hr)\b|per\s+hour/i.test(s)) return none;
-
-  const currency = /\$|usd/i.test(s)
-    ? 'USD'
-    : /€|eur/i.test(s)
-      ? 'EUR'
-      : /£|gbp/i.test(s)
-        ? 'GBP'
-        : null;
-
-  const nums: number[] = [];
-  const re = /([\d][\d.,]*)\s*(k)?/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s)) !== null) {
-    const digits = m[1];
-    if (!digits) continue;
-    let n = Number.parseFloat(digits.replace(/,/g, ''));
-    if (Number.isNaN(n)) continue;
-    if (m[2]) n *= 1000;
-    else if (n < 1000) continue; // ignore stray small numbers (page counts, etc.)
-    nums.push(n);
-  }
-  if (nums.length === 0) return none;
-
-  const min = Math.min(...nums);
-  const max = Math.max(...nums);
-  return { min, max: max === min ? null : max, currency: currency ?? 'USD' };
-}
+export const parseRemotiveSalary = parseSalaryString;
 
 export const isRemotiveJobItem = (item: RemotiveItem): boolean =>
   item.id !== undefined &&

@@ -62,7 +62,17 @@
 | Data quality | Good: `jobIndustry`, `jobType`, `jobGeo`, `jobLevel`, full `jobDescription` HTML. No structured salary |
 | Notes | `industry=dev` already scopes to software roles; `data-science` adds ML/data roles the dev feed misses. The feeds overlap, so the worker dedupes by job id. `jobType` maps to the employment enum (`Full-Time`→full_time, `Contract`/`Freelance`→freelance) |
 
-### 6. Working Nomads — JSON feed — **active in v1.0 (secondary, freelance-leaning)**
+### 6. Hacker News "Who is hiring?" — Algolia search API — **active (secondary)**
+
+| | |
+|---|---|
+| Kind | Monthly `Ask HN: Who is hiring?` thread; top-level comments are the job posts |
+| Endpoints | `https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring` to find the threads, then `…/search?tags=comment,story_<id>&hitsPerPage=100&page=N` for the posts |
+| Auth | None |
+| Data quality | Free-form prose with a conventional pipe header: `Company \| Role \| Location \| REMOTE \| Full-time \| $180k-$230k`. Salary is present on ~30% of posts |
+| Notes | The Algolia API is used instead of the HN Firebase API because it returns comments **in bulk** (5 requests instead of ~450). Two threads are walked so the feed does not empty out on the 1st of the month. Every field is matched by shape, not position; a post whose header names no role is dropped rather than titled "REMOTE (US)". **Onsite-only posts are dropped** — this is a remote-work radar and the thread is full of single-city roles. The same bot account also posts "Who wants to be hired?" and "Freelancer?", so the thread title is matched. Measured: 436 comments → 269 job posts → ~150 remote/hybrid vacancies per thread |
+
+### 7. Working Nomads — JSON feed — **active in v1.0 (secondary, freelance-leaning)**
 
 | | |
 |---|---|
@@ -74,17 +84,27 @@
 
 ## Later sources (phase 4)
 
-### HN Who's Hiring
-
-- Monthly thread on Hacker News; fetch via official Firebase API (`https://hacker-news.firebaseio.com/v0/`).
-- Find the current month's thread (Algolia HN Search API), pull top-level comments, parse semi-structured text (location, remote, stack).
-- Hardest parsing of the friendly sources; a good candidate for LLM-assisted extraction (ADR-005).
-
 ### Djinni
 
 - No public API → HTML parsing, gently and later. Low priority; also covered by the manual browser-extension flow.
 
 ## Explicitly excluded
+
+### Boards probed and rejected (2026-07-28)
+
+Each was fetched live and inspected before being turned down; recorded so they are not re-probed:
+
+| Board | Why not |
+|---|---|
+| The Muse (`themuse.com/api/public/jobs`) | `descending=true` does not sort, and the category filter is unreliable in the same way RemoteOK's was — "Café Associate" and "Retail Manager – Tire and Battery Center" come back under Software Engineering |
+| Arbeitnow | Only 11 of 110 items per page are remote; a German general-purpose board, mostly onsite and non-tech |
+| Landing.jobs | Real EU tech postings with salary, but a fixed 50-item response with no pagination, only 12 of them remote, and half dating back to early 2025 |
+| Rise (`api.joinrise.io`) | No description field at all — nothing for matching, the fit score or contact extraction to work with |
+| 4dayweek.io | Same: structured salary and locations, but no description; mixed verticals |
+| DevITjobs UK | An 8.5 MB feed of mostly onsite UK roles with 2023 publication dates |
+| Jobspresso | WordPress job feed capped at 10 items |
+| NoDesk, startup.jobs, remote.co, RemoteRocketship, remotejobs.io, wfh.io | 403/404/dead — no usable public feed |
+| Adzuna, Findwork.dev, Jooble | Free tiers exist but require registering for an API key; revisit only if the free boards stop being enough |
 
 ### RemoteOK — deactivated 2026-07-28 (ADR-016)
 

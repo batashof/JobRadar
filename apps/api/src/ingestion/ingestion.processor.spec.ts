@@ -29,6 +29,7 @@ describe('IngestionProcessor error handling', () => {
       { ingest: jest.fn() } as never, // remotive
       { ingest: jest.fn() } as never, // jobicy
       { ingest: jest.fn() } as never, // himalayas
+      { ingest: jest.fn() } as never, // hn
       { ingest: jest.fn() } as never, // workingnomads
       { ingest: jest.fn() } as never, // telegram
       { ingest: jest.fn() } as never, // wwr

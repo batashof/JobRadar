@@ -85,12 +85,26 @@ export const SEED_SOURCES: SourceSeed[] = [
     kind: 'api',
     isActive: true,
     config: {
+      // `dev` and `engineering` are aliases of the same slice, so the extra
+      // feeds are the industries the dev feed genuinely misses.
       feedUrls: [
         'https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50',
         'https://jobicy.com/api/v2/remote-jobs?industry=data-science&count=50',
+        'https://jobicy.com/api/v2/remote-jobs?industry=cybersecurity&count=50',
+        'https://jobicy.com/api/v2/remote-jobs?industry=qa-testing&count=50',
       ],
       linkBackRequired: true,
     },
+  },
+  {
+    // "Ask HN: Who is hiring?" — the monthly thread, read through the Algolia
+    // HN search API (bulk comment fetch; the Firebase API would need one
+    // request per comment). Two threads back, so the feed does not empty out on
+    // the 1st of the month. Onsite-only posts are dropped by the worker.
+    slug: 'hn',
+    kind: 'api',
+    isActive: true,
+    config: { apiBaseUrl: 'https://hn.algolia.com/api/v1', threads: 2 },
   },
   {
     // Remote-only board with the richest structured data of the free feeds

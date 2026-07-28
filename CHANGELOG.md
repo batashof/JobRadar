@@ -7,6 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.14.0] — 2026-07-28
+
+**Hacker News "Who is hiring?" as a source, and a wider Jobicy.** The monthly HN thread is now ingested: ~150 remote/hybrid vacancies per thread, with company, role, location, employment type and salary parsed out of the community's pipe-header convention. Jobicy gains the cybersecurity and QA/testing industries.
+
+### Added
+
+- **HN source** (`hn`) — finds the `Ask HN: Who is hiring?` threads through the Algolia HN search API and reads their comments in bulk (5 requests instead of ~450 via the Firebase API). Walks two threads so the feed does not empty out on the 1st of the month. Onsite-only posts are dropped (this is a remote-work radar), as are posts whose header names no role.
+- `ingestion/salary.ts` — the free-form salary parser, shared by Remotive and HN. Now also rejects **monthly/weekly/daily** rates, not just hourly, so `$3.5k/mo` no longer lands in the annual salary filters.
+- Jobicy feeds for `cybersecurity` and `qa-testing` (~50 more IT postings per run).
+
+### Changed
+
+- `parseRemotiveSalary` is an alias of the shared `parseSalaryString`; behaviour is unchanged apart from the non-annual-rate fix above.
+
 ## [1.13.0] — 2026-07-28
 
 **Clean vacancy text and a better board mix (ADR-016).** Job-board descriptions no longer carry cookie banners or the *"Please mention the word \*\*AMICABILITY\*\* and tag …"* anti-spam footers, and items whose whole body was that boilerplate are not ingested at all. RemoteOK is deactivated — its free API turned into a scraped web index with no IT vacancies in it — and the lost volume is more than replaced by WeWorkRemotely's five category feeds, a second Jobicy industry, and Himalayas as a new source.
