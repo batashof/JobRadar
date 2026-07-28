@@ -72,7 +72,18 @@
 | Data quality | Free-form prose with a conventional pipe header: `Company \| Role \| Location \| REMOTE \| Full-time \| $180k-$230k`. Salary is present on ~30% of posts |
 | Notes | The Algolia API is used instead of the HN Firebase API because it returns comments **in bulk** (5 requests instead of ~450). Two threads are walked so the feed does not empty out on the 1st of the month. Every field is matched by shape, not position; a post whose header names no role is dropped rather than titled "REMOTE (US)". **Onsite-only posts are dropped** — this is a remote-work radar and the thread is full of single-city roles. The same bot account also posts "Who wants to be hired?" and "Freelancer?", so the thread title is matched. Measured: 436 comments → 269 job posts → ~150 remote/hybrid vacancies per thread |
 
-### 7. Working Nomads — JSON feed — **active in v1.0 (secondary, freelance-leaning)**
+### 7. Company career pages (ATS) — Greenhouse / Ashby / Lever — **active (secondary)**
+
+| | |
+|---|---|
+| Kind | Public, unauthenticated job-board APIs of three applicant tracking systems, polled per company |
+| Endpoints | `boards-api.greenhouse.io/v1/boards/<token>/jobs?content=true` · `api.ashbyhq.com/posting-api/job-board/<token>?includeCompensation=true` · `api.lever.co/v0/postings/<token>?mode=json` |
+| Auth | None |
+| Data quality | **The best in the pipeline** — straight from the employer, so no aggregator boilerplate, no scraped pages, no stale reposts. Full descriptions (4–12 KB). Ashby adds a compensation range and employment type, Lever an employment type |
+| Company list | Curated, in `sources.config.companies` as `{ ats, token, name }`. 36 boards as of 2026-07-28, each probed live and kept only when it yielded 6+ remote engineering roles. Adding one is a one-line config change — the token is the identifier in the company's careers-page URL |
+| Notes | Every board mixes engineering with sales/HR and remote with onsite, so both filters are applied per adapter from whatever that ATS actually publishes. **Ashby's `isRemote` is not usable** — boards set it on hybrid roles too (OpenAI: 475 "remote" postings, 446 of them `workplaceType: Hybrid`); only `workplaceType` is honest, with the location string as a fallback when it is absent. Greenhouse publishes no remote flag at all, so its location string is the only signal, and its `content` is HTML **entity-encoded twice**. A board that 404s (renamed token, acquisition) is logged and skipped; only a run where *every* board fails is an error |
+
+### 8. Working Nomads — JSON feed — **active in v1.0 (secondary, freelance-leaning)**
 
 | | |
 |---|---|
@@ -105,6 +116,7 @@ Each was fetched live and inspected before being turned down; recorded so they a
 | Jobspresso | WordPress job feed capped at 10 items |
 | NoDesk, startup.jobs, remote.co, RemoteRocketship, remotejobs.io, wfh.io | 403/404/dead — no usable public feed |
 | Adzuna, Findwork.dev, Jooble | Free tiers exist but require registering for an API key; revisit only if the free boards stop being enough |
+| Workable | `apply.workable.com/api/v1/widget/accounts/<token>` returns the company profile, not its jobs; no public per-company job endpoint found |
 
 ### RemoteOK — deactivated 2026-07-28 (ADR-016)
 

@@ -15,6 +15,7 @@ describe('seed data', () => {
       'remotive',
       'jobicy',
       'hn',
+      'ats',
       'himalayas',
       'workingnomads',
     ]);

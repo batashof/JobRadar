@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-28 — Company career pages via ATS APIs (v1.15.0)
+
+- **Goal:** the highest-quality source available — employers' own boards instead of aggregators.
+- **Three ATS APIs, all public and keyless:** Greenhouse (`boards-api.greenhouse.io`), Ashby (`api.ashbyhq.com/posting-api`), Lever (`api.lever.co/v0/postings`). Workable was probed and rejected: its widget endpoint returns the company profile, not jobs.
+- **Company list is curated, not discovered.** Probed ~110 candidate tokens across the three ATSes: 69 boards resolved, 53 had remote engineering roles. Kept the 36 with 6+ such roles. Config-only to extend (`sources.config.companies`).
+- **Key finding — Ashby's `isRemote` is a lie.** OpenAI reports 475 "remote" postings of which 446 are `workplaceType: Hybrid`; Replit 88 vs 5. Using the flag would have flooded the feed with fake-remote jobs. The worker trusts `workplaceType` only, falling back to the location string when it is null. Re-measuring with the honest signal took the headline number from an inflated 2131 down to **1452**, and the live normalizer run yields **1537** rows (the tech regex is slightly wider than the probe's).
+- **Per-ATS quirks handled:** Greenhouse has no remote flag at all (location string is the only signal) and serves `content` **entity-encoded twice** — the shared `stripHtml` already decodes twice, so it came out readable. Ashby's `compensationTierSummary` ("$224K – $263K • Offers Equity • …") is split on `•` before parsing. Lever's `commitment` says "Permanent"/"Short Term" rather than full/part-time, and `createdAt` is epoch **ms**.
+- **Resilience:** one dead board (renamed token, acquisition) is logged and skipped; only an all-boards failure marks the source errored, so 35 good boards are never lost to 1 bad one. Boards are fetched one at a time — a Greenhouse payload with descriptions runs to several MB and the API container has 512 MB (ADR-007).
+- **Tests:** `ats-normalize.spec.ts` (18 cases incl. the workplaceType-over-isRemote rule, double-encoded Greenhouse content, compensation parsing, per-ATS employment mapping) and `ats.service.spec.ts` (endpoint dispatch, single-board failure tolerated, all-boards failure throws, empty config skips). API 414 green, typecheck + lint clean.
+- **Next step:** deploy, `db:migrate:prod`, forced ingest. Expect the vacancy count to roughly double; the resume-matching LLM pass is budget-capped, so scoring the new rows will spread over several runs.
+
 ## 2026-07-28 — HN "Who is hiring?" source + wider Jobicy (v1.14.0)
 
 - **Goal:** more platforms, after v1.13.0 shipped and prod was cleaned.

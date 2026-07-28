@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.14.0** (HN "Who is hiring?" source + shared salary parser + Jobicy cybersecurity/QA feeds, 2026-07-28; keep this line in sync on every bump).
+- **Current version: 1.15.0** (company career pages via Greenhouse/Ashby/Lever — 36 curated boards, ~1500 remote engineering vacancies, 2026-07-28; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

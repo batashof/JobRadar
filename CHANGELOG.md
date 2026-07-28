@@ -7,6 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.15.0] — 2026-07-28
+
+**Company career pages as a source.** JobRadar now reads job boards straight from companies' applicant tracking systems — Greenhouse, Ashby and Lever — for a curated list of 36 remote-friendly tech companies (GitLab, Cloudflare, Stripe, Mozilla, Supabase, Vanta, Vercel, Spotify, …). This is the highest-quality data in the pipeline: it comes from the employer rather than an aggregator, so there is no boilerplate, no scraped page and no stale reposting. Measured on the live boards: **~1500 remote engineering vacancies** with full 4–12 KB descriptions.
+
+### Added
+
+- **`ats` source** with one adapter per ATS, all public and unauthenticated. Ashby contributes a compensation range and employment type, Lever an employment type.
+- Company list lives in `sources.config.companies` as `{ ats, token, name }` — adding a company is a one-line config change, no code.
+
+### Notes
+
+- Every board mixes engineering with sales/HR and remote with onsite, so both filters are applied per adapter. Ashby's `isRemote` flag is deliberately **not** used: boards set it on hybrid roles too (OpenAI reports 475 "remote" postings, 446 of which are `workplaceType: Hybrid`) — only `workplaceType` is trusted, falling back to the location string when absent.
+- A board that 404s (renamed token, acquisition) is logged and skipped; only a run where every board fails marks the source errored.
+
 ## [1.14.0] — 2026-07-28
 
 **Hacker News "Who is hiring?" as a source, and a wider Jobicy.** The monthly HN thread is now ingested: ~150 remote/hybrid vacancies per thread, with company, role, location, employment type and salary parsed out of the community's pipe-header convention. Jobicy gains the cybersecurity and QA/testing industries.

@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
 import { DedupModule } from '../dedup/dedup.module';
+import { AtsIngestService } from './ats/ats.service';
 import { MatchingModule } from '../matching/matching.module';
 import { HhIngestService } from './hh/hh.service';
 import { HimalayasIngestService } from './himalayas/himalayas.service';
@@ -28,6 +29,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
     JobicyIngestService,
     HimalayasIngestService,
     HnIngestService,
+    AtsIngestService,
     WorkingNomadsIngestService,
     TelegramIngestService,
     WwrIngestService,

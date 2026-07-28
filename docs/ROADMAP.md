@@ -99,7 +99,7 @@ A personal execution surface over existing app state: `planner/` on the API, `/a
 - [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).
 - [ ] Telegram bot as second digest channel. *(The bot itself arrives with the day planner, ADR-015; only the digest payload remains.)*
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
-- [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21); **Himalayas + HN "Who is hiring?"**, WWR across five category feeds, Jobicy across four industries (2026-07-28, ADR-016 — RemoteOK dropped in the same pass). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Still open: Djinni.
+- [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21); **Himalayas + HN "Who is hiring?"**, WWR across five category feeds, Jobicy across four industries (2026-07-28, ADR-016 — RemoteOK dropped in the same pass). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Also **company career pages via Greenhouse/Ashby/Lever** (36 curated boards, 2026-07-28). Still open: Djinni.
 - [x] Funnel statistics: applied → screening → interview → offer conversion. *(`furthest_stage` column tracks the deepest non-terminal stage each application ever reached, so rejected/withdrawn cards still count through their peak; `GET /applications/stats` + dashboard Funnel card with per-step conversion — E2E verified)*
 - [ ] Google Calendar sync for interviews (OAuth).
 

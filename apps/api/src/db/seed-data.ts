@@ -107,6 +107,57 @@ export const SEED_SOURCES: SourceSeed[] = [
     config: { apiBaseUrl: 'https://hn.algolia.com/api/v1', threads: 2 },
   },
   {
+    // Company career pages read straight from their ATS — the highest-quality
+    // data in the pipeline (no aggregator, no boilerplate, no stale reposts).
+    // All three APIs are public and unauthenticated. The list is curated, not
+    // discovered: each token was probed live on 2026-07-28 and kept only when
+    // it yielded 6+ remote engineering roles. Adding a company is a one-line
+    // config change — find the token in its careers-page URL.
+    slug: 'ats',
+    kind: 'api',
+    isActive: true,
+    config: {
+      companies: [
+        { ats: 'greenhouse', token: 'gitlab', name: 'GitLab' },
+        { ats: 'greenhouse', token: 'grafanalabs', name: 'Grafana Labs' },
+        { ats: 'greenhouse', token: 'mozilla', name: 'Mozilla' },
+        { ats: 'greenhouse', token: 'twilio', name: 'Twilio' },
+        { ats: 'greenhouse', token: 'reddit', name: 'Reddit' },
+        { ats: 'greenhouse', token: 'affirm', name: 'Affirm' },
+        { ats: 'greenhouse', token: 'samsara', name: 'Samsara' },
+        { ats: 'greenhouse', token: 'coinbase', name: 'Coinbase' },
+        { ats: 'greenhouse', token: 'pinterest', name: 'Pinterest' },
+        { ats: 'greenhouse', token: 'instacart', name: 'Instacart' },
+        { ats: 'greenhouse', token: 'databricks', name: 'Databricks' },
+        { ats: 'greenhouse', token: 'temporaltechnologies', name: 'Temporal' },
+        { ats: 'greenhouse', token: 'tailscale', name: 'Tailscale' },
+        { ats: 'greenhouse', token: 'cloudflare', name: 'Cloudflare' },
+        { ats: 'greenhouse', token: 'fivetran', name: 'Fivetran' },
+        { ats: 'greenhouse', token: 'stripe', name: 'Stripe' },
+        { ats: 'greenhouse', token: 'datadog', name: 'Datadog' },
+        { ats: 'greenhouse', token: 'webflow', name: 'Webflow' },
+        { ats: 'greenhouse', token: 'dropbox', name: 'Dropbox' },
+        { ats: 'greenhouse', token: 'remotecom', name: 'Remote.com' },
+        { ats: 'greenhouse', token: 'airtable', name: 'Airtable' },
+        { ats: 'greenhouse', token: 'vercel', name: 'Vercel' },
+        { ats: 'greenhouse', token: 'algolia', name: 'Algolia' },
+        { ats: 'ashby', token: 'Supabase', name: 'Supabase' },
+        { ats: 'ashby', token: 'vanta', name: 'Vanta' },
+        { ats: 'ashby', token: 'elevenlabs', name: 'ElevenLabs' },
+        { ats: 'ashby', token: 'render', name: 'Render' },
+        { ats: 'ashby', token: 'openai', name: 'OpenAI' },
+        { ats: 'ashby', token: 'langchain', name: 'LangChain' },
+        { ats: 'ashby', token: 'cursor', name: 'Cursor' },
+        { ats: 'ashby', token: 'linear', name: 'Linear' },
+        { ats: 'ashby', token: 'resend', name: 'Resend' },
+        { ats: 'ashby', token: 'railway', name: 'Railway' },
+        { ats: 'ashby', token: 'harvey', name: 'Harvey' },
+        { ats: 'lever', token: 'veeva', name: 'Veeva Systems' },
+        { ats: 'lever', token: 'spotify', name: 'Spotify' },
+      ],
+    },
+  },
+  {
     // Remote-only board with the richest structured data of the free feeds
     // (annual salary, seniority, employment type, location restrictions). The
     // API has no server-side category filter and clamps a page to 20 items, so
