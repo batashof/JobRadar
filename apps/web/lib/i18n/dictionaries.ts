@@ -30,6 +30,14 @@ export const en = {
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
   'common.edit': 'Edit',
+  'common.retry': 'Retry',
+
+  // Error boundary
+  'error.description': 'This page could not be loaded. Retrying often fixes it.',
+  'error.offline.title': 'JobRadar is waking up',
+  'error.offline.description':
+    'The backend runs on a free instance that sleeps when unused, so the first request after a quiet spell can take up to a minute. Give it a moment and retry.',
+  'error.home': 'Back to dashboard',
 
   // Auth
   'auth.login.title': 'Welcome back',
@@ -437,6 +445,14 @@ export const ru: Record<TranslationKey, string> = {
   'common.cancel': 'Отмена',
   'common.delete': 'Удалить',
   'common.edit': 'Изменить',
+  'common.retry': 'Повторить',
+
+  // Error boundary
+  'error.description': 'Страницу не удалось загрузить. Обычно помогает повторная попытка.',
+  'error.offline.title': 'JobRadar просыпается',
+  'error.offline.description':
+    'Бэкенд работает на бесплатном инстансе, который засыпает без нагрузки, поэтому первый запрос после паузы может занять до минуты. Подождите немного и повторите.',
+  'error.home': 'На дашборд',
 
   // Auth
   'auth.login.title': 'С возвращением',

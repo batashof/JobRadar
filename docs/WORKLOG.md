@@ -2,6 +2,19 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-07-29 — Graceful degradation when the API is down (v1.15.1)
+
+- **Symptom:** the production vacancy detail page returned `504 FUNCTION_INVOCATION_TIMEOUT` from Vercel.
+- **Root cause is the API, not the page.** `jobradar-api-ptvp.onrender.com` accepts the TLS handshake (Render's edge) but never sends an HTTP response — on `/`, `/health` and `/vacancies` alike, over 90s+. The healthcheck path is unresponsive too, so the container is not merely cold. **Needs the Render dashboard** (logs, manual redeploy) — no CLI/API access from here. The API builds and typechecks clean locally, so this is a runtime/infra failure, not a bad build.
+- **What was fixed here is the blast radius.** Every `/app` page server-renders from the API, and those fetches had neither a deadline nor an error boundary above them, so a hung API hung the Vercel function until the platform killed it.
+  - 20s `AbortSignal.timeout` on `serverApiGet` and `getCurrentUser` — the app now times out before Vercel does.
+  - Typed errors: `ApiUnavailableError` (unreachable) vs `ApiStatusError` (answered non-2xx), so callers can tell an outage from a real 401/404.
+  - `app/error.tsx` (catches the failing `/app` layout — that is where an outage hits first) and `app/app/error.tsx` (page errors, keeps the header). Shared `ErrorView` probes `/api/health` from the browser, because Next.js strips error messages crossing the server/client boundary in production and the boundary otherwise cannot tell an outage from a bug.
+  - `getCurrentUser` no longer returns `null` on an unreachable API — that redirected a signed-in user to an equally broken login page and hid the outage.
+  - The vacancy page no longer renders not-found for *every* error; only a real 404.
+- **i18n:** `ErrorView` reads the `jr_lang` mirror cookie directly (ADR-014) rather than `I18nProvider`, since the layout that provides it is exactly what failed.
+- **Next step:** check the Render logs for jobradar-api and redeploy; if it turns out to be OOM, the ATS run (v1.15.0) accumulating ~1500 rows before a single upsert is the first thing to look at on a 512 MB instance.
+
 ## 2026-07-28 — Company career pages via ATS APIs (v1.15.0)
 
 - **Goal:** the highest-quality source available — employers' own boards instead of aggregators.

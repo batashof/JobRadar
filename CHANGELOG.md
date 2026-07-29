@@ -7,6 +7,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
 
+## [1.15.1] — 2026-07-29
+
+**The web app survives an API outage.** Every signed-in page is server-rendered from the API, and those fetches had no deadline and no error boundary above them. When the Render instance stopped answering, the Vercel function hung until the platform killed it and served a raw `504 FUNCTION_INVOCATION_TIMEOUT` page. The app now fails fast and explains itself.
+
+### Fixed
+
+- **Deadline on every server-side API call** (20s, comfortably under the function limit) in `serverApiGet` and `getCurrentUser`, so the app times out before Vercel does.
+- **Error boundaries** at the root and `/app` segments. They probe `/api/health` from the browser to tell an API outage apart from an application bug, and show the matching explanation with a retry — in the account language, read from the `jr_lang` mirror cookie (no provider needed, since the failing layout is what provides it).
+- **An unreachable API no longer looks like a logged-out session.** `getCurrentUser` threw away the distinction by returning `null`, which sent a signed-in user to a login page that was equally broken; it now throws `ApiUnavailableError`.
+- **An unreachable API no longer looks like a missing vacancy.** The vacancy detail page caught *every* error and rendered not-found; only a real 404 does now.
+
 ## [1.15.0] — 2026-07-28
 
 **Company career pages as a source.** JobRadar now reads job boards straight from companies' applicant tracking systems — Greenhouse, Ashby and Lever — for a curated list of 36 remote-friendly tech companies (GitLab, Cloudflare, Stripe, Mozilla, Supabase, Vanta, Vercel, Spotify, …). This is the highest-quality data in the pipeline: it comes from the employer rather than an aggregator, so there is no boilerplate, no scraped page and no stale reposting. Measured on the live boards: **~1500 remote engineering vacancies** with full 4–12 KB descriptions.
