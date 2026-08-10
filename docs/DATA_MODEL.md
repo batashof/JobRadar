@@ -313,6 +313,21 @@ One row per user, created when a link is started. `chat_id` stays null until the
 | linked_at | timestamptz nullable | |
 | created_at / updated_at | timestamptz | |
 
+### digest_settings
+
+> Shipped: migration `0012` (v1.17.0). One row per user, created lazily on first read — the digest never has to be "enabled" before it can be configured.
+
+| Column | Type | Notes |
+|---|---|---|
+| user_id | uuid PK FK → users | cascade on user delete |
+| enabled | boolean not null default true | off = nothing is sent, settings are kept |
+| send_times | text[] not null default `{09:00}` | `HH:MM` wall-clock, stored sorted; 1–4 entries, and their count *is* "how many times a day" |
+| max_items | smallint not null default 10 | cap per send; 10 is the hard ceiling |
+| min_score | smallint not null default 60 | resume-fit floor in percent — below it a vacancy is not worth a push |
+| created_at / updated_at | timestamptz | |
+
+The timezone these times are resolved in is **not** stored here: per-user timezone already exists as `planner_settings.timezone` (ADR-015 §7) and a second copy would drift. `GET /digest/settings` echoes it read-only.
+
 ## Phase 4 additions (ADR-015 — day planner)
 
 > Shipped: migration `0008` (v1.7.0 increment 1; v1.8.0 increment 2 started writing `focus_sessions`, block outcomes and `day_plans.review`). `planner_nudges` started being written in v1.10.0 by `planner:tick` (in-app channel); v1.16.0 added Telegram delivery, which flips `channel` to `telegram` and fills `telegram_message_id`. One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.

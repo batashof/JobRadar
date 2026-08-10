@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.16.0** (shared Telegram bot channel: account linking by deep link, planner nudges with inline buttons, secret-guarded webhook, 2026-08-10; keep this line in sync on every bump).
+- **Current version: 1.17.0** (Telegram bot live as @JobRadarAppBot; daily-digest schedule settings — send times, per-send cap, fit floor, 2026-08-10; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

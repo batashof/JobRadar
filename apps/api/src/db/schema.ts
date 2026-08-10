@@ -546,6 +546,27 @@ export const telegramAccounts = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Daily vacancy digest (delivered over the bot channel above)
+// ---------------------------------------------------------------------------
+
+// One row per user, created lazily with defaults on first read. The wall-clock
+// times are resolved in `planner_settings.timezone` — per-user state that
+// already exists; a second copy here would drift.
+export const digestSettings = pgTable('digest_settings', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  enabled: boolean('enabled').notNull().default(true),
+  // `HH:MM` local times, sorted; one row per push, at most four a day.
+  sendTimes: text('send_times').array().notNull().default(['09:00']),
+  maxItems: smallint('max_items').notNull().default(10),
+  // Resume-fit floor in percent; below it a vacancy is not worth a push.
+  minScore: smallint('min_score').notNull().default(60),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+// ---------------------------------------------------------------------------
 // Day planner (ADR-015)
 // ---------------------------------------------------------------------------
 

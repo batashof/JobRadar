@@ -133,7 +133,9 @@ apps/api/src/
 | MTProto user client (ADR-009) | `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` + session string | inbound read | Ingesting job channels |
 | Bot API (ADR-015) | `TELEGRAM_BOT_TOKEN` (+ `TELEGRAM_BOT_WEBHOOK_SECRET`) | outbound send + webhook | Shared `bot/` module: account linking, planner nudges with inline Start/Done/Skip, and the daily vacancy digest next |
 
-The Bot API side is one module (`apps/api/src/bot`) with one chat link per account (`telegram_accounts`), not one per feature. Features register button handlers by `callback_data` namespace (`n:` planner nudges, `d:` digest), so the bot module never imports them. Registering the webhook is a one-off deployment step: `pnpm --filter @jobradar/api bot:webhook` (`--info` / `--delete` to inspect or stop delivery).
+The Bot API side is one module (`apps/api/src/bot`) with one chat link per account (`telegram_accounts`), not one per feature. Features register button handlers by `callback_data` namespace (`n:` planner nudges, `d:` digest), so the bot module never imports them. Registering the webhook is a one-off deployment step: `pnpm --filter @jobradar/api bot:webhook` (`--info` / `--delete` to inspect or stop delivery). The live bot is [@JobRadarAppBot](https://t.me/JobRadarAppBot).
+
+**Per-user wall-clock time has one home.** Both time-driven features — the planner tick and the digest schedule — resolve local time in `planner_settings.timezone`; `digest_settings` deliberately stores only times, not a timezone, because two copies of it would drift. If a third consumer appears, that is the moment to promote the field to a user-level settings table rather than copy it again.
 
 ## Data flow: ingestion
 

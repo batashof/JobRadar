@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-10 — Bot live + digest schedule settings (v1.17.0)
+
+- **The bot exists:** [@JobRadarAppBot](https://t.me/JobRadarAppBot), display name "JobRadar". Token and a generated `TELEGRAM_BOT_WEBHOOK_SECRET` are in the local `.env`; command menu, description and short description registered via the Bot API in both `ru` and the default locale.
+- **Verified live against the running API**, not just in unit tests: `/health` → `botConfigured: true`; webhook rejects a wrong secret with 401; `/start <token>` links the row (chat id + username stored, token cleared); a second account presenting its own token for an already-linked chat is refused and the owner keeps the chat; an expired token is refused; `/stop` unlinks. Outbound replies to the fake chat ids failed with "chat not found" and were swallowed as designed — the link still completed. Test rows cleaned up afterwards.
+- **Digest schedule settings** (`digest_settings`, migration `0012`): `enabled`, 1–4 `send_times` (`HH:MM`), `max_items` ≤ 10, `min_score`. **The count of send times is the frequency** — a separate "how many times a day" field could contradict the schedule, so there isn't one.
+- **Timezone is not duplicated.** The digest resolves its times in `planner_settings.timezone` and echoes it read-only. Two copies of per-user wall-clock state would drift; noted in ARCHITECTURE.md that a third consumer is the signal to promote the field to a user-level table instead of copying it again.
+- **Settings row is created lazily** on first read, including the lost-insert-race path, so the feature is configurable before it is ever used.
+- **Tests:** `digest-schema.spec.ts` (send cap, duplicates, `HH:MM` shapes, bounds), `digest.service.spec.ts` (lazy creation, race, sorting, partial updates, timezone fallback), `digest-settings.test.tsx` (schedule editing, cap, duplicate collapse, optimistic rollback). API 486 green, web 133, typecheck + lint clean. Endpoints also exercised live with a real session cookie: duplicates and a fifth send time both 400.
+- **Next step:** the send itself — `digest_items`, the rules → batch-score → detailed-score funnel, a daily cron, and Telegram cards with the Apply button. **Developer TODO:** set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_BOT_WEBHOOK_SECRET` on Render, `db:migrate:prod` (migrations `0011`+`0012`), then `API_ORIGIN=… bot:webhook`.
+
 ## 2026-08-10 — Shared Telegram bot channel (v1.16.0)
 
 - **Goal.** The developer wants a daily digest of ≤10 resume-matched vacancies in Telegram, with an *Apply* button. This session is increment 1 of that: the channel itself, which is also the last open item of ADR-015.

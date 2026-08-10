@@ -9,6 +9,7 @@ import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { BotModule } from './bot/bot.module';
 import { DbModule } from './db/db.module';
+import { DigestModule } from './digest/digest.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { InterviewModule } from './interview/interview.module';
@@ -49,6 +50,7 @@ import { redisConnectionFromUrl } from './redis';
     HealthModule,
     AuthModule,
     BotModule,
+    DigestModule,
     LlmModule,
     MatchingModule,
     InterviewModule,

@@ -5,7 +5,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 remainder: the daily vacancy digest on top of the bot channel, browser extension, calendar sync.
+- Phase 4 remainder: the digest send itself (funnel, cron, apply buttons), browser extension, calendar sync.
+
+## [1.17.0] — 2026-08-10
+
+**The bot is live, and the digest has a schedule.** [@JobRadarAppBot](https://t.me/JobRadarAppBot) exists and is wired up; this release adds the knob that decides when its main payload arrives.
+
+### Added
+
+- **Digest schedule** (`digest_settings`, migration `0012`): on/off, **1–4 send times a day** as wall-clock `HH:MM`, a **per-send cap** of up to 10 vacancies, and a **resume-fit floor** in percent. The number of send times *is* the number of pushes a day, so there is no separate frequency control that could contradict the schedule.
+- `GET` / `PATCH /digest/settings`, and a card on the day surface next to the Telegram connection.
+
+### Changed
+
+- Times are resolved in `planner_settings.timezone` rather than a second copy on the digest row — per-user timezone already exists there (ADR-015 §7), and two copies would drift. The API echoes it read-only so the UI can say which zone it means.
+
+### Notes
+
+- The digest **does not send yet** — that is the next increment (funnel, cron, Telegram cards with an Apply button). What ships here is the configuration it will read.
+- Bot commands and descriptions were registered with BotFather in both languages.
 
 ## [1.16.0] — 2026-08-10
 

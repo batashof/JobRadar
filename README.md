@@ -33,6 +33,8 @@ JobRadar combines two tightly coupled parts:
 
 Shipped in v1.0: email+password auth with server-side sessions, search profiles, ingestion from three sources (Telegram job channels via MTProto as primary, RemoteOK JSON, WeWorkRemotely RSS) on a 4-hour GitHub Actions cron, heuristic cross-source deduplication, Postgres FTS feed with filters, rules-based profile matching with an in-app Matches page, the kanban board with notes and reminders, and Sentry on both apps. The daily email digest is deferred until after v1.0 (matches are delivered in-app).
 
+Since then the delivery channel became **Telegram** rather than email: a bot ([@JobRadarAppBot](https://t.me/JobRadarAppBot)) linked to the account by a one-tap deep link, carrying day-planner nudges with inline buttons today and the daily resume-matched vacancy digest next. Schedule (up to four sends a day, up to ten vacancies each, with a fit threshold) is configured on the day surface.
+
 ## Why it exists
 
 The author is a frontend developer (React, 8 years) using this project as a path to real full-stack experience: a standalone backend with migrations, queues, cron jobs, email delivery, Docker, CI/CD, deployment, and monitoring. The secondary goal is a genuinely useful tool for the author's own job search (remote/on-site, full-time/part-time/freelance, CIS and international markets). Hypothetical monetization (a $5–10/mo subscription for other job seekers) is explicitly *not* a priority.

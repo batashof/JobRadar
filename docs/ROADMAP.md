@@ -97,7 +97,11 @@ A personal execution surface over existing app state: `planner/` on the API, `/a
 ### Other extensions
 
 - [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).
-- [ ] **Daily vacancy digest in Telegram** — up to 10 resume-matched vacancies once a day, with an *Apply* button that shortens the path to a sent resume + cover letter. *(The bot channel shipped in v1.16.0; what remains is the digest itself: `digest_items` bookkeeping, the rules → batch-score → detailed-score funnel, the cron, and the three apply paths keyed on `vacancies.apply_contact`.)*
+- [ ] **Daily vacancy digest in Telegram** — up to 10 resume-matched vacancies per send, with an *Apply* button that shortens the path to a sent resume + cover letter.
+  - [x] Bot channel (v1.16.0) — linking, outbound send, inline buttons, webhook.
+  - [x] Schedule configuration (v1.17.0) — `digest_settings`: on/off, 1–4 send times a day in the user's timezone, per-send cap, resume-fit floor; `GET`/`PATCH /digest/settings` + a card on the day surface.
+  - [ ] The send itself: `digest_items` bookkeeping (never repeat a vacancy), the rules → batch-score → detailed-score funnel, a daily GitHub Actions cron hitting a token-guarded endpoint, and Telegram cards with *Apply* / *Details* / *Hide* / 👍👎.
+  - [ ] The three apply paths keyed on `vacancies.apply_contact`: `email` → draft + confirm + send; `telegram` → ready-made text plus a link to the chat; `url`/absent → deep link into the app with the cover letter already generated.
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
 - [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21); **Himalayas + HN "Who is hiring?"**, WWR across five category feeds, Jobicy across four industries (2026-07-28, ADR-016 — RemoteOK dropped in the same pass). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Also **company career pages via Greenhouse/Ashby/Lever** (36 curated boards, 2026-07-28). Still open: Djinni.
 - [x] Funnel statistics: applied → screening → interview → offer conversion. *(`furthest_stage` column tracks the deepest non-terminal stage each application ever reached, so rejected/withdrawn cards still count through their peak; `GET /applications/stats` + dashboard Funnel card with per-step conversion — E2E verified)*
