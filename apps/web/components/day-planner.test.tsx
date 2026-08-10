@@ -37,7 +37,6 @@ const settings: PlannerSettings = {
   capacityMinutes: 120,
   defaultBlockMinutes: 30,
   categoryTargets: null,
-  telegramChatId: null,
   telegramEnabled: false,
   escalationAfterMinutes: 20,
   escalationMaxRepeats: 2,

@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
+import { BotModule } from '../bot/bot.module';
 import { LlmModule } from '../llm/llm.module';
 import { CandidatesService } from './candidates.service';
 import { PlannerController } from './planner.controller';
 import { PlannerScheduler } from './planner.scheduler';
 import { PlannerService } from './planner.service';
+import { PlannerBotService } from './planner-bot.service';
 import { PlannerTickService } from './planner-tick.service';
 
 /**
@@ -17,8 +19,14 @@ import { PlannerTickService } from './planner-tick.service';
  * burning the Upstash free-tier command budget.
  */
 @Module({
-  imports: [AuthModule, LlmModule],
+  imports: [AuthModule, BotModule, LlmModule],
   controllers: [PlannerController],
-  providers: [PlannerService, CandidatesService, PlannerTickService, PlannerScheduler],
+  providers: [
+    PlannerService,
+    CandidatesService,
+    PlannerBotService,
+    PlannerTickService,
+    PlannerScheduler,
+  ],
 })
 export class PlannerModule {}

@@ -2,6 +2,19 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-10 — Shared Telegram bot channel (v1.16.0)
+
+- **Goal.** The developer wants a daily digest of ≤10 resume-matched vacancies in Telegram, with an *Apply* button. This session is increment 1 of that: the channel itself, which is also the last open item of ADR-015.
+- **Built as a shared `bot/` module, not inside the planner.** The digest needs the same bot, and a second token would mean a second chat for the same person. Features register button handlers by `callback_data` namespace (`n:` nudges, `d:` digest), so the bot module imports none of them — this is what keeps the dependency graph acyclic once the digest lands.
+- **The chat link is account-wide** (`telegram_accounts`, migration `0011`), established by a one-tap `t.me/<bot>?start=<token>` deep link with a 15-minute single-use token. `planner_settings.telegram_chat_id` was **dropped**: two places holding the same chat id would drift, and the planner's `telegram_enabled` is the honest thing to keep there (a per-feature opt-in, not a connection).
+- **Callback data is capped at 64 bytes by Telegram**, hence `<ns>:<action>:<uuid>` with one-letter namespaces and actions — a UUID plus both prefixes fits with room to spare.
+- **Every bot action goes through `PlannerService`.** The phone path therefore enforces the same rules as the web one; a one-tap *Skip* records `no_time` rather than bypassing the "a block that is not done needs a reason" invariant (ADR-015 §4). *+15 min* from the ADR was dropped: it has no counterpart in the service, and inventing one for the bot only would have split the rules.
+- **Failure policy.** A send never breaks the tick: unlinked, unconfigured and Telegram-refused all return null and leave the in-app nudge intact. A `403` (user blocked the bot) unlinks on the spot instead of retrying every minute forever. The webhook always answers 200 — a non-2xx makes Telegram retry the same broken update for hours — and the guard 503s when `TELEGRAM_BOT_WEBHOOK_SECRET` is unset, because an unset secret on a public endpoint must never mean "open".
+- **Testable seams.** `parseUpdate` (routing) and `resolveLink` (link decisions incl. expiry-at-boundary and chat-already-taken) are pure, mirroring `tick-logic.ts`.
+- **Tests:** `bot-update.spec.ts`, `link-logic.spec.ts`, `telegram-api.spec.ts` (wire shape, typed errors, `retry_after`, token never in the body), `bot.service.spec.ts` (linking, delivery, 403-unlink, callback dispatch), `bot-webhook.guard.spec.ts`, `planner-bot.spec.ts` (rendering, keyboards, HTML escaping, each button), plus `telegram-link.test.tsx` on the web. API 471 green, web 125, typecheck + lint clean.
+- **Verified live locally:** routes mapped, `GET /bot/telegram` 401s unauthenticated, the webhook 503s with no secret configured, `/health` reports `botConfigured:false`. The connect card itself is covered by component tests only — a browser pass needs a logged-in session and a real bot token.
+- **Next step:** the digest (increment 2) — `digest_items`, the rules → batch-score → detailed-score funnel capped at 10, a daily GitHub Actions cron, and the three apply paths keyed on `vacancies.apply_contact`. **Developer TODO:** create a bot via @BotFather, set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_BOT_WEBHOOK_SECRET` (local `.env` and Render), run `db:migrate:prod`, then `pnpm --filter @jobradar/api bot:webhook` with `API_ORIGIN` pointing at Render.
+
 ## 2026-07-29 — Graceful degradation when the API is down (v1.15.1)
 
 - **Symptom:** the production vacancy detail page returned `504 FUNCTION_INVOCATION_TIMEOUT` from Vercel.

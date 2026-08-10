@@ -93,7 +93,10 @@ export interface PlannerSettings {
   defaultBlockMinutes: number;
   /** Soft weekly minutes per category; null = no targets set. */
   categoryTargets: Partial<Record<PlanBlockCategory, number>> | null;
-  telegramChatId: string | null;
+  /**
+   * Per-feature opt-in for the Telegram channel. The chat link itself is
+   * account-wide and lives behind `GET /bot/telegram` — see `TelegramLinkStatus`.
+   */
   telegramEnabled: boolean;
   escalationAfterMinutes: number;
   escalationMaxRepeats: number;
@@ -116,7 +119,6 @@ export const updatePlannerSettingsSchema = z
     categoryTargets: z
       .record(z.enum(PLAN_BLOCK_CATEGORIES), z.number().int().min(0).max(10_080))
       .nullable(),
-    telegramChatId: z.string().trim().max(64).nullable(),
     telegramEnabled: z.boolean(),
     escalationAfterMinutes: z.number().int().min(5).max(240),
     escalationMaxRepeats: z.number().int().min(0).max(5),

@@ -295,9 +295,27 @@ A text-chat mock interview and its final feedback report.
 | started_at | timestamptz | |
 | ended_at | timestamptz nullable | |
 
+## Phase 4 additions (Telegram bot channel)
+
+> Shipped: migration `0011` (v1.16.0). One chat link per account, shared by every feature that pushes to the phone — planner nudges today, the daily vacancy digest next. This is the **Bot API** side and has nothing to do with the MTProto ingestion credentials of ADR-009.
+
+### telegram_accounts
+
+One row per user, created when a link is started. `chat_id` stays null until the user opens the deep link and the bot receives `/start <token>`.
+
+| Column | Type | Notes |
+|---|---|---|
+| user_id | uuid PK FK → users | cascade on user delete |
+| chat_id | text nullable, unique | Telegram chat the bot writes to; null = not linked |
+| username | text nullable | the linked account's `@username`, when it has one |
+| link_token | text nullable, unique | single-use deep-link token; cleared once the link completes |
+| link_token_expires_at | timestamptz nullable | 15 minutes after issue |
+| linked_at | timestamptz nullable | |
+| created_at / updated_at | timestamptz | |
+
 ## Phase 4 additions (ADR-015 — day planner)
 
-> Shipped: migration `0008` (v1.7.0 increment 1; v1.8.0 increment 2 started writing `focus_sessions`, block outcomes and `day_plans.review`). `planner_nudges` started being written in v1.10.0 by `planner:tick` (in-app channel; `telegram_message_id` stays null until the bot lands). One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
+> Shipped: migration `0008` (v1.7.0 increment 1; v1.8.0 increment 2 started writing `focus_sessions`, block outcomes and `day_plans.review`). `planner_nudges` started being written in v1.10.0 by `planner:tick` (in-app channel); v1.16.0 added Telegram delivery, which flips `channel` to `telegram` and fills `telegram_message_id`. One plan per user per day; blocks are an ordered queue (no wall-clock slots). All timestamps are `timestamptz`; day boundaries are resolved in `planner_settings.timezone`.
 
 ### planner_settings
 
@@ -312,8 +330,7 @@ One row per user; created lazily with defaults on first planner use.
 | capacity_minutes | integer not null default 240 | daily budget the planner fits blocks into (corrected estimates) |
 | default_block_minutes | integer not null default 30 | |
 | category_targets | jsonb nullable | soft weekly minutes per category, e.g. `{ "job_search": 300, "learning": 240 }` |
-| telegram_chat_id | text nullable | null = nudges are in-app only |
-| telegram_enabled | boolean not null default false | |
+| telegram_enabled | boolean not null default false | per-feature opt-in; the chat itself lives in `telegram_accounts` (migration `0011` dropped the duplicated `telegram_chat_id` here) |
 | escalation_after_minutes | integer not null default 20 | unacknowledged nudge → repeat |
 | escalation_max_repeats | smallint not null default 2 | then the nudge is recorded as ignored |
 | estimation_factor | real not null default 1 | cached median `actual / estimate`, recomputed at day close |

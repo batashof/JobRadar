@@ -5,7 +5,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 remainder: Telegram digest bot, browser extension, calendar sync.
+- Phase 4 remainder: the daily vacancy digest on top of the bot channel, browser extension, calendar sync.
+
+## [1.16.0] — 2026-08-10
+
+**A Telegram bot channel.** JobRadar can now reach the phone. This is the shared plumbing — account linking, outbound messages, inline buttons — built as its own module rather than inside the planner, because the daily vacancy digest needs exactly the same channel and a second bot would mean a second chat for the same person. The first user of it is the day planner, whose nudges have been in-app only since v1.10.0.
+
+### Added
+
+- **`bot/` module (Bot API, ADR-015 §6).** Hand-rolled `fetch` client (`sendMessage` / `editMessageText` / `answerCallbackQuery` / `getMe` / `setWebhook`) — four methods do not justify a bot framework under ADR-001. Entirely optional: with no `TELEGRAM_BOT_TOKEN` the service reports itself unconfigured and every send is a no-op, exactly like Gmail and Sentry.
+- **Account linking by deep link.** *Connect Telegram* on the day surface issues a single-use `t.me/<bot>?start=<token>` link (15-minute TTL); pressing Start in the bot completes it. One chat per account, in the new `telegram_accounts` table, shared by every feature — no chat id to look up and paste.
+- **Planner nudges over Telegram**, on the same `planner_nudges` rows. Block nudges carry *Start* / *Done* / *Skip*, day-scoped ones an ack; every button goes through `PlannerService`, so the phone path enforces the same rules as the web one and a one-tap skip still records a reason. Escalations resend rather than edit, because the point is a new notification.
+- **`POST /bot/telegram/webhook`**, guarded by Telegram's secret-token header, with button routing by `callback_data` namespace so features plug in without the bot module importing them.
+- **`bot:webhook` script** to register, inspect (`--info`) or stop (`--delete`) webhook delivery, and `botConfigured` in `GET /health`.
+
+### Changed
+
+- `planner_settings.telegram_chat_id` dropped (migration `0011`): the chat link is account-wide now, and two sources of truth for it would drift. `telegram_enabled` stays as the planner's own opt-in.
+- A user who blocks the bot is unlinked on the first `403` instead of being retried on every tick.
 
 ## [1.15.1] — 2026-07-29
 

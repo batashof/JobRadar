@@ -862,7 +862,6 @@ function toSettings(row: SettingsRow): PlannerSettings {
     capacityMinutes: row.capacityMinutes,
     defaultBlockMinutes: row.defaultBlockMinutes,
     categoryTargets: row.categoryTargets ?? null,
-    telegramChatId: row.telegramChatId,
     telegramEnabled: row.telegramEnabled,
     escalationAfterMinutes: row.escalationAfterMinutes,
     escalationMaxRepeats: row.escalationMaxRepeats,

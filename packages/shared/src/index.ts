@@ -7,6 +7,7 @@ export const APP_NAME = 'JobRadar';
 
 export * from './applications';
 export * from './auth';
+export * from './bot';
 export * from './interview';
 export * from './matches';
 export * from './outreach';
@@ -31,6 +32,8 @@ export interface HealthChecks {
   ingestionTokenConfigured: boolean;
   /** Whether all three TELEGRAM_* env vars are present (not their values). */
   telegramConfigured: boolean;
+  /** Whether `TELEGRAM_BOT_TOKEN` is set, i.e. the bot channel can send. */
+  botConfigured: boolean;
   /** Whether SENTRY_DSN is set, i.e. error reporting is active. */
   sentryConfigured: boolean;
   /** Configured LLM providers in failover order (ADR-005); empty = LLM features off. */

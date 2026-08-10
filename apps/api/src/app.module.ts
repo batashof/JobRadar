@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
+import { BotModule } from './bot/bot.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
@@ -47,6 +48,7 @@ import { redisConnectionFromUrl } from './redis';
     DbModule,
     HealthModule,
     AuthModule,
+    BotModule,
     LlmModule,
     MatchingModule,
     InterviewModule,

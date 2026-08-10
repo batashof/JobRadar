@@ -59,6 +59,7 @@ export class HealthController {
           this.config.get<string>('TELEGRAM_API_HASH') &&
           this.config.get<string>('TELEGRAM_SESSION'),
       ),
+      botConfigured: Boolean(this.config.get<string>('TELEGRAM_BOT_TOKEN')),
       sentryConfigured: Boolean(this.config.get<string>('SENTRY_DSN')),
       llmProviders: this.llm.configuredProviderNames(),
     };

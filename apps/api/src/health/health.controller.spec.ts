@@ -57,6 +57,7 @@ describe('HealthController', () => {
       redisError: null,
       ingestionTokenConfigured: true,
       telegramConfigured: false,
+      botConfigured: false,
       sentryConfigured: false,
       llmProviders: [],
     });

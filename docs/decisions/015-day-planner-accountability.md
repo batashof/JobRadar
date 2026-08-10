@@ -73,6 +73,8 @@ The plan reaches the phone. A new **Telegram Bot API** channel (separate from th
 
 Messages carry inline buttons — *Start* / *Done* / *+15 min* / *Skip* — so a block can be resolved without opening the app. Delivery is outbound `sendMessage`; replies arrive on `POST /planner/telegram/webhook`, guarded by Telegram's secret-token header. Both are free and need only `TELEGRAM_BOT_TOKEN`; with no token the module degrades to in-app-only, exactly like the other optional integrations.
 
+> **Revised 2026-08-10 (implemented in v1.16.0).** The channel shipped as a **shared `bot/` module**, not a planner-private one: the daily vacancy digest needs the same bot, and a second bot token would mean a second chat for the same person. Three consequences. The chat link is account-wide, in its own `telegram_accounts` table (`planner_settings.telegram_chat_id` was dropped) and established with a one-tap `t.me/<bot>?start=<token>` deep link rather than a chat id pasted into settings. The webhook is `POST /bot/telegram/webhook`; features register button handlers by `callback_data` namespace, so the bot module never imports them. And the buttons are *Start* / *Done* / *Skip* — *+15 min* was dropped because it has no counterpart in `PlannerService`, and every bot action deliberately goes through that service so the phone path enforces exactly the same rules as the web one (a one-tap skip records `no_time` as its reason).
+
 **Escalation** is bounded: a nudge repeats at most twice, at a configurable interval, then stops and is recorded as ignored. The point is a visible record of ignoring, not an unmutable alarm.
 
 ### 7. Scheduling: an in-process tick, not a workflow cron

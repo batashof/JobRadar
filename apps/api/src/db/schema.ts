@@ -516,6 +516,36 @@ export const interviewSessions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Telegram bot channel (Bot API — not the MTProto ingestion client of ADR-009)
+// ---------------------------------------------------------------------------
+
+// One chat per account, shared by every feature that pushes to the phone
+// (planner nudges, vacancy digest). A row exists as soon as a link is started;
+// `chat_id` stays null until the user opens the deep link and the bot receives
+// `/start <token>`.
+export const telegramAccounts = pgTable(
+  'telegram_accounts',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    chatId: text('chat_id'),
+    username: text('username'),
+    // Single-use, short-lived deep-link token; cleared once the link completes.
+    linkToken: text('link_token'),
+    linkTokenExpiresAt: timestamp('link_token_expires_at', { withTimezone: true }),
+    linkedAt: timestamp('linked_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // A chat can drive at most one account, and a token resolves to one row.
+    uniqueIndex('telegram_accounts_chat_id_idx').on(t.chatId),
+    uniqueIndex('telegram_accounts_link_token_idx').on(t.linkToken),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Day planner (ADR-015)
 // ---------------------------------------------------------------------------
 
@@ -532,8 +562,8 @@ export const plannerSettings = pgTable('planner_settings', {
   defaultBlockMinutes: integer('default_block_minutes').notNull().default(30),
   // Soft weekly minutes per category: { "job_search": 300, ... }.
   categoryTargets: jsonb('category_targets').$type<Partial<Record<PlanBlockCategory, number>>>(),
-  // Null chat id = nudges stay in-app (ADR-015 §6).
-  telegramChatId: text('telegram_chat_id'),
+  // Per-feature opt-in for the bot channel (ADR-015 §6). The chat itself lives
+  // in `telegram_accounts` — one link per user, shared with the digest.
   telegramEnabled: boolean('telegram_enabled').notNull().default(false),
   escalationAfterMinutes: integer('escalation_after_minutes').notNull().default(20),
   escalationMaxRepeats: smallint('escalation_max_repeats').notNull().default(2),

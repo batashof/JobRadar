@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, isNull, lt, ne } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { dayPlans, focusSessions, planBlocks, plannerNudges, plannerSettings } from '../db/schema';
+import { PlannerBotService } from './planner-bot.service';
 import { PlannerService } from './planner.service';
 import {
   decideNudges,
@@ -38,6 +39,7 @@ export class PlannerTickService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly planner: PlannerService,
+    private readonly plannerBot: PlannerBotService,
   ) {}
 
   async run(now = new Date()): Promise<TickResult> {
@@ -136,28 +138,50 @@ export class PlannerTickService {
 
     const due = decideNudges(state, now);
     for (const nudge of due) {
-      await this.insertNudge(settings.userId, plan?.id ?? null, nudge, now);
+      await this.insertNudge(settings.userId, plan?.id ?? null, nudge, now, settings.telegramEnabled);
     }
     return due.length;
   }
 
-  /** In-app delivery is immediate: the row is written already `sent`. */
+  /**
+   * In-app delivery is immediate: the row is written already `sent`. When the
+   * user has the bot linked and enabled, the same row is also pushed to
+   * Telegram (ADR-015 §6) and records the message id; a failed push leaves the
+   * in-app nudge intact, which is why delivery is best-effort and not awaited
+   * inside a transaction.
+   */
   private async insertNudge(
     userId: string,
     planId: string | null,
     nudge: PlannedNudge,
     now: Date,
+    telegramEnabled: boolean,
   ): Promise<void> {
-    await this.db.insert(plannerNudges).values({
-      userId,
-      planId,
-      blockId: nudge.blockId ?? null,
-      kind: nudge.kind,
-      channel: 'in_app',
-      scheduledFor: now,
-      status: 'sent',
-      sentAt: now,
-    });
+    const [row] = await this.db
+      .insert(plannerNudges)
+      .values({
+        userId,
+        planId,
+        blockId: nudge.blockId ?? null,
+        kind: nudge.kind,
+        channel: 'in_app',
+        scheduledFor: now,
+        status: 'sent',
+        sentAt: now,
+      })
+      .returning({ id: plannerNudges.id });
+    if (!row) return;
+
+    const messageId = await this.plannerBot.deliver(
+      { id: row.id, userId, kind: nudge.kind, blockId: nudge.blockId ?? null, repeatIndex: 0 },
+      telegramEnabled,
+    );
+    if (messageId) {
+      await this.db
+        .update(plannerNudges)
+        .set({ channel: 'telegram', telegramMessageId: messageId })
+        .where(eq(plannerNudges.id, row.id));
+    }
   }
 
   /** Nudge keys already raised for today, so nothing is raised twice. */
@@ -223,6 +247,18 @@ export class PlannerTickService {
           .update(plannerNudges)
           .set({ repeatIndex: nudge.repeatIndex + 1, sentAt: now })
           .where(eq(plannerNudges.id, nudge.id));
+        // A repeat is a fresh message rather than an edit: the point of an
+        // escalation is a new notification on the phone.
+        await this.plannerBot.deliver(
+          {
+            id: nudge.id,
+            userId: settings.userId,
+            kind: nudge.kind,
+            blockId: nudge.blockId,
+            repeatIndex: nudge.repeatIndex + 1,
+          },
+          settings.telegramEnabled,
+        );
         escalated += 1;
       } else {
         await this.db
