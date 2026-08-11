@@ -2,6 +2,19 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-11 — The digest sends (v1.18.0)
+
+- **Webhook registered in prod** (`bot:webhook` → Render), closing the deployment checklist. Verified first that the Render secret matched the local one by POSTing to the prod webhook with it: 200 with the real secret, 401 with a wrong one. That check matters — a mismatched secret would have registered "successfully" and then 401'd every real update.
+- **The funnel, cheapest stage first** (ADR-005): SQL narrows to canonical, unhidden, rules-matched vacancies ingested in the last 14 days and **never sent**, then a level gate, then **one** LLM call ranking up to 30. Per-vacancy scoring would have been ~30 calls a day against a free tier.
+- **A rules-based level gate before scoring, not a prompt instruction.** The first real run returned an intern posting at 95 and a junior one at 90 against a senior resume, despite the prompt capping such gaps below 50. Reused `detectSeniority` / `levelsBelowResume` (ADR-012) — the same rule the feed's level filter uses, so the product has one definition of "too junior". Falls back to the title when ingestion never populated `seniority`.
+- **Never-repeat lives in the DB**, not in the ranking: `digest_items` has PK `(user_id, vacancy_id)` and the candidate query excludes anything already there. The row is written **even when Telegram refuses the message** — a vacancy the user may have seen must not return tomorrow.
+- **Stale slots are consumed, not sent.** A free-tier instance sleeps, so slots get missed routinely; a 09:00 digest landing at 23:00 is worse than none. Grace window is 3 hours, and only the latest elapsed slot is considered — an older one's vacancies are already in the newer one's pool.
+- **In-process scheduler again** (5 min), same reasoning as the planner tick (revised ADR-015 §7). Idempotency is `last_sent_key` + `digest_items`, not the scheduler.
+- **`POST /digest/run` + a "send it now" button** — the schedule is unjudgeable without seeing a real digest.
+- **Verified end to end against real local data with a real LLM call:** 5 cards in ~5s; a second run immediately after returned 5 **different** vacancies (10 distinct, zero repeats); the *Hide* and 👍 buttons routed through the webhook and wrote `hidden_vacancies` / `digest_items.feedback`. Test rows cleaned up. Note: local vacancy data was 22 days old, so `ingested_at` on the 31 matched rows was bumped to make the window meaningful — the empty first run was the filter working, not a bug.
+- **Tests:** `due.spec.ts` (slot choice, day rollover in a non-UTC zone, grace boundary, malformed times), `select.spec.ts` (level gate, ranking, batch prompt, defensive reply parsing incl. hallucinated indexes), `render.spec.ts` (cards, HTML escaping of scraped titles, 64-byte callback limit), `digest-send.service.spec.ts` (funnel, LLM fallback, cap, per-user isolation, buttons). API 546 green, web 135, typecheck + lint clean.
+- **Next step:** applying from inside the chat — the three paths keyed on `vacancies.apply_contact` (email → draft + confirm + send; telegram → ready text + chat link; url → deep link with the cover letter pre-generated). Today *Apply* is a link into the app, which already has that flow.
+
 ## 2026-08-10 — Bot live + digest schedule settings (v1.17.0)
 
 - **The bot exists:** [@JobRadarAppBot](https://t.me/JobRadarAppBot), display name "JobRadar". Token and a generated `TELEGRAM_BOT_WEBHOOK_SECRET` are in the local `.env`; command menu, description and short description registered via the Bot API in both `ru` and the default locale.

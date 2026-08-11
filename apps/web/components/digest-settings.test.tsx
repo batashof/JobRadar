@@ -2,8 +2,11 @@ import type { DigestSettings as DigestSettingsValue } from '@jobradar/shared';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { updateDigestSettings } = vi.hoisted(() => ({ updateDigestSettings: vi.fn() }));
-vi.mock('@/lib/digest', () => ({ updateDigestSettings }));
+const { updateDigestSettings, runDigestNow } = vi.hoisted(() => ({
+  updateDigestSettings: vi.fn(),
+  runDigestNow: vi.fn(),
+}));
+vi.mock('@/lib/digest', () => ({ updateDigestSettings, runDigestNow }));
 
 import { DigestSettings } from './digest-settings';
 
@@ -101,6 +104,24 @@ describe('DigestSettings', () => {
     await waitFor(() =>
       expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ enabled: false })),
     );
+  });
+
+  it('sends on demand and reports how many vacancies went out', async () => {
+    runDigestNow.mockResolvedValue({ sent: 4 });
+
+    render(<DigestSettings initial={settings()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send it now' }));
+
+    await waitFor(() => expect(screen.getByText(/Sent 4 vacancies/)).toBeTruthy());
+  });
+
+  it('explains an empty on-demand send rather than looking broken', async () => {
+    runDigestNow.mockResolvedValue({ sent: 0 });
+
+    render(<DigestSettings initial={settings()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send it now' }));
+
+    await waitFor(() => expect(screen.getByText(/Nothing to send right now/)).toBeTruthy());
   });
 
   it('rolls back and explains itself when the save fails', async () => {

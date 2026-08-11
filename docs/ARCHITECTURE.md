@@ -135,6 +135,8 @@ apps/api/src/
 
 The Bot API side is one module (`apps/api/src/bot`) with one chat link per account (`telegram_accounts`), not one per feature. Features register button handlers by `callback_data` namespace (`n:` planner nudges, `d:` digest), so the bot module never imports them. Registering the webhook is a one-off deployment step: `pnpm --filter @jobradar/api bot:webhook` (`--info` / `--delete` to inspect or stop delivery). The live bot is [@JobRadarAppBot](https://t.me/JobRadarAppBot).
 
+**Two in-process schedulers, no queue.** The planner tick (every minute) and the digest runner (every five) are plain `setInterval`s in the API process, for the reasons in revised ADR-015 §7: both only touch Postgres, per-user *local* send times cannot be expressed as an external cron without firing constantly, and BullMQ's polling burned the Upstash free-tier budget. Idempotency lives in the database — `digest_settings.last_sent_key` consumes a slot exactly once, `digest_items` makes a repeat send impossible — so a restart mid-run is safe. Both have a `*_DISABLED` kill switch and an interval override settable from the Render dashboard.
+
 **Per-user wall-clock time has one home.** Both time-driven features — the planner tick and the digest schedule — resolve local time in `planner_settings.timezone`; `digest_settings` deliberately stores only times, not a timezone, because two copies of it would drift. If a third consumer appears, that is the moment to promote the field to a user-level settings table rather than copy it again.
 
 ## Data flow: ingestion

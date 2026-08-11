@@ -60,3 +60,8 @@ export type UpdateDigestSettingsInput = z.infer<typeof updateDigestSettingsSchem
 export function sortSendTimes(times: string[]): string[] {
   return [...times].sort();
 }
+
+/** POST /digest/run — how many vacancies the manual send pushed. */
+export interface DigestRunResponse {
+  sent: number;
+}

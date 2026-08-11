@@ -1,4 +1,8 @@
-import type { DigestSettings, UpdateDigestSettingsInput } from '@jobradar/shared';
+import type {
+  DigestRunResponse,
+  DigestSettings,
+  UpdateDigestSettingsInput,
+} from '@jobradar/shared';
 
 import { apiFetch } from './api';
 
@@ -13,4 +17,9 @@ export function updateDigestSettings(input: UpdateDigestSettingsInput): Promise<
     method: 'PATCH',
     body: JSON.stringify(input),
   });
+}
+
+/** Sends the digest right now, ignoring the schedule. */
+export function runDigestNow(): Promise<DigestRunResponse> {
+  return apiFetch<DigestRunResponse>('/digest/run', { method: 'POST' });
 }

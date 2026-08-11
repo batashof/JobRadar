@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { updateDigestSettings } from '@/lib/digest';
+import { runDigestNow, updateDigestSettings } from '@/lib/digest';
 import { useI18n } from '@/lib/i18n/context';
 
 /**
@@ -25,6 +25,7 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [runResult, setRunResult] = useState<string | null>(null);
 
   const save = async (next: Partial<DigestSettingsValue>) => {
     const optimistic = { ...settings, ...next };
@@ -71,6 +72,22 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
   const removeTime = (index: number) => {
     if (settings.sendTimes.length <= 1) return;
     void save({ sendTimes: settings.sendTimes.filter((_, i) => i !== index) });
+  };
+
+  /** Sends immediately so the schedule can be judged from a real digest. */
+  const runNow = async () => {
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    setRunResult(null);
+    try {
+      const { sent } = await runDigestNow();
+      setRunResult(sent > 0 ? t('digest.runSent', { count: sent }) : t('digest.runEmpty'));
+    } catch {
+      setError(t('digest.error'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -165,8 +182,15 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
 
         <p className="text-xs text-[var(--color-muted-foreground)]">{t('digest.hint')}</p>
 
+        <Button variant="outline" onClick={() => void runNow()} disabled={busy}>
+          {t('digest.runNow')}
+        </Button>
+
         {error && <p className="text-sm text-[var(--color-destructive)]">{error}</p>}
-        {saved && !error && (
+        {runResult && !error && (
+          <p className="text-sm text-[var(--color-muted-foreground)]">{runResult}</p>
+        )}
+        {saved && !error && !runResult && (
           <p className="text-sm text-[var(--color-muted-foreground)]">{t('digest.saved')}</p>
         )}
       </CardContent>

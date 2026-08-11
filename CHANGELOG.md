@@ -5,7 +5,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 remainder: the digest send itself (funnel, cron, apply buttons), browser extension, calendar sync.
+- Phase 4 remainder: applying from inside the chat, browser extension, calendar sync.
+
+## [1.18.0] — 2026-08-11
+
+**The digest sends.** Resume-matched vacancies now arrive in Telegram on the schedule set in v1.17.0 — the feature the bot channel was built for.
+
+### Added
+
+- **The funnel**, cheapest stage first (ADR-005): SQL narrows to vacancies that already pass rules-based profile matching, are canonical, unhidden, ingested in the last 14 days and **never sent before**; a rules-based level gate drops roles clearly below the resume; then **one** LLM call ranks up to 30 of them and the top N above the fit floor go out. One call per digest, not one per vacancy.
+- **`digest_items`** (migration `0013`) — one row per vacancy ever pushed, so a digest never repeats itself. Written even when Telegram refuses the message.
+- **Telegram cards** with *Apply* and *Details* links plus 👍 / 👎 / *Hide* buttons. Hiding reuses the feed's hidden-vacancies list; the thumbs are recorded against the digest item.
+- **In-process scheduler** on the per-user local send times, with `DIGEST_DISABLED` and `DIGEST_INTERVAL_MS` overrides.
+- **`POST /digest/run`** and a *Send it now* button, so the schedule can be judged from a real digest instead of by waiting.
+
+### Changed
+
+- Vacancies two or more grades below the resume are dropped before scoring, by the same rule the feed's level filter uses (ADR-012). Asked to score an intern posting against a senior resume, the model returned 95 — this is not a judgement worth delegating.
+- A send slot that elapsed while the instance was asleep is consumed without sending if it is more than three hours late: a free-tier instance misses slots routinely, and a 09:00 digest arriving at 23:00 is worse than none.
 
 ## [1.17.0] — 2026-08-10
 

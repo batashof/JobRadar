@@ -324,9 +324,26 @@ One row per user, created when a link is started. `chat_id` stays null until the
 | send_times | text[] not null default `{09:00}` | `HH:MM` wall-clock, stored sorted; 1–4 entries, and their count *is* "how many times a day" |
 | max_items | smallint not null default 10 | cap per send; 10 is the hard ceiling |
 | min_score | smallint not null default 60 | resume-fit floor in percent — below it a vacancy is not worth a push |
+| last_sent_key | text | `YYYY-MM-DD HH:MM` of the last consumed slot — delivery bookkeeping, not configuration; how a slot fires exactly once across restarts (migration `0013`) |
 | created_at / updated_at | timestamptz | |
 
 The timezone these times are resolved in is **not** stored here: per-user timezone already exists as `planner_settings.timezone` (ADR-015 §7) and a second copy would drift. `GET /digest/settings` echoes it read-only.
+
+### digest_items
+
+> Shipped: migration `0013` (v1.18.0). One row per vacancy ever pushed to a user.
+
+| Column | Type | Notes |
+|---|---|---|
+| user_id | uuid FK → users | part of PK |
+| vacancy_id | uuid FK → vacancies | part of PK — **the never-repeat guarantee**; the funnel excludes anything already here |
+| score | smallint | fit at send time, 0–100; the ranking is not re-derivable later |
+| slot_key | text | which send it went out in (`YYYY-MM-DD HH:MM`, or `manual …`) |
+| message_id | text | Telegram message, so a button press can rewrite its own card |
+| feedback | smallint | +1 / −1 from the thumb buttons; null = no verdict |
+| sent_at | timestamptz | indexed with user_id |
+
+A row is written even when Telegram refused the message: a vacancy the user may have seen must not come back tomorrow.
 
 ## Phase 4 additions (ADR-015 — day planner)
 

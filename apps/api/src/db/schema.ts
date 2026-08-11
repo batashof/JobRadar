@@ -562,9 +562,40 @@ export const digestSettings = pgTable('digest_settings', {
   maxItems: smallint('max_items').notNull().default(10),
   // Resume-fit floor in percent; below it a vacancy is not worth a push.
   minScore: smallint('min_score').notNull().default(60),
+  // Delivery bookkeeping, not configuration: `YYYY-MM-DD HH:MM` of the last
+  // consumed slot. The scheduler compares the due slot against it, so a restart
+  // (or a minute-granularity tick) can never send the same slot twice.
+  lastSentKey: text('last_sent_key'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+// One row per vacancy ever pushed to a user — the guarantee that a digest never
+// repeats itself, and where the 👍/👎 feedback lands (it feeds future ranking).
+export const digestItems = pgTable(
+  'digest_items',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    vacancyId: uuid('vacancy_id')
+      .notNull()
+      .references(() => vacancies.id, { onDelete: 'cascade' }),
+    // Fit score at send time, 0..100; the ranking is not re-derivable later.
+    score: smallint('score').notNull(),
+    // `YYYY-MM-DD HH:MM` of the send this vacancy went out in.
+    slotKey: text('slot_key').notNull(),
+    // Telegram message id, so a button press can rewrite its own card.
+    messageId: text('message_id'),
+    // +1 / -1 from the thumb buttons; null = no verdict yet.
+    feedback: smallint('feedback'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.vacancyId] }),
+    index('digest_items_user_sent_idx').on(t.userId, t.sentAt),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // Day planner (ADR-015)
