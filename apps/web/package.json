@@ -1,6 +1,6 @@
 {
   "name": "@jobradar/web",
-  "version": "1.4.0",
+  "version": "1.19.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

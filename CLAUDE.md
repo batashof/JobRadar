@@ -46,7 +46,11 @@ Newest entries go at the top. Keep entries factual and short.
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;
   - `1.0.0` — the deployed v1.0 scope from docs/PRODUCT.md.
-- When the codebase gains a root `package.json`, keep its `version` field in sync with CHANGELOG.md.
+- **Every `package.json` in the workspace carries the same version** as CHANGELOG.md — the root one *and* `apps/api`, `apps/web`, `packages/shared`. They are one application released as one unit, not independently versioned libraries. `apps/api` is the one that matters in production: `GET /health` reports it, so a stale value misreports what is deployed. Check them all on a bump:
+
+  ```bash
+  grep -H '"version"' package.json apps/*/package.json packages/*/package.json
+  ```
 
 ## Keeping docs in sync
 
