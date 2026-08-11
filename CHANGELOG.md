@@ -5,7 +5,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- Phase 4 remainder: applying from inside the chat, browser extension, calendar sync.
+- Phase 4 remainder: browser extension, calendar sync.
+
+## [1.19.0] — 2026-08-11
+
+**Applying without leaving the chat.** *Apply* on a digest card is now a button that does the work, not a link that sends you to a browser.
+
+### Added
+
+- **Three paths, keyed on `vacancies.apply_contact`** — the contact is what decides how an application can be delivered at all:
+  - `email` → the letter and email are drafted, shown in the chat exactly as they will be sent, and go out via Gmail on *Send*. Recorded as outreach and moved to *Applied* on the board, because it reuses the vacancy page's own send path.
+  - `telegram` → a ready-to-paste letter plus a button straight to the contact's chat.
+  - `url` or none → the letter plus links into the app and the original posting.
+- **`apply_drafts`** (migration `0014`) — what was reviewed is what gets sent; re-generating on confirm would send something else. `sent_at` doubles as a claim, so two quick taps cannot send twice, and it is released if the send fails.
+- **`a:` callback namespace** for applying, separate from the digest's. A digest card renders `a:d:<vacancyId>` without knowing anything about how applying works, and any future surface offering *Apply* reuses the same handler.
+
+### Changed
+
+- Drafting answers the button press immediately and delivers the draft as its own message — an LLM call takes far longer than Telegram's callback window allows.
+- *Details* on a digest card now opens the vacancy in the app (fit score, brief, full text, and a link onward to the original) instead of jumping straight to the source posting.
+- Gmail-not-connected is reported before a draft is spent, not after.
 
 ## [1.18.0] — 2026-08-11
 

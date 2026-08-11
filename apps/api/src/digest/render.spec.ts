@@ -59,16 +59,18 @@ describe('renderCard', () => {
 });
 
 describe('renderKeyboard', () => {
-  it('links Apply into the app and Details to the original posting', () => {
+  it('makes Apply a callback — the point is not leaving the chat', () => {
     const keyboard = renderKeyboard(item(), 'ru', 'https://web.test');
     expect(keyboard[0]).toEqual([
-      { text: 'Откликнуться', url: `https://web.test/app/vacancies/${item().id}` },
-      { text: 'Подробнее', url: 'https://acme.test/jobs/1' },
+      // Namespaced to outreach: this module renders the button without knowing
+      // how applying works.
+      { text: 'Откликнуться', callbackData: `a:d:${item().id}` },
+      { text: 'Подробнее', url: `https://web.test/app/vacancies/${item().id}` },
     ]);
   });
 
-  it('falls back to the source link when no web origin is configured', () => {
-    expect(renderKeyboard(item(), 'ru', '')[0]?.[0]?.url).toBe('https://acme.test/jobs/1');
+  it('falls back to the original posting when no web origin is configured', () => {
+    expect(renderKeyboard(item(), 'ru', '')[0]?.[1]?.url).toBe('https://acme.test/jobs/1');
   });
 
   it('keeps callback data inside the 64-byte Telegram limit', () => {

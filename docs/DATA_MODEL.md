@@ -329,6 +329,21 @@ One row per user, created when a link is started. `chat_id` stays null until the
 
 The timezone these times are resolved in is **not** stored here: per-user timezone already exists as `planner_settings.timezone` (ADR-015 §7) and a second copy would drift. `GET /digest/settings` echoes it read-only.
 
+### apply_drafts
+
+> Shipped: migration `0014` (v1.19.0). An application drafted in the Telegram chat, waiting for confirmation.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | carried in the confirm button's `callback_data` |
+| user_id | uuid FK → users | indexed; also scopes the confirm — a draft id alone is not authority |
+| vacancy_id | uuid FK → vacancies | |
+| recipient / subject / body | text | exactly what was shown in the chat |
+| sent_at | timestamptz | the send claim — set before sending, released if the send fails, so two quick taps cannot send twice |
+| created_at | timestamptz | |
+
+The text is stored rather than re-generated on confirm: regenerating would send something other than what the user reviewed.
+
 ### digest_items
 
 > Shipped: migration `0013` (v1.18.0). One row per vacancy ever pushed to a user.

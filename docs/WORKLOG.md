@@ -2,6 +2,18 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-11 — Applying from inside the chat (v1.19.0)
+
+- **Three paths keyed on `vacancies.apply_contact`**, the same split the vacancy page uses, because the contact is what decides how an application can be delivered at all: `email` → draft, review, send via Gmail; `telegram` → ready-to-paste letter plus a button to the contact's chat; `url`/none → letter plus links into the app and the posting.
+- **Lives in `outreach/`, not `digest/`, under its own `a:` callback namespace.** Applying is an outreach concern and any future surface offering it reuses the handler; a digest card emits `a:d:<vacancyId>` without importing anything from outreach. This is the namespace mechanism doing the job it was built for.
+- **Sending reuses `OutreachService.sendApplyEmail`**, so a phone application records outreach and moves the kanban exactly like one sent from the vacancy page. No second code path to keep in sync.
+- **`apply_drafts` (migration `0014`) stores the reviewed text.** Re-generating on confirm would send something other than what the user saw — the whole point of a confirmation step. `sent_at` doubles as a claim: set before sending, released on failure, so a double tap cannot send twice and a Gmail error is still retryable.
+- **Drafting is fire-and-forget.** An LLM call takes seconds; Telegram's callback window does not allow that. The press is acknowledged with a toast and the draft arrives as its own message; a failure sends an explanation rather than going silent.
+- **Gmail-not-connected is checked before drafting**, not after — no point spending an LLM call on a letter that cannot be sent.
+- **Verified live via the real webhook** against local data: all three contact kinds produced their branch (Groq 403'd, the gateway fell through to the next provider — the fallback chain working); with Gmail unconnected the email branch correctly refused to draft. Draft confirm/cancel exercised on real rows: a failed send released the claim, cancel deleted the row, an unknown draft id did not crash, and another user's draft was untouched (the confirm is scoped by user, not just by draft id). Test rows cleaned up.
+- **Tests:** `chat-apply.text.spec.ts` (draft rendering, HTML escaping of model and scraped text, callback size, `t.me` handle parsing incl. junk contacts), `chat-apply.service.spec.ts` (all three branches, immediate ack, no-Gmail, double-tap race, claim release, cross-user isolation). API 573 green, web 135, typecheck + lint clean.
+- **Next step:** phase 4's remaining items — browser extension, calendar sync. The digest loop itself is now complete end to end: ingest → match → digest → apply → board.
+
 ## 2026-08-11 — The digest sends (v1.18.0)
 
 - **Webhook registered in prod** (`bot:webhook` → Render), closing the deployment checklist. Verified first that the Render secret matched the local one by POSTing to the prod webhook with it: 200 with the real secret, 401 with a wrong one. That check matters — a mismatched secret would have registered "successfully" and then 401'd every real update.

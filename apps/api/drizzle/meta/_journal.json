@@ -99,6 +99,13 @@
       "when": 1786395767291,
       "tag": "0013_windy_weapon_omega",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786441656554,
+      "tag": "0014_lyrical_silhouette",
+      "breakpoints": true
     }
   ]
 }

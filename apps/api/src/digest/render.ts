@@ -75,9 +75,10 @@ export function renderCard(item: ScoredCandidate, lang: Language): string {
 }
 
 /**
- * Apply and Details are URL buttons into the app: the vacancy page already has
- * the cover-letter and email-apply flow, so the digest links to it rather than
- * duplicating it. In-chat applying replaces the Apply link in the next step.
+ * Apply is a callback, not a link: the whole point is not having to leave the
+ * chat. It is namespaced to `a:` (outreach), so this module renders the button
+ * without knowing anything about how applying works. Details stays a link to
+ * the original posting — reading the full text is a browser job.
  */
 export function renderKeyboard(
   item: ScoredCandidate,
@@ -87,8 +88,11 @@ export function renderKeyboard(
   const appUrl = webOrigin ? `${webOrigin}/app/vacancies/${item.id}` : item.url;
   return [
     [
-      { text: digestText(lang, 'apply'), url: appUrl },
-      { text: digestText(lang, 'details'), url: item.url },
+      {
+        text: digestText(lang, 'apply'),
+        callbackData: `${BOT_CALLBACK_NAMESPACES.apply}:d:${item.id}`,
+      },
+      { text: digestText(lang, 'details'), url: appUrl },
     ],
     [
       { text: '👍', callbackData: `${NS}:${DIGEST_ACTION.up}:${item.id}` },

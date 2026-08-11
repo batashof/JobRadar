@@ -376,6 +376,29 @@ export const outreachEmails = pgTable(
   (t) => [index('outreach_emails_user_id_idx').on(t.userId)],
 );
 
+// An application drafted in the Telegram chat, waiting for the user to confirm
+// it. The text has to survive between the draft message and the confirm press:
+// re-generating on confirm would send something other than what was reviewed.
+export const applyDrafts = pgTable(
+  'apply_drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    vacancyId: uuid('vacancy_id')
+      .notNull()
+      .references(() => vacancies.id, { onDelete: 'cascade' }),
+    recipient: text('recipient').notNull(),
+    subject: text('subject').notNull(),
+    body: text('body').notNull(),
+    // Set once the draft has been sent, so a second press cannot send twice.
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('apply_drafts_user_id_idx').on(t.userId)],
+);
+
 export const profileMatches = pgTable(
   'profile_matches',
   {

@@ -44,6 +44,12 @@ export const TELEGRAM_LINK_TOKEN_TTL_MINUTES = 15;
 export const BOT_CALLBACK_NAMESPACES = {
   /** Day-planner nudges (ack, block actions). */
   nudge: 'n',
-  /** Daily vacancy digest (apply, hide, feedback). */
+  /** Daily vacancy digest (hide, feedback). */
   digest: 'd',
+  /**
+   * Applying from inside the chat (draft, send, cancel). Its own namespace
+   * rather than the digest's: the flow belongs to outreach, and any future
+   * surface that offers "apply" reuses the same handler.
+   */
+  apply: 'a',
 } as const;
