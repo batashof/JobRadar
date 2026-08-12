@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.19.2] — 2026-08-12
+
+### Changed
+
+- **The digest schedule adopts the timezone of the device it was set from.** Send times are wall-clock, so they only mean anything together with a zone — and the digest resolved them against a stored `UTC` that nobody had ever chosen, putting every push hours off the hour that was typed. Saving the schedule now sends the browser's zone with it; the card says which zone it is about to switch to whenever the device and the stored value disagree.
+- The zone is adopted **on save, not on load**, so opening the page from another country never silently reschedules yesterday's times.
+- It is still stored once, on `planner_settings.timezone` (ADR-015 §7) — `PATCH /digest/settings` accepts `timezone` and writes it there, creating the row for a user who never opened the planner. `isValidTimezone` moved to `@jobradar/shared`, so the digest and the planner reject an unknown zone by the same rule.
+
 ## [1.19.1] — 2026-08-12
 
 ### Fixed

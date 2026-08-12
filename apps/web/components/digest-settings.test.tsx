@@ -36,6 +36,29 @@ describe('DigestSettings', () => {
     expect((screen.getByLabelText('Send time 2') as HTMLInputElement).value).toBe('19:00');
   });
 
+  it('saves the times in the timezone of the device they were entered on', async () => {
+    // jsdom resolves to UTC; the stored zone is deliberately something else.
+    const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    updateDigestSettings.mockResolvedValue(settings());
+
+    render(<DigestSettings initial={settings({ timezone: 'Europe/Belgrade' })} />);
+    expect(screen.getByText(new RegExp(`device is in ${device}`))).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText('Send the digest'));
+
+    await waitFor(() =>
+      expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ timezone: device })),
+    );
+  });
+
+  it('says nothing about the timezone when the device already agrees', () => {
+    const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    render(<DigestSettings initial={settings({ timezone: device })} />);
+
+    expect(screen.queryByText(/device is in/)).toBeNull();
+  });
+
   it('adds a second send and stores the schedule sorted', async () => {
     updateDigestSettings.mockResolvedValue(settings({ sendTimes: ['09:00', '19:00'] }));
 

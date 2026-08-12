@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-12 — The digest schedule follows the device it was set from (v1.19.2)
+
+- **Follow-up to the same bug's other half.** The digest resolved its send times against `planner_settings.timezone`, which read `UTC` because nothing had ever set it — the planner page has a "use device timezone" prompt, but the digest page, *where the times are actually typed*, only echoed the zone read-only. So 11:00 meant 14:00 local and the setting looked correct on screen.
+- **The zone now travels with the save.** `PATCH /digest/settings` accepts `timezone`; the form sends `Intl.DateTimeFormat().resolvedOptions().timeZone` alongside the schedule, and the card names the zone it is about to switch to whenever the device and the stored value disagree.
+- **On save, not on load.** Adopting on render would let merely opening the page from another country reschedule yesterday's times behind the user's back. Tying it to an explicit save makes it exactly what was asked for: the times mean the zone you typed them in.
+- **Still one copy of the timezone.** It lands on `planner_settings` (ADR-015 §7) via upsert, so a user who never opened the planner gets a row; `digest_settings` deliberately never grows a column of its own, which is how the two could come to disagree about what "09:00" means. `isValidTimezone` moved from `planner.service.ts` into `@jobradar/shared` so both reject an unknown zone identically.
+- **Prod fixed for the live account**: `planner_settings.timezone` `UTC` → `Europe/Minsk`. Checked `resolveDue` before writing: at the moment of the change both the old and new zone resolved to `idle`, so the switch could neither double-send nor burn a slot. Next push is 11:00 Minsk.
+- **Tests:** API — timezone lands on the planner row and not on the digest row, an unknown zone is rejected before anything is written, an update without a timezone leaves the planner row alone, schema accepts the optional field. Web — the save payload carries the device zone and the hint appears only on a mismatch. API 583 green, web 137, typecheck + lint clean.
+- **Next step:** watch the 11:00 and 19:00 Minsk slots actually deliver now that both halves are fixed.
+
 ## 2026-08-12 — The digest was structurally unable to send (v1.19.1)
 
 - **Symptom:** the bot answered "Сегодня ничего стоящего." every slot while the feed showed plenty of matches, four of them scored 0.58–0.92 against the resume.

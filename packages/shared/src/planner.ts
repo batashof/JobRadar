@@ -433,6 +433,20 @@ export function elapsedMinutes(session: ActiveFocusSession, now: Date): number {
 }
 
 /**
+ * Whether the runtime knows this IANA zone. `Intl` is the only timezone
+ * database available to us (ADR-001: no paid or extra dependencies), so
+ * "can it be formatted" is the definition of valid.
+ */
+export function isValidTimezone(timezone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * `YYYY-MM-DD` for the given instant in an IANA timezone. `en-CA` formats dates
  * as ISO, which keeps this dependency-free (ADR-001).
  */

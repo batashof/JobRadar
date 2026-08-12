@@ -27,6 +27,14 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
   const [saved, setSaved] = useState(false);
   const [runResult, setRunResult] = useState<string | null>(null);
 
+  /**
+   * The zone the times on screen are being entered in. A send time is
+   * wall-clock, so it is only meaningful together with this — and the digest
+   * shipped resolving everything against a stored `UTC` nobody ever set, which
+   * put the pushes hours away from the hour the user typed.
+   */
+  const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   const save = async (next: Partial<DigestSettingsValue>) => {
     const optimistic = { ...settings, ...next };
     setSettings(optimistic);
@@ -40,6 +48,10 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
           sendTimes: optimistic.sendTimes,
           maxItems: optimistic.maxItems,
           minScore: optimistic.minScore,
+          // Adopted on save, not on load: the schedule follows the device the
+          // user is actually setting it from, and nothing moves until they
+          // touch it. Travelling does not silently reschedule yesterday's times.
+          ...(deviceTimezone ? { timezone: deviceTimezone } : {}),
         }),
       );
       setSaved(true);
@@ -97,6 +109,11 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
         <p className="text-sm text-[var(--color-muted-foreground)]">
           {t('digest.subtitle', { timezone: settings.timezone })}
         </p>
+        {deviceTimezone && deviceTimezone !== settings.timezone && (
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {t('digest.timezoneAdopt', { device: deviceTimezone })}
+          </p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">

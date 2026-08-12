@@ -16,6 +16,7 @@ import {
   ESTIMATION_WINDOW,
   type GenerateDayPlanInput,
   estimationFactor,
+  isValidTimezone,
   type Language,
   localDayKey,
   type PlanBlockCategory,
@@ -873,13 +874,4 @@ function toSettings(row: SettingsRow): PlannerSettings {
 /** Postgres returns `time` as `HH:MM:SS`; the contract is `HH:MM`. */
 function trimTime(value: string): string {
   return value.slice(0, 5);
-}
-
-function isValidTimezone(timezone: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
-    return true;
-  } catch {
-    return false;
-  }
 }

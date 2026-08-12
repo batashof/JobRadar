@@ -35,7 +35,7 @@ export interface DigestSettings {
   maxItems: number;
   /** Resume-fit floor in percent — below it a vacancy is not worth a push. */
   minScore: number;
-  /** Read-only echo of the timezone the times are resolved in. */
+  /** The timezone the times are resolved in; shared with the planner. */
   timezone: string;
 }
 
@@ -52,6 +52,12 @@ export const updateDigestSettingsSchema = z
       .refine((times) => new Set(times).size === times.length, 'Send times must be unique'),
     maxItems: z.number().int().min(1).max(DIGEST_MAX_ITEMS_LIMIT),
     minScore: z.number().int().min(0).max(100),
+    /**
+     * The zone the send times were entered in. Stored on `planner_settings`,
+     * not here — there is one timezone per user, and a second copy would let
+     * the digest and the planner disagree about what "09:00" means.
+     */
+    timezone: z.string().trim().min(1).max(64),
   })
   .partial();
 export type UpdateDigestSettingsInput = z.infer<typeof updateDigestSettingsSchema>;

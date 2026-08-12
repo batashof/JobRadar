@@ -8,6 +8,7 @@ function makeDb() {
   const queues = new Map<unknown, unknown[][]>();
   const updates: Record<string, unknown>[] = [];
   const inserts: unknown[] = [];
+  const upserts: { table: unknown; values: unknown }[] = [];
 
   const db = {
     select: () => ({
@@ -25,6 +26,10 @@ function makeDb() {
             return Promise.resolve(queues.get(table)?.shift() ?? []);
           },
         }),
+        onConflictDoUpdate: () => {
+          upserts.push({ table, values });
+          return Promise.resolve();
+        },
       }),
     }),
     update: () => ({
@@ -43,6 +48,7 @@ function makeDb() {
     db: db as never,
     updates,
     inserts,
+    upserts,
     queue: (table: unknown, ...responses: unknown[][]) => queues.set(table, responses),
   };
 }
@@ -130,5 +136,44 @@ describe('DigestService.updateSettings', () => {
     expect(updates[0]).not.toHaveProperty('sendTimes');
     expect(updates[0]).not.toHaveProperty('maxItems');
     expect(updates[0]).toMatchObject({ enabled: false });
+  });
+
+  it('stores the timezone on the planner row, not as a second copy', async () => {
+    const { db, queue, updates, upserts } = makeDb();
+    queue(digestSettings, [row()], [row()]);
+    queue(plannerSettings, [{ timezone: 'Europe/Minsk' }]);
+
+    const settings = await new DigestService(db).updateSettings('user-1', {
+      sendTimes: ['11:00'],
+      timezone: 'Europe/Minsk',
+    });
+
+    expect(upserts).toEqual([
+      { table: plannerSettings, values: { userId: 'user-1', timezone: 'Europe/Minsk' } },
+    ]);
+    // The digest row never grows a timezone column of its own.
+    expect(updates[0]).not.toHaveProperty('timezone');
+    expect(settings.timezone).toBe('Europe/Minsk');
+  });
+
+  it('refuses a timezone the runtime does not know', async () => {
+    const { db, queue, updates } = makeDb();
+    queue(digestSettings, [row()]);
+
+    await expect(
+      new DigestService(db).updateSettings('user-1', { timezone: 'Mars/Olympus' }),
+    ).rejects.toThrow('Unknown timezone');
+    // Rejected before anything was written, so the schedule is untouched.
+    expect(updates).toHaveLength(0);
+  });
+
+  it('does not touch the planner row when no timezone was sent', async () => {
+    const { db, queue, upserts } = makeDb();
+    queue(digestSettings, [row()], [row()]);
+    queue(plannerSettings, [{ timezone: 'UTC' }]);
+
+    await new DigestService(db).updateSettings('user-1', { minScore: 50 });
+
+    expect(upserts).toHaveLength(0);
   });
 });

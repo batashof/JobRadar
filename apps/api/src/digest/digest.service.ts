@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import {
   DIGEST_DEFAULTS,
   type DigestSettings,
+  isValidTimezone,
   PLANNER_DEFAULTS,
   sortSendTimes,
   type UpdateDigestSettingsInput,
@@ -31,18 +32,42 @@ export class DigestService {
   ): Promise<DigestSettings> {
     await this.settingsRow(userId);
 
+    const { timezone, ...schedule } = input;
+    if (timezone !== undefined) await this.setTimezone(userId, timezone);
+
     const [updated] = await this.db
       .update(digestSettings)
       .set({
-        ...input,
+        ...schedule,
         // Stored sorted so "the next send" is a scan from the front.
-        ...(input.sendTimes ? { sendTimes: sortSendTimes(input.sendTimes) } : {}),
+        ...(schedule.sendTimes ? { sendTimes: sortSendTimes(schedule.sendTimes) } : {}),
         updatedAt: new Date(),
       })
       .where(eq(digestSettings.userId, userId))
       .returning();
 
     return this.toSettings(userId, updated);
+  }
+
+  /**
+   * The times mean nothing without the zone they were entered in, so the digest
+   * form may set it — but it lands on `planner_settings`, the one place a user's
+   * timezone lives (ADR-015 §7). Writing a second copy here is exactly how
+   * "09:00" would come to mean two different instants.
+   */
+  private async setTimezone(userId: string, timezone: string): Promise<void> {
+    if (!isValidTimezone(timezone)) {
+      throw new BadRequestException(`Unknown timezone: ${timezone}`);
+    }
+
+    // The user may never have opened the planner, so there is no row to update.
+    await this.db
+      .insert(plannerSettings)
+      .values({ userId, timezone })
+      .onConflictDoUpdate({
+        target: plannerSettings.userId,
+        set: { timezone, updatedAt: new Date() },
+      });
   }
 
   /** Lazily creates the row, so a user never has to "enable" the feature first. */

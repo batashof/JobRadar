@@ -55,6 +55,12 @@ describe('updateDigestSettingsSchema', () => {
     expect(updateDigestSettingsSchema.safeParse({ minScore: 101 }).success).toBe(false);
     expect(updateDigestSettingsSchema.safeParse({ minScore: -1 }).success).toBe(false);
   });
+
+  it('accepts the timezone the times were entered in, and stays optional', () => {
+    expect(updateDigestSettingsSchema.safeParse({ timezone: 'Europe/Minsk' }).success).toBe(true);
+    expect(updateDigestSettingsSchema.safeParse({ sendTimes: ['09:00'] }).success).toBe(true);
+    expect(updateDigestSettingsSchema.safeParse({ timezone: '' }).success).toBe(false);
+  });
 });
 
 describe('sortSendTimes', () => {
