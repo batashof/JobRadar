@@ -7,6 +7,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.19.1] — 2026-08-12
+
+### Fixed
+
+- **The digest reported an empty day for any account without a search profile.** Candidate collection started from `profile_matches` and inner-joined `search_profiles`, so an account with no active profile matched zero rows and got "Nothing worth your attention today." every slot — while the in-app feed, which never consulted profiles, was full of matching vacancies. It now draws from the same population the feed does: canonical vacancies from the last 14 days that were neither sent nor hidden.
+
+### Changed
+
+- **Search profiles rank the digest, they no longer gate it.** The best profile-match score is read separately and joined on; a user with no profile simply ranks with one signal fewer.
+- **The cached resume-match score is a ranking signal too**, so a vacancy already scored in the app carries that score into the pre-LLM ordering — and into the fallback ranking when the LLM is unavailable, which previously scored every profile-less candidate 0.
+- The seniority gate (ADR-012) now runs in SQL against the stored level, with the existing title-based check kept for rows ingestion never levelled.
+
 ## [1.19.0] — 2026-08-11
 
 **Applying without leaving the chat.** *Apply* on a digest card is now a button that does the work, not a link that sends you to a browser.

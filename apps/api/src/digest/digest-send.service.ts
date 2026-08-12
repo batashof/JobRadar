@@ -4,9 +4,22 @@ import {
   BOT_CALLBACK_NAMESPACES,
   detectSeniority,
   type Language,
+  levelsBelowResume,
   PLANNER_DEFAULTS,
 } from '@jobradar/shared';
-import { and, desc, eq, gte, isNull, notExists, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  notExists,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 
 import { type BotCallbackContext, type BotCallbackResult, BotService } from '../bot/bot.service';
 import { DB, type Database } from '../db/db.module';
@@ -16,6 +29,7 @@ import {
   hiddenVacancies,
   plannerSettings,
   profileMatches,
+  resumeMatches,
   resumes,
   searchProfiles,
   telegramAccounts,
@@ -31,6 +45,7 @@ import {
   dropTooJunior,
   fallbackScores,
   parseBatchReply,
+  rankScore,
   type ScoredCandidate,
   shortlist,
 } from './select';
@@ -38,8 +53,22 @@ import {
 /** How many candidates the LLM ranks in one call. Above this the prompt bloats. */
 const BATCH_LIMIT = 30;
 
+/**
+ * How many fresh vacancies the ranking stage weighs before slicing to
+ * BATCH_LIMIT. Comfortably more than a day of intake, so the cached signals get
+ * a real chance to pull an older-but-better posting into the batch.
+ */
+const CANDIDATE_POOL = 200;
+
 /** How far back to look for unsent vacancies — older ones are not news. */
 const CANDIDATE_WINDOW_DAYS = 14;
+
+/**
+ * Placeholder resume id for the cached-score join when the user has no active
+ * resume — matches nothing, so every resumeScore comes back null. Same trick
+ * the feed uses (VacanciesService).
+ */
+const NO_RESUME = '00000000-0000-0000-0000-000000000000';
 
 export interface DigestRunResult {
   users: number;
@@ -178,14 +207,14 @@ export class DigestSendService implements OnModuleInit {
     now: Date,
   ): Promise<number> {
     const language: Language = user.language === 'en' ? 'en' : 'ru';
-    const resumeText = await this.activeResumeText(user.userId);
-    const candidates = await this.collectCandidates(user.userId, now, resumeText);
+    const resume = await this.activeResume(user.userId);
+    const candidates = await this.collectCandidates(user.userId, now, resume);
     if (candidates.length === 0) {
       await this.bot.sendToUser(user.userId, digestText(language, 'empty'));
       return 0;
     }
 
-    const scored = await this.score(user.userId, candidates, resumeText, language);
+    const scored = await this.score(user.userId, candidates, resume?.text ?? null, language);
     const picked = shortlist(scored, user.maxItems, user.minScore);
     if (picked.length === 0) {
       await this.bot.sendToUser(user.userId, digestText(language, 'empty'));
@@ -222,19 +251,54 @@ export class DigestSendService implements OnModuleInit {
   }
 
   /**
-   * Vacancies that pass the user's rules-based matching, are canonical, are not
-   * hidden, and were never sent to them — newest first. This is the cheap stage
-   * and it does all the narrowing it can before any token is spent.
+   * The freshest canonical vacancies the user has neither been sent nor hidden
+   * — deliberately the same population the in-app feed draws from
+   * (VacanciesService.feed). This used to start from `profile_matches`, which
+   * made an active search profile a hard gate: an account without one got
+   * "nothing worth your attention" every single day while the feed was full of
+   * matches. Profiles are a ranking signal here now, not an entry condition.
+   *
+   * This is the cheap stage and it does all the narrowing it can before any
+   * token is spent.
    */
   private async collectCandidates(
     userId: string,
     now: Date,
-    resumeText: string | null,
+    resume: { id: string; text: string } | null,
   ): Promise<DigestCandidate[]> {
     const since = new Date(now.getTime() - CANDIDATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
+    const conditions: SQL[] = [
+      isNull(vacancies.canonicalVacancyId),
+      gte(vacancies.ingestedAt, since),
+      notExists(
+        this.db
+          .select({ one: sql`1` })
+          .from(digestItems)
+          .where(and(eq(digestItems.userId, userId), eq(digestItems.vacancyId, vacancies.id))),
+      ),
+      notExists(
+        this.db
+          .select({ one: sql`1` })
+          .from(hiddenVacancies)
+          .where(
+            and(eq(hiddenVacancies.userId, userId), eq(hiddenVacancies.vacancyId, vacancies.id)),
+          ),
+      ),
+    ];
+
+    // Level gate before any token is spent (ADR-012): a push has no room for
+    // roles the user has clearly outgrown. Rows ingestion never levelled pass
+    // here and are caught by title below, so the pool never over-empties.
+    const resumeLevel = resume ? detectSeniority(resume.text) : null;
+    const tooJunior = resumeLevel ? levelsBelowResume(resumeLevel) : [];
+    if (tooJunior.length > 0) {
+      const clause = or(isNull(vacancies.seniority), notInArray(vacancies.seniority, tooJunior));
+      if (clause) conditions.push(clause);
+    }
+
     const rows = await this.db
-      .selectDistinctOn([vacancies.id], {
+      .select({
         id: vacancies.id,
         title: vacancies.title,
         company: vacancies.companyRaw,
@@ -246,62 +310,76 @@ export class DigestSendService implements OnModuleInit {
         salaryCurrency: vacancies.salaryCurrency,
         url: vacancies.url,
         publishedAt: vacancies.publishedAt,
-        ruleScore: profileMatches.score,
+        resumeScore: resumeMatches.score,
       })
-      .from(profileMatches)
-      .innerJoin(searchProfiles, eq(searchProfiles.id, profileMatches.profileId))
-      .innerJoin(vacancies, eq(vacancies.id, profileMatches.vacancyId))
-      .where(
+      .from(vacancies)
+      .leftJoin(
+        resumeMatches,
         and(
-          eq(searchProfiles.userId, userId),
-          eq(searchProfiles.isActive, true),
-          isNull(vacancies.canonicalVacancyId),
-          gte(vacancies.ingestedAt, since),
-          notExists(
-            this.db
-              .select({ one: sql`1` })
-              .from(digestItems)
-              .where(
-                and(eq(digestItems.userId, userId), eq(digestItems.vacancyId, vacancies.id)),
-              ),
-          ),
-          notExists(
-            this.db
-              .select({ one: sql`1` })
-              .from(hiddenVacancies)
-              .where(
-                and(
-                  eq(hiddenVacancies.userId, userId),
-                  eq(hiddenVacancies.vacancyId, vacancies.id),
-                ),
-              ),
-          ),
+          eq(resumeMatches.vacancyId, vacancies.id),
+          eq(resumeMatches.resumeId, resume?.id ?? NO_RESUME),
         ),
       )
-      .orderBy(vacancies.id);
+      .where(and(...conditions))
+      .orderBy(sql`${vacancies.publishedAt} desc nulls last, ${vacancies.ingestedAt} desc`)
+      .limit(CANDIDATE_POOL);
 
-    // Rules-based level gate before any token is spent (ADR-012): a push has no
-    // room for roles the user has clearly outgrown.
-    const filtered = dropTooJunior(rows, resumeText ? detectSeniority(resumeText) : null);
+    const ruleScores = await this.ruleScores(
+      userId,
+      rows.map((row) => row.id),
+    );
 
-    // Best rules score first, then freshness — the LLM only sees the top slice.
-    return filtered
+    const candidates: DigestCandidate[] = rows.map((row) => ({
+      ...row,
+      resumeScore: row.resumeScore ?? 0,
+      ruleScore: ruleScores.get(row.id) ?? 0,
+    }));
+
+    // Title-based catch for the rows ingestion left unlevelled.
+    return dropTooJunior(candidates, resumeLevel)
       .sort(
         (a, b) =>
-          b.ruleScore - a.ruleScore ||
+          rankScore(b) - rankScore(a) ||
           (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
       )
       .slice(0, BATCH_LIMIT);
   }
 
-  private async activeResumeText(userId: string): Promise<string | null> {
+  /**
+   * Best rules-based score per vacancy across the user's active search
+   * profiles. Empty for a user with no profiles — which is now a ranking with
+   * one signal fewer, not an empty digest.
+   */
+  private async ruleScores(userId: string, vacancyIds: string[]): Promise<Map<string, number>> {
+    if (vacancyIds.length === 0) return new Map();
+
+    const rows = await this.db
+      .select({
+        vacancyId: profileMatches.vacancyId,
+        score: sql<number>`max(${profileMatches.score})`,
+      })
+      .from(profileMatches)
+      .innerJoin(searchProfiles, eq(searchProfiles.id, profileMatches.profileId))
+      .where(
+        and(
+          eq(searchProfiles.userId, userId),
+          eq(searchProfiles.isActive, true),
+          inArray(profileMatches.vacancyId, vacancyIds),
+        ),
+      )
+      .groupBy(profileMatches.vacancyId);
+
+    return new Map(rows.map((row) => [row.vacancyId, row.score]));
+  }
+
+  private async activeResume(userId: string): Promise<{ id: string; text: string } | null> {
     const [resume] = await this.db
-      .select({ text: resumes.extractedText })
+      .select({ id: resumes.id, text: resumes.extractedText })
       .from(resumes)
       .where(and(eq(resumes.userId, userId), eq(resumes.isActive, true)))
       .orderBy(desc(resumes.uploadedAt))
       .limit(1);
-    return resume?.text ?? null;
+    return resume ?? null;
   }
 
   /** One LLM call for the whole batch; deterministic ordering when it cannot run. */

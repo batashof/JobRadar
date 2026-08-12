@@ -47,8 +47,21 @@ export interface DigestCandidate {
   salaryCurrency: string | null;
   url: string;
   publishedAt: Date | null;
-  /** Rules-based profile-match score, 0..1 — the fallback ranking. */
+  /** Rules-based profile-match score, 0..1; 0 when the user has no profile. */
   ruleScore: number;
+  /** Cached resume-match score, 0..1; 0 when this pair was never scored. */
+  resumeScore: number;
+}
+
+/**
+ * How promising a candidate looks before any token is spent — the better of the
+ * two cached signals. They are alternatives, not addends: a user with no search
+ * profile has only the resume score, a vacancy the user never opened has only
+ * the rules score, and most rows have neither. Taking the max keeps one 0..1
+ * scale whichever of them happens to exist.
+ */
+export function rankScore(candidate: Pick<DigestCandidate, 'ruleScore' | 'resumeScore'>): number {
+  return Math.max(0, Math.min(1, Math.max(candidate.ruleScore, candidate.resumeScore)));
 }
 
 export interface ScoredCandidate extends DigestCandidate {
@@ -80,13 +93,15 @@ function freshness(item: ScoredCandidate): number {
 
 /**
  * Deterministic ranking used when no LLM provider is configured or the call
- * fails. The rules score is a fraction; scaling it to a percentage keeps one
- * scale end to end, and `fallback` lets the caller say so honestly.
+ * fails. The cached signals are fractions; scaling to a percentage keeps one
+ * scale end to end. A candidate with neither signal scores 0 and drops out —
+ * without a resume comparison there is nothing to claim a fit percentage from,
+ * and inventing one to fill the push would be worse than a short digest.
  */
 export function fallbackScores(candidates: DigestCandidate[]): ScoredCandidate[] {
   return candidates.map((candidate) => ({
     ...candidate,
-    score: Math.round(Math.max(0, Math.min(1, candidate.ruleScore)) * 100),
+    score: Math.round(rankScore(candidate) * 100),
     note: '',
   }));
 }

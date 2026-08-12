@@ -7,6 +7,7 @@ import {
   hiddenVacancies,
   profileMatches,
   resumes,
+  vacancies,
 } from '../db/schema';
 import { DigestSendService } from './digest-send.service';
 
@@ -92,6 +93,7 @@ const settingsRow = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** One row as the candidate query returns it: no rules score, that is a separate read. */
 const vacancyRow = (over: Record<string, unknown> = {}) => ({
   id: 'vac-1',
   title: 'Senior Frontend Engineer',
@@ -104,9 +106,12 @@ const vacancyRow = (over: Record<string, unknown> = {}) => ({
   salaryCurrency: null,
   url: 'https://acme.test/1',
   publishedAt: new Date('2026-08-10T00:00:00Z'),
-  ruleScore: 0.9,
+  resumeScore: null,
   ...over,
 });
+
+/** What `ruleScores()` reads: best profile-match score per vacancy. */
+const ruleRow = (vacancyId: string, score: number) => ({ vacancyId, score });
 
 const service = (
   db: never,
@@ -119,7 +124,7 @@ describe('DigestSendService.sendNow', () => {
   it('says so plainly when there is nothing to send', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow()]);
-    queue(profileMatches, []);
+    queue(vacancies, []);
     const bot = makeBot();
 
     await expect(service(db, bot, makeLlm()).sendNow('user-1')).resolves.toBe(0);
@@ -132,10 +137,8 @@ describe('DigestSendService.sendNow', () => {
   it('ranks by the rules score when no LLM is configured', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow()]);
-    queue(profileMatches, [
-      vacancyRow({ id: 'weak', ruleScore: 0.3 }),
-      vacancyRow({ id: 'strong', ruleScore: 0.95 }),
-    ]);
+    queue(vacancies, [vacancyRow({ id: 'weak' }), vacancyRow({ id: 'strong' })]);
+    queue(profileMatches, [ruleRow('weak', 0.3), ruleRow('strong', 0.95)]);
     queue(resumes, []);
     const bot = makeBot();
     const llm = makeLlm();
@@ -148,11 +151,44 @@ describe('DigestSendService.sendNow', () => {
     expect(writes[0]?.values).toMatchObject({ vacancyId: 'strong', score: 95 });
   });
 
+  it('still has candidates for a user with no search profile at all', async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow()]);
+    queue(vacancies, [vacancyRow({ id: 'a' }), vacancyRow({ id: 'b' })]);
+    // No profiles → no rules scores. The feed shows these vacancies, so the
+    // digest has to reach them too rather than reporting an empty day.
+    queue(profileMatches, []);
+    queue(resumes, [{ id: 'res-1', text: 'my resume' }]);
+    const bot = makeBot();
+    const llm = makeLlm('[{"i":0,"score":88,"note":"Стек совпадает"},{"i":1,"score":30}]');
+
+    await expect(service(db, bot, llm).sendNow('user-1')).resolves.toBe(1);
+
+    expect(llm.complete).toHaveBeenCalledTimes(1);
+    expect(writes[0]?.values).toMatchObject({ vacancyId: 'a', score: 88 });
+  });
+
+  it('ranks on the cached resume score when there is no rules score', async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow({ maxItems: 1 })]);
+    queue(vacancies, [
+      vacancyRow({ id: 'meh', resumeScore: 0.61 }),
+      vacancyRow({ id: 'great', resumeScore: 0.92 }),
+    ]);
+    queue(profileMatches, []);
+    queue(resumes, []);
+    const bot = makeBot();
+
+    await expect(service(db, bot, makeLlm()).sendNow('user-1')).resolves.toBe(1);
+    expect(writes[0]?.values).toMatchObject({ vacancyId: 'great', score: 92 });
+  });
+
   it('scores the batch with one LLM call and sends a card per pick', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow()]);
-    queue(profileMatches, [vacancyRow({ id: 'a' }), vacancyRow({ id: 'b', ruleScore: 0.2 })]);
-    queue(resumes, [{ text: 'my resume' }]);
+    queue(vacancies, [vacancyRow({ id: 'a' }), vacancyRow({ id: 'b' })]);
+    queue(profileMatches, [ruleRow('a', 0.9), ruleRow('b', 0.2)]);
+    queue(resumes, [{ id: 'res-1', text: 'my resume' }]);
     const bot = makeBot();
     const llm = makeLlm('[{"i":0,"score":91,"note":"Стек совпадает"},{"i":1,"score":40}]');
 
@@ -168,8 +204,9 @@ describe('DigestSendService.sendNow', () => {
   it('falls back to the rules order when the LLM call fails', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow()]);
-    queue(profileMatches, [vacancyRow({ ruleScore: 0.8 })]);
-    queue(resumes, [{ text: 'my resume' }]);
+    queue(vacancies, [vacancyRow()]);
+    queue(profileMatches, [ruleRow('vac-1', 0.8)]);
+    queue(resumes, [{ id: 'res-1', text: 'my resume' }]);
     const bot = makeBot();
     const llm = makeLlm('');
     llm.complete.mockRejectedValue(new Error('all providers failed'));
@@ -181,8 +218,9 @@ describe('DigestSendService.sendNow', () => {
   it('falls back when the reply parses to nothing rather than sending an empty digest', async () => {
     const { db, queue } = makeDb();
     queue(digestSettings, [settingsRow()]);
-    queue(profileMatches, [vacancyRow({ ruleScore: 0.8 })]);
-    queue(resumes, [{ text: 'my resume' }]);
+    queue(vacancies, [vacancyRow()]);
+    queue(profileMatches, [ruleRow('vac-1', 0.8)]);
+    queue(resumes, [{ id: 'res-1', text: 'my resume' }]);
     const bot = makeBot();
 
     await expect(service(db, bot, makeLlm('sorry, I cannot')).sendNow('user-1')).resolves.toBe(1);
@@ -191,7 +229,8 @@ describe('DigestSendService.sendNow', () => {
   it('records a sent vacancy even when Telegram refused it, so it never returns', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow()]);
-    queue(profileMatches, [vacancyRow({ ruleScore: 0.9 })]);
+    queue(vacancies, [vacancyRow()]);
+    queue(profileMatches, [ruleRow('vac-1', 0.9)]);
     queue(resumes, []);
     const bot = makeBot();
     bot.sendToUser.mockResolvedValue(null);
@@ -204,11 +243,12 @@ describe('DigestSendService.sendNow', () => {
   it('respects the per-send cap', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow({ maxItems: 2, minScore: 0 })]);
-    queue(profileMatches, [
-      vacancyRow({ id: 'a', ruleScore: 0.9 }),
-      vacancyRow({ id: 'b', ruleScore: 0.8 }),
-      vacancyRow({ id: 'c', ruleScore: 0.7 }),
+    queue(vacancies, [
+      vacancyRow({ id: 'a' }),
+      vacancyRow({ id: 'b' }),
+      vacancyRow({ id: 'c' }),
     ]);
+    queue(profileMatches, [ruleRow('a', 0.9), ruleRow('b', 0.8), ruleRow('c', 0.7)]);
     queue(resumes, []);
     const bot = makeBot();
 
@@ -254,7 +294,7 @@ describe('DigestSendService.run', () => {
   it('sends the due slot and consumes it exactly once', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [scheduled()]);
-    queue(profileMatches, []);
+    queue(vacancies, []);
     const bot = makeBot();
 
     const result = await service(db, bot, makeLlm()).run(new Date('2026-08-11T09:01:00Z'));
@@ -282,7 +322,7 @@ describe('DigestSendService.run', () => {
     queue(digestSettings, [scheduled({ userId: 'bad' }), scheduled({ userId: 'good' })]);
     // Only one candidate response is queued, so the second user reads an empty
     // list — the point is that the loop reaches them at all.
-    queue(profileMatches, []);
+    queue(vacancies, []);
     const bot = makeBot();
     bot.sendToUser.mockRejectedValueOnce(new Error('boom'));
 

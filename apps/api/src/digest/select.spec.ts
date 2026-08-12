@@ -4,6 +4,7 @@ import {
   dropTooJunior,
   fallbackScores,
   parseBatchReply,
+  rankScore,
   type ScoredCandidate,
   shortlist,
 } from './select';
@@ -22,6 +23,7 @@ function candidate(over: Partial<DigestCandidate> = {}): DigestCandidate {
     url: 'https://acme.test/jobs/1',
     publishedAt: new Date('2026-08-10T00:00:00Z'),
     ruleScore: 0.8,
+    resumeScore: 0,
     ...over,
   };
 }
@@ -118,6 +120,27 @@ describe('fallbackScores', () => {
   it('clamps a score outside 0..1', () => {
     expect(fallbackScores([candidate({ ruleScore: 1.4 })])[0]?.score).toBe(100);
     expect(fallbackScores([candidate({ ruleScore: -0.2 })])[0]?.score).toBe(0);
+  });
+
+  it('uses the cached resume score when there is no search profile', () => {
+    const [scored] = fallbackScores([candidate({ ruleScore: 0, resumeScore: 0.92 })]);
+    expect(scored?.score).toBe(92);
+  });
+});
+
+describe('rankScore', () => {
+  it('takes the better of the two cached signals', () => {
+    expect(rankScore({ ruleScore: 0.3, resumeScore: 0.9 })).toBe(0.9);
+    expect(rankScore({ ruleScore: 0.7, resumeScore: 0.2 })).toBe(0.7);
+  });
+
+  it('is zero when neither signal exists, so nothing is invented', () => {
+    expect(rankScore({ ruleScore: 0, resumeScore: 0 })).toBe(0);
+  });
+
+  it('clamps into 0..1', () => {
+    expect(rankScore({ ruleScore: 1.4, resumeScore: 0 })).toBe(1);
+    expect(rankScore({ ruleScore: -0.5, resumeScore: -0.2 })).toBe(0);
   });
 });
 

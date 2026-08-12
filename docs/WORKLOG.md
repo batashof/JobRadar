@@ -2,6 +2,18 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-12 — The digest was structurally unable to send (v1.19.1)
+
+- **Symptom:** the bot answered "Сегодня ничего стоящего." every slot while the feed showed plenty of matches, four of them scored 0.58–0.92 against the resume.
+- **Cause, found in prod:** `digest_items` was empty — the digest had never sent a single vacancy since it shipped. `collectCandidates` started `from(profileMatches)` and inner-joined `search_profiles` on `user_id`, and the account has **no search profile at all** (the only row in `search_profiles` belongs to the `prod-final-…@test.local` smoke user). Zero candidate rows → the "empty" branch fired before scoring, so neither the LLM nor `min_score` was ever involved.
+- **The real defect was two populations.** `VacanciesService.feed()` never consulted `search_profiles`; it lists canonical vacancies and left-joins `resume_matches`. The digest drew from a different, narrower pool than the app it summarises, and nothing made that visible — the failure mode is a polite message, not an error.
+- **Fix:** the digest now collects from the same population as the feed — canonical, ingested within 14 days, never sent, not hidden — and search profiles became a ranking signal instead of an entry condition. Best profile score per vacancy is read in a second cheap query keyed by the pooled ids; the cached `resume_matches` score is left-joined like the feed does. Ranking is `max(ruleScore, resumeScore)` desc then freshness, over a 200-row pool, sliced to the same 30 the LLM sees (ADR-005 unchanged: still one call per digest).
+- **`fallbackScores` was a second landmine:** it scaled `ruleScore` alone, so with the LLM down every profile-less candidate scored 0 and the digest would have gone quiet again for a different reason. It now uses the same `rankScore`.
+- **Seniority gate moved into SQL** against the stored level (as the feed does it), with the title-based `dropTooJunior` kept for rows ingestion never levelled — the pool is no longer spent on outgrown roles before it is even ranked.
+- **Verified against prod data** by replaying the rewritten query read-only: pool 200, all four reported vacancies present, and they rank 1–4 in the batch handed to the LLM (0.92, 0.87, 0.73, 0.58). The old query returned 0 rows for the same user.
+- **Tests:** new cases for a user with no profile at all, ranking on the cached resume score, and `rankScore` itself; the existing service specs now queue rule scores separately. API 579 green, typecheck + lint clean.
+- **Next step:** deploy and watch the 11:00/19:00 slots actually deliver. Note `digest_settings.timezone` reads `UTC` because the planner was never configured — worth setting a real timezone so the slots land at local times.
+
 ## 2026-08-11 — Applying from inside the chat (v1.19.0)
 
 - **Three paths keyed on `vacancies.apply_contact`**, the same split the vacancy page uses, because the contact is what decides how an application can be delivered at all: `email` → draft, review, send via Gmail; `telegram` → ready-to-paste letter plus a button to the contact's chat; `url`/none → letter plus links into the app and the posting.

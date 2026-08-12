@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.19.0** (applying from inside the Telegram chat: three paths keyed on apply_contact, reviewed-then-sent email drafts, own `a:` callback namespace, 2026-08-11; keep this line in sync on every bump).
+- **Current version: 1.19.1** (digest fix: candidates come from the feed's own population instead of `profile_matches`, so an account without a search profile stops getting an empty digest; profile and cached resume scores rank rather than gate, 2026-08-12; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;
