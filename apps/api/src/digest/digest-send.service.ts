@@ -32,13 +32,14 @@ import {
   resumeMatches,
   resumes,
   searchProfiles,
+  sources,
   telegramAccounts,
   users,
   vacancies,
 } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
 import { resolveDue } from './due';
-import { DIGEST_ACTION, digestText, renderCard, renderHeader, renderKeyboard } from './render';
+import { DIGEST_ACTION, digestText, renderCardParts, renderHeader, renderKeyboard } from './render';
 import {
   buildBatchPrompt,
   type DigestCandidate,
@@ -227,11 +228,20 @@ export class DigestSendService implements OnModuleInit {
     });
 
     for (const item of picked) {
-      const messageId = await this.bot.sendToUser(user.userId, renderCard(item, language), {
-        parseMode: 'HTML',
-        disablePreview: true,
-        keyboard: renderKeyboard(item, language, this.webOrigin),
-      });
+      // A card carries the whole posting, which routinely outgrows Telegram's
+      // 4096-character message. The buttons ride on the last part so they sit
+      // under the text they act on — and that is the message `digest_items`
+      // remembers, since it is the one a callback comes back to edit.
+      const parts = renderCardParts(item, language, user.timezone);
+      let messageId: string | null = null;
+      for (const [index, part] of parts.entries()) {
+        const isLast = index === parts.length - 1;
+        messageId = await this.bot.sendToUser(user.userId, part, {
+          parseMode: 'HTML',
+          disablePreview: true,
+          keyboard: isLast ? renderKeyboard(item, language, this.webOrigin) : undefined,
+        });
+      }
       // Recorded even when the send failed: a vacancy the user already saw
       // once must not come back, and a silent Telegram failure is not a reason
       // to re-push it tomorrow.
@@ -308,11 +318,16 @@ export class DigestSendService implements OnModuleInit {
         salaryMin: vacancies.salaryMin,
         salaryMax: vacancies.salaryMax,
         salaryCurrency: vacancies.salaryCurrency,
+        workFormat: vacancies.workFormat,
+        employmentType: vacancies.employmentType,
+        applyContact: vacancies.applyContact,
+        sourceSlug: sources.slug,
         url: vacancies.url,
         publishedAt: vacancies.publishedAt,
         resumeScore: resumeMatches.score,
       })
       .from(vacancies)
+      .leftJoin(sources, eq(sources.id, vacancies.sourceId))
       .leftJoin(
         resumeMatches,
         and(

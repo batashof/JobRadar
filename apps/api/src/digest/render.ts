@@ -7,6 +7,17 @@ import type { ScoredCandidate } from './select';
 
 const NS = BOT_CALLBACK_NAMESPACES.digest;
 
+/** Telegram refuses anything longer, so a long card is split across messages. */
+const MESSAGE_LIMIT = 4096;
+
+/**
+ * Messages per vacancy. Real postings run ~4k characters and the long tail
+ * reaches 17k, so one message would cut half of them mid-sentence; three cover
+ * the overwhelming majority and still stop a single vacancy from flooding the
+ * chat. What does not fit stays one tap away behind "Details".
+ */
+const MAX_PARTS = 3;
+
 /** One letter per action — `callback_data` is capped at 64 bytes. */
 export const DIGEST_ACTION = {
   hide: 'h',
@@ -26,6 +37,16 @@ const TEXT = {
     liked: 'Noted: more like this.',
     disliked: 'Noted: fewer like this.',
     fit: 'fit',
+    published: 'published',
+    contact: 'Contact',
+    continued: 'continued',
+    truncated: 'The posting goes on — the full text is behind "Details".',
+    'format.remote': 'Remote',
+    'format.onsite': 'On-site',
+    'format.hybrid': 'Hybrid',
+    'employment.full_time': 'Full-time',
+    'employment.part_time': 'Part-time',
+    'employment.freelance': 'Freelance',
   },
   ru: {
     header: 'Выжимка: {count} вакансий для тебя',
@@ -38,6 +59,16 @@ const TEXT = {
     liked: 'Принято: больше такого.',
     disliked: 'Принято: меньше такого.',
     fit: 'соответствие',
+    published: 'опубликовано',
+    contact: 'Контакт',
+    continued: 'продолжение',
+    truncated: 'Описание длиннее — полный текст по кнопке «Подробнее».',
+    'format.remote': 'Удалённо',
+    'format.onsite': 'В офисе',
+    'format.hybrid': 'Гибрид',
+    'employment.full_time': 'Полная занятость',
+    'employment.part_time': 'Частичная занятость',
+    'employment.freelance': 'Фриланс',
   },
 } as const;
 
@@ -54,31 +85,52 @@ export function renderHeader(lang: Language, count: number): string {
 }
 
 /**
- * One card per vacancy. Everything interpolated is source data — titles and
- * companies come from scraped descriptions, so all of it is escaped.
+ * One vacancy as the messages that carry it: the facts, then the posting text
+ * itself. The card used to stop at the headline and push the reader to the
+ * browser for everything else, which made the digest a list of links — the
+ * whole point of the push is being able to judge a vacancy without leaving the
+ * chat, so the description travels with it.
+ *
+ * Everything interpolated is source data — titles, companies and descriptions
+ * come from scraped postings, so all of it is escaped.
  */
-export function renderCard(item: ScoredCandidate, lang: Language): string {
-  const lines = [
-    `<b>${escapeHtml(item.title)}</b>`,
-    escapeHtml(item.company),
-  ];
+export function renderCardParts(
+  item: ScoredCandidate,
+  lang: Language,
+  timezone = 'UTC',
+): string[] {
+  const head = renderHead(item, lang, timezone);
+  const body = formatDescription(item.description);
+  if (!body) return [head];
 
-  const facts = [
-    `${item.score}% ${digestText(lang, 'fit')}`,
-    salary(item),
-    item.location,
-  ].filter((value): value is string => Boolean(value));
-  lines.push(facts.map(escapeHtml).join(' · '));
+  const parts: string[] = [];
+  let rest = body;
 
-  if (item.note) lines.push('', `<i>${escapeHtml(item.note)}</i>`);
-  return lines.join('\n');
+  for (let index = 0; index < MAX_PARTS && rest; index += 1) {
+    const last = index === MAX_PARTS - 1;
+    const prefix =
+      index === 0
+        ? `${head}\n\n`
+        : `<i>${escapeHtml(`${cut(item.title, 150)} — ${digestText(lang, 'continued')}`)}</i>\n\n`;
+    // Only the final part can end mid-posting, so only it reserves the notice.
+    const tail = last ? `\n\n<i>${escapeHtml(digestText(lang, 'truncated'))}</i>` : '';
+
+    const [chunk, remainder] = takeChunk(rest, MESSAGE_LIMIT - prefix.length - tail.length);
+    // A budget too small for even one word: stop rather than loop forever.
+    if (!chunk) break;
+
+    rest = remainder;
+    parts.push(`${prefix}${escapeHtml(chunk)}${rest ? tail : ''}`);
+  }
+
+  return parts.length > 0 ? parts : [head];
 }
 
 /**
  * Apply is a callback, not a link: the whole point is not having to leave the
  * chat. It is namespaced to `a:` (outreach), so this module renders the button
- * without knowing anything about how applying works. Details stays a link to
- * the original posting — reading the full text is a browser job.
+ * without knowing anything about how applying works. Details stays a link — it
+ * is now the way to the rest of a description too long for the chat.
  */
 export function renderKeyboard(
   item: ScoredCandidate,
@@ -102,8 +154,122 @@ export function renderKeyboard(
   ];
 }
 
+/**
+ * Everything about the vacancy except its text: the headline, the two fact
+ * lines, how to reach the company, and the model's verdict. Fields are cut to
+ * lengths that keep the head comfortably inside one message whatever a scraped
+ * posting puts in them.
+ */
+function renderHead(item: ScoredCandidate, lang: Language, timezone: string): string {
+  const lines = [
+    `<b>${escapeHtml(cut(item.title, 150))}</b>`,
+    escapeHtml(cut(item.company, 80)),
+  ];
+
+  const facts = [
+    `${item.score}% ${digestText(lang, 'fit')}`,
+    salary(item),
+    item.location ? cut(item.location, 80) : null,
+    item.seniority,
+  ].filter((value): value is string => Boolean(value));
+  lines.push(facts.map(escapeHtml).join(' · '));
+
+  const meta = [
+    item.workFormat ? digestText(lang, `format.${item.workFormat}`) : null,
+    item.employmentType ? digestText(lang, `employment.${item.employmentType}`) : null,
+    item.publishedAt
+      ? `${digestText(lang, 'published')} ${formatDate(item.publishedAt, lang, timezone)}`
+      : null,
+    item.sourceSlug,
+  ].filter((value): value is string => Boolean(value));
+  if (meta.length > 0) lines.push(meta.map(escapeHtml).join(' · '));
+
+  // ADR-011 pulls the application contact out of the description; surfacing it
+  // here saves reading for the one line that says where to write.
+  if (item.applyContact?.value) {
+    lines.push(
+      `${escapeHtml(digestText(lang, 'contact'))}: ${escapeHtml(cut(item.applyContact.value, 120))}`,
+    );
+  }
+
+  if (item.note) lines.push('', `<i>${escapeHtml(item.note)}</i>`);
+  return lines.join('\n');
+}
+
+/**
+ * Ingestion stores descriptions as one whitespace-collapsed line (stripHtml),
+ * so bullet markers are the only structure left to recover. Giving each its own
+ * line turns a wall of text back into the list the posting originally was.
+ */
+function formatDescription(description: string): string {
+  return description
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([•●▪‣])\s*/g, '\n$1 ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * The longest prefix of `text` whose escaped form fits `budget`, cut at a line
+ * break, a sentence end or a word boundary — never mid-word, and never inside
+ * an HTML entity, since the split happens before escaping.
+ */
+function takeChunk(text: string, budget: number): [chunk: string, rest: string] {
+  if (budget <= 0) return ['', text];
+  if (escapeHtml(text).length <= budget) return [text, ''];
+
+  // Escaping only ever grows text, so "fits" is monotonic in the prefix length.
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (escapeHtml(text.slice(0, mid)).length <= budget) low = mid;
+    else high = mid - 1;
+  }
+
+  const head = text.slice(0, low);
+  const end = lastBreak(head) ?? low;
+  return [text.slice(0, end).trim(), text.slice(end).trim()];
+}
+
+/**
+ * Where to cut a full message. Preferences run from cleanest to crudest, but
+ * only within the last stretch of the message: chasing a paragraph break all
+ * the way back would waste most of a message to save one word.
+ */
+function lastBreak(text: string): number | null {
+  const floor = Math.max(0, text.length - 400);
+  for (const marker of ['\n', '. ', ' ']) {
+    const at = text.lastIndexOf(marker);
+    if (at >= floor) return at + marker.length;
+  }
+  return null;
+}
+
+function formatDate(date: Date, lang: Language, timezone: string): string {
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: timezone,
+  };
+  try {
+    return new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-GB', options).format(date);
+  } catch {
+    // A stored timezone Intl does not know must not cost the whole card.
+    return new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-GB', {
+      ...options,
+      timeZone: 'UTC',
+    }).format(date);
+  }
+}
+
 function salary(item: ScoredCandidate): string | null {
   if (!item.salaryMin && !item.salaryMax) return null;
   const range = [item.salaryMin, item.salaryMax].filter(Boolean).join('–');
   return `${range} ${item.salaryCurrency ?? ''}`.trim();
+}
+
+function cut(text: string, limit: number): string {
+  return text.length <= limit ? text : `${text.slice(0, limit).trim()}…`;
 }

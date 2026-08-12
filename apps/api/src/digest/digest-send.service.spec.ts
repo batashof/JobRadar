@@ -201,6 +201,26 @@ describe('DigestSendService.sendNow', () => {
     expect(writes[0]?.values).toMatchObject({ vacancyId: 'a', score: 91 });
   });
 
+  it('sends a long posting as several messages, with the buttons on the last', async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow()]);
+    queue(vacancies, [vacancyRow({ description: 'слово '.repeat(1000) })]);
+    queue(profileMatches, [ruleRow('vac-1', 0.9)]);
+    queue(resumes, []);
+    const bot = makeBot();
+    bot.sendToUser.mockResolvedValueOnce('900').mockResolvedValueOnce('901').mockResolvedValue('902');
+
+    await expect(service(db, bot, makeLlm()).sendNow('user-1')).resolves.toBe(1);
+
+    // Header + two card parts: the posting does not fit one Telegram message.
+    expect(bot.sendToUser).toHaveBeenCalledTimes(3);
+    expect(bot.sendToUser.mock.calls[1][2].keyboard).toBeUndefined();
+    expect(bot.sendToUser.mock.calls[2][2].keyboard).toBeDefined();
+    // The remembered message is the one carrying the buttons — callbacks come
+    // back to edit exactly that one.
+    expect(writes[0]?.values).toMatchObject({ vacancyId: 'vac-1', messageId: '902' });
+  });
+
   it('falls back to the rules order when the LLM call fails', async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow()]);

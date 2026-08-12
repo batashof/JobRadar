@@ -1,4 +1,10 @@
-import { detectSeniority, levelsBelowResume, type SeniorityLevel } from '@jobradar/shared';
+import {
+  detectSeniority,
+  type EmploymentType,
+  levelsBelowResume,
+  type SeniorityLevel,
+  type WorkFormat,
+} from '@jobradar/shared';
 
 /**
  * Ranking and prompt handling for the digest funnel, kept pure.
@@ -45,6 +51,12 @@ export interface DigestCandidate {
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;
+  workFormat: WorkFormat | null;
+  employmentType: EmploymentType | null;
+  /** Where to apply, extracted from the description at ingestion (ADR-011). */
+  applyContact: { kind: string; value: string } | null;
+  /** The board this came from, shown on the card so the reader knows the origin. */
+  sourceSlug: string | null;
   url: string;
   publishedAt: Date | null;
   /** Rules-based profile-match score, 0..1; 0 when the user has no profile. */

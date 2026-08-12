@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.19.2** (digest: candidates come from the feed's own population instead of `profile_matches`, so an account without a search profile stops getting an empty digest; the schedule adopts the timezone of the device it was saved from, 2026-08-12; keep this line in sync on every bump).
+- **Current version: 1.20.0** (the digest card carries the full vacancy text — facts head plus the description, split across up to three Telegram messages with the buttons on the last, 2026-08-12; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

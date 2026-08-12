@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-12 — The digest card carries the whole vacancy (v1.20.0)
+
+- **The complaint:** vacancies arrived in Telegram as a title and a link — everything that decides whether a posting is worth anything lived one browser tap away. The digest exists so that tap is not needed.
+- **The card is now the posting.** `renderCard` became `renderCardParts`: the head keeps title, company, fit, salary, location and level, and gains work format, employment type, publication date (formatted in the user's timezone), the source slug and the apply contact (ADR-011); the description follows it in full.
+- **Split, not truncated.** Prod descriptions average ~4.5k characters (p50 4.2k, p90 8k, max 17k) against Telegram's 4096-per-message limit, so a card goes out as up to three messages. Cuts land on a line break, sentence end or word boundary, and are made *before* escaping, so an `&amp;` can never be sliced in half. The keyboard sits on the last part — that is the message id `digest_items` stores, and the one a hide/thumb callback edits.
+- **Bullets restored.** `stripHtml` collapses a posting to one line at ingestion; the bullet markers that survive are put back on their own lines, which is what turns the wall of text back into a list.
+- **Candidate query grew four columns** (`work_format`, `employment_type`, `apply_contact`, `sources.slug`). No schema change — all of it was already stored.
+- **Checked against prod data**, not just fixtures: rendered real 4.5k+ character postings through the new path and read the resulting messages end to end.
+- **Tests:** render — the posting travels with the card, bullets become lines, every part stays inside 4096, continuations are labelled, a monster posting caps at three parts with the "Details" line, no mid-word or mid-entity cut, a nonsense timezone falls back to UTC. Service — a long posting sends as several messages with the buttons and the stored message id on the last. API 592 green, typecheck + lint clean.
+- **Next step:** watch a live 11:00 Minsk digest land and see whether three parts per vacancy reads well at ten vacancies.
+
 ## 2026-08-12 — The digest schedule follows the device it was set from (v1.19.2)
 
 - **Follow-up to the same bug's other half.** The digest resolved its send times against `planner_settings.timezone`, which read `UTC` because nothing had ever set it — the planner page has a "use device timezone" prompt, but the digest page, *where the times are actually typed*, only echoed the zone read-only. So 11:00 meant 14:00 local and the setting looked correct on screen.

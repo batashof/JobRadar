@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.20.0] — 2026-08-12
+
+### Added
+
+- **The digest card carries the whole vacancy, not a headline and a link.** A push used to be a title, a company and a fit percentage, so judging anything meant leaving the chat for the browser — which is exactly what the digest exists to avoid. The posting text now travels with the card.
+- **The head gained the facts that decide a vacancy at a glance**: work format, employment type, publication date in the user's timezone, the source board, and the application contact extracted at ingestion (ADR-011).
+- **Long postings are split across messages** instead of being cut. Descriptions run ~4k characters and reach 17k, well past Telegram's 4096-per-message ceiling, so a card is sent as up to three messages, split at a line break or a word boundary and never inside an escaped entity. The buttons ride on the last part — that is the message a callback comes back to edit. Anything past three messages ends with a line pointing at "Details".
+- Bullet markers in a description are put back on their own lines: ingestion stores the text whitespace-collapsed, so they are the only structure left to recover from what was originally a list.
+
 ## [1.19.2] — 2026-08-12
 
 ### Changed
