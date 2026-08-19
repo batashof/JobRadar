@@ -39,6 +39,26 @@ export interface HealthChecks {
   sentryConfigured: boolean;
   /** Configured LLM providers in failover order (ADR-005); empty = LLM features off. */
   llmProviders: string[];
+  /**
+   * How each configured provider's last call went, in failover order. A failing
+   * chain is invisible from the outside — callers degrade rather than error —
+   * so this is the only way to tell "the LLM is working" from "everything has
+   * been falling back for days".
+   */
+  llmStatus: LlmProviderHealth[];
+}
+
+/** One provider's live state, as reported by GET /health. */
+export interface LlmProviderHealth {
+  name: string;
+  /** The model this provider is configured to call (from env, or the default). */
+  model: string;
+  /** null until this process has called the provider at least once. */
+  lastOutcome: 'ok' | 'failed' | null;
+  /** Truncated failure detail, no keys or prompts; null when the last call was ok. */
+  lastError: string | null;
+  /** ISO timestamp of that last call. */
+  lastAt: string | null;
 }
 
 /** Shape of the API health-check response (GET /health). */

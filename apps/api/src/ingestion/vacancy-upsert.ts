@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { detectSeniority } from '@jobradar/shared';
+import { detectVacancySeniority } from '@jobradar/shared';
 
 import type { Database } from '../db/db.module';
 import { vacancies } from '../db/schema';
@@ -15,7 +15,9 @@ export async function upsertVacancies(db: Database, rows: NewVacancy[]): Promise
     return {
       ...row,
       applyContact: extractApplyContact(text),
-      seniority: detectSeniority(text),
+      // Title-driven, not whole-text: a description says "lead the team" in
+      // prose and a keyword scan reads that as a level (ADR-012 revised).
+      seniority: detectVacancySeniority(row.title, row.description),
     };
   });
   let upserted = 0;

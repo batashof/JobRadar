@@ -32,6 +32,7 @@ const TEXT = {
     empty: 'Nothing worth your attention today.',
     apply: 'Apply',
     details: 'Details',
+    source: 'Original',
     hide: 'Hide',
     hidden: 'Hidden — it will not come back.',
     liked: 'Noted: more like this.',
@@ -54,6 +55,7 @@ const TEXT = {
     empty: 'Сегодня ничего стоящего.',
     apply: 'Откликнуться',
     details: 'Подробнее',
+    source: 'Первоисточник',
     hide: 'Скрыть',
     hidden: 'Скрыто — больше не появится.',
     liked: 'Принято: больше такого.',
@@ -131,6 +133,13 @@ export function renderCardParts(
  * chat. It is namespaced to `a:` (outreach), so this module renders the button
  * without knowing anything about how applying works. Details stays a link — it
  * is now the way to the rest of a description too long for the chat.
+ *
+ * "Original" is the posting where it was published. Everything else the digest
+ * offers is JobRadar's rendering of a vacancy — sanitized, whitespace-collapsed
+ * and possibly cut at three messages — and none of it is where you actually
+ * apply on a board that wants its own form. That link was reachable only as a
+ * fallback for a missing `WEB_ORIGIN`, which is to say never in production.
+ * Both buttons are shown; they lead to genuinely different places.
  */
 export function renderKeyboard(
   item: ScoredCandidate,
@@ -138,14 +147,21 @@ export function renderKeyboard(
   webOrigin: string,
 ): InlineKeyboard {
   const appUrl = webOrigin ? `${webOrigin}/app/vacancies/${item.id}` : item.url;
+  const top = [
+    {
+      text: digestText(lang, 'apply'),
+      callbackData: `${BOT_CALLBACK_NAMESPACES.apply}:d:${item.id}`,
+    },
+    { text: digestText(lang, 'details'), url: appUrl },
+  ];
+  // Only when it adds something: with no WEB_ORIGIN, "Details" already is the
+  // source, and two buttons to one URL is noise.
+  if (item.url && item.url !== appUrl) {
+    top.push({ text: digestText(lang, 'source'), url: item.url });
+  }
+
   return [
-    [
-      {
-        text: digestText(lang, 'apply'),
-        callbackData: `${BOT_CALLBACK_NAMESPACES.apply}:d:${item.id}`,
-      },
-      { text: digestText(lang, 'details'), url: appUrl },
-    ],
+    top,
     [
       { text: '👍', callbackData: `${NS}:${DIGEST_ACTION.up}:${item.id}` },
       { text: '👎', callbackData: `${NS}:${DIGEST_ACTION.down}:${item.id}` },

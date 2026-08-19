@@ -141,7 +141,23 @@ describe('renderKeyboard', () => {
       // how applying works.
       { text: 'Откликнуться', callbackData: `a:d:${item().id}` },
       { text: 'Подробнее', url: `https://web.test/app/vacancies/${item().id}` },
+      { text: 'Первоисточник', url: 'https://acme.test/jobs/1' },
     ]);
+  });
+
+  it('links the original posting alongside the app, in both languages', () => {
+    // The app's copy is sanitized, collapsed and capped at three messages; the
+    // board's own page is where an application form actually lives.
+    expect(renderKeyboard(item(), 'en', 'https://web.test')[0]?.[2]).toEqual({
+      text: 'Original',
+      url: 'https://acme.test/jobs/1',
+    });
+  });
+
+  it('does not repeat the same link twice when there is no web origin', () => {
+    const top = renderKeyboard(item(), 'ru', '')[0];
+    expect(top).toHaveLength(2);
+    expect(top?.[1]?.url).toBe('https://acme.test/jobs/1');
   });
 
   it('falls back to the original posting when no web origin is configured', () => {

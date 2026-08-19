@@ -111,6 +111,73 @@ describe('LlmService', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  describe('providerStatus', () => {
+    it('lists configured providers and their models before any call', () => {
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'gk', GEMINI_API_KEY: 'mk' }));
+
+      expect(service.providerStatus()).toEqual([
+        {
+          name: 'groq',
+          model: 'llama-3.3-70b-versatile',
+          lastOutcome: null,
+          lastError: null,
+          lastAt: null,
+        },
+        {
+          name: 'gemini',
+          model: 'gemini-flash-latest',
+          lastOutcome: null,
+          lastError: null,
+          lastAt: null,
+        },
+      ]);
+    });
+
+    it('records the failure that made the chain fall over, and the one that worked', async () => {
+      // A caller only ever sees the successful answer, so without this a chain
+      // limping along on its last provider looks exactly like a healthy one.
+      fetchMock
+        .mockResolvedValueOnce(errorResponse(403, 'Access denied. Check your network settings.'))
+        .mockResolvedValueOnce(okResponse('hi'));
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'gk', GEMINI_API_KEY: 'mk' }));
+
+      await service.complete({ user: 'hi' });
+      const [groq, gemini] = service.providerStatus();
+
+      expect(groq).toMatchObject({ lastOutcome: 'failed' });
+      expect(groq?.lastError).toContain('403');
+      expect(gemini).toMatchObject({ lastOutcome: 'ok', lastError: null });
+      expect(Number.isNaN(Date.parse(gemini?.lastAt ?? ''))).toBe(false);
+    });
+
+    it('clears a stale error once the provider recovers', async () => {
+      fetchMock.mockResolvedValueOnce(errorResponse(429)).mockResolvedValueOnce(okResponse('hi'));
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'gk' }));
+
+      await expect(service.complete({ user: 'hi' })).rejects.toBeInstanceOf(LlmUnavailableError);
+      expect(service.providerStatus()[0]?.lastOutcome).toBe('failed');
+
+      await service.complete({ user: 'hi' });
+      expect(service.providerStatus()[0]).toMatchObject({ lastOutcome: 'ok', lastError: null });
+    });
+
+    it('truncates a long error body rather than pasting a provider page into /health', async () => {
+      fetchMock.mockResolvedValue(errorResponse(500, 'x'.repeat(5000)));
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'gk' }));
+
+      await expect(service.complete({ user: 'hi' })).rejects.toBeInstanceOf(LlmUnavailableError);
+      expect(service.providerStatus()[0]?.lastError?.length).toBeLessThanOrEqual(200);
+    });
+
+    it('never carries the API key into the reported error', async () => {
+      fetchMock.mockResolvedValue(errorResponse(401, 'invalid api key'));
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'super-secret-key' }));
+
+      await expect(service.complete({ user: 'hi' })).rejects.toBeInstanceOf(LlmUnavailableError);
+      expect(JSON.stringify(service.providerStatus())).not.toContain('super-secret-key');
+    });
+  });
+
   it('honors model override env vars', async () => {
     fetchMock.mockResolvedValueOnce(okResponse('x'));
     const service = new LlmService(

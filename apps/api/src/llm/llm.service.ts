@@ -43,6 +43,19 @@ const PROVIDERS: ProviderDef[] = [
 
 const REQUEST_TIMEOUT_MS = 60_000;
 
+/** How much of a provider's error body is worth keeping for diagnostics. */
+const ERROR_DETAIL_LIMIT = 200;
+
+/** Last outcome of a provider, as `/health` reports it. */
+export interface LlmProviderStatus {
+  name: string;
+  model: string;
+  /** null until the provider has been called at least once in this process. */
+  lastOutcome: 'ok' | 'failed' | null;
+  lastError: string | null;
+  lastAt: string | null;
+}
+
 interface ChatCompletionResponse {
   choices?: { message?: { content?: string } }[];
 }
@@ -50,6 +63,17 @@ interface ChatCompletionResponse {
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
+
+  /**
+   * Last outcome per provider, in memory only. A provider failing is not an
+   * error the caller ever sees — the chain fails over, and a caller that runs
+   * out of providers degrades instead of throwing (the digest falls back to its
+   * rules ranking). That is the right behaviour and it also made a total LLM
+   * outage invisible: for three days the digest went out ranked by keywords and
+   * nothing said why. This is what `/health` reads to answer "is the LLM
+   * actually working right now", without exposing a key or a prompt.
+   */
+  private readonly status = new Map<string, Omit<LlmProviderStatus, 'name' | 'model'>>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -61,6 +85,30 @@ export class LlmService {
   /** Names of configured providers, in failover order (for /health diagnostics). */
   configuredProviderNames(): string[] {
     return this.configuredProviders().map((p) => p.name);
+  }
+
+  /**
+   * Per-provider health: the model in use and how its last call went. Resets on
+   * restart — this is a live signal, not a log; `lastOutcome: null` means the
+   * process has not called that provider yet, which on a free-tier instance
+   * that sleeps is a common and unalarming state.
+   */
+  providerStatus(): LlmProviderStatus[] {
+    return this.configuredProviders().map((provider) => ({
+      name: provider.name,
+      model: this.config.get<string>(provider.modelEnv) ?? provider.defaultModel,
+      lastOutcome: this.status.get(provider.name)?.lastOutcome ?? null,
+      lastError: this.status.get(provider.name)?.lastError ?? null,
+      lastAt: this.status.get(provider.name)?.lastAt ?? null,
+    }));
+  }
+
+  private record(provider: string, outcome: 'ok' | 'failed', error?: string): void {
+    this.status.set(provider, {
+      lastOutcome: outcome,
+      lastError: error ? error.slice(0, ERROR_DETAIL_LIMIT) : null,
+      lastAt: new Date().toISOString(),
+    });
   }
 
   /**
@@ -78,9 +126,12 @@ export class LlmService {
     const failures: string[] = [];
     for (const provider of providers) {
       try {
-        return await this.completeWith(provider, request);
+        const result = await this.completeWith(provider, request);
+        this.record(provider.name, 'ok');
+        return result;
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
+        this.record(provider.name, 'failed', reason);
         failures.push(`${provider.name}: ${reason}`);
         this.logger.warn(`LLM provider ${provider.name} failed, trying next: ${reason}`);
       }

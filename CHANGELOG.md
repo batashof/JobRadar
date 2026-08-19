@@ -7,6 +7,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.21.0] — 2026-08-20
+
+### Fixed
+
+- **Seniority was read from a vacancy's prose, and 45% of the board came out `lead`** (ADR-018). Descriptions say "you will lead the team", "our staff of 200", "report to a senior manager" — ordinary words that a keyword scan over the full text reads as a level. 717 postings ended up contradicting the level printed in their own title, and the inversion ran downward too: "Junior Front End Development Analyst/Intern" was stored as `senior` and pushed to a senior résumé, which is exactly the posting the ADR-012 filter exists to hide. The level now comes from the **title**, falling back to an explicit hashtag in the description (`#удаленка #middle #senior` — how the Telegram channels state it) and to nothing otherwise, since an unlabelled vacancy always passes the filter. Production relabelled: 2 823 `lead` → 915, 3 169 rows changed, none upward.
+
+### Added
+
+- **`GET /health` reports each LLM provider's last call** — its model, whether the call worked, the truncated failure detail and when. A failing provider is invisible by design: the chain fails over and callers degrade rather than error, so the digest can spend days ranking on keywords with nothing to say why. Keys and prompts never appear in the output.
+- **A digest card links the original posting**, next to "Details". Everything else in the chat is JobRadar's rendering of a vacancy — sanitized, whitespace-collapsed, capped at three messages — while the board's own page is where an application form actually lives. The link existed only as a fallback for a missing `WEB_ORIGIN`, which is to say never in production.
+
+### Changed
+
+- **`backfill:seniority` relabels every row instead of only the unlabelled ones.** Skipping rows that already had a level assumed a stored level is a correct one, which is the assumption that failed. It now re-derives all of them, writes only the differences, and takes `--dry-run` to print the transition summary first.
+
 ## [1.20.1] — 2026-08-20
 
 ### Fixed

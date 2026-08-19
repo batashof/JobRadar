@@ -23,6 +23,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [015](015-day-planner-accountability.md) | Day planner with accountability loop (LLM-composed timebox queue, Telegram nudges, rolling debt) | Accepted |
 | [016](016-board-quality-gate.md) | Board quality gate: shared description sanitizer, RemoteOK dropped, Himalayas added | Accepted |
 | [017](017-resume-lexical-prerank.md) | Résumé-lexical pre-ranking as the always-present relevance signal | Accepted |
+| [018](018-vacancy-seniority-from-title.md) | A vacancy's seniority comes from its title, not from its prose (amends ADR-012 §3) | Accepted |
 
 ## Template
 

@@ -2,6 +2,18 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-20 — Seniority from the title, LLM diagnostics, source link (v1.21.0)
+
+- **Three follow-ups from the v1.20.1 session**, all of them things that release made visible.
+- **Seniority (ADR-018).** Measured before touching anything: **2 823 of 6 252 canonical vacancies (45%) labelled `lead`**, and **717 postings contradicting the level in their own title** — "Senior Software Engineer" stored as `lead`, because descriptions say "you will lead the team" and "our staff of 200". The inversion also ran downward: the "Junior Front End Development Analyst/Intern" that went out in yesterday's digest was stored as `senior` on the strength of its body text. `detectVacancySeniority(title, description)` now reads the **title**, falls back to explicit hashtags (`#удаленка #middle #senior`), and otherwise says nothing — an unlabelled row passes the filter, which is the lenient direction ADR-012 wants. `detectSeniority` stays for résumés, where scanning the whole document is correct.
+- **Measured the alternatives rather than picking one.** Title-only: 912 `lead`. Title + first 200 chars of the body: recovers 231 rows but drags in "…to lead our mobile engineering" and "…is a senior strategic role". Title + hashtags: 49 rows, and every sampled one a genuine declaration from the RU Telegram channels. Took the hashtags.
+- **Prod relabelled:** 3 169 rows changed — 1 017 `lead → senior`, 1 526 `lead → null`, 30 over-stated postings down to `junior`/`intern`. **Nothing moved up.** Second run reports 0 changes.
+- **`backfill:seniority` re-derives every row now**, not just the null ones — "a stored level is a correct level" is precisely the assumption that failed. Batched by target level (5 statements, not 8 663 round trips), with `--dry-run` printing the transition table first.
+- **`/health` reports each LLM provider's last call** — model, ok/failed, truncated error, timestamp. Yesterday's manual digest went out on pure lexical fallback (scores were exactly 100/100/…/67, i.e. `normalizeLexScore × 100`) and nothing in the response said the LLM chain had failed. Kept in memory, resets on restart: a live signal, not a log. Tests cover truncation and that a key never reaches the output.
+- **The digest card links the original posting.** "Details" goes to the app; the board's own page is where an application form lives, and that URL was reachable only as a fallback for a missing `WEB_ORIGIN`. Shown only when it differs, so the no-origin case does not print the same link twice. The web detail page already had "Open original" — no change needed there.
+- **Tests:** seniority — prose ignored, description never outranks the title, hashtags read, bare body words not mistaken for hashtags, unlabelled stays null; LLM — status before any call, the failure that made the chain fall over, recovery clearing a stale error, truncation, no key in the output; health — the new block; render — the source button in both languages and the no-duplicate case. API 636 green (+15), web 137, typecheck + lint clean.
+- **Next step:** watch `/health` at the next digest slot to see whether the LLM chain is actually failing in prod, and which provider.
+
 ## 2026-08-20 — The digest was ranking on nothing (v1.20.1)
 
 - **The complaint:** two days of empty digests — "Сегодня ничего стоящего" at every slot.

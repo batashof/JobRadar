@@ -205,7 +205,7 @@ PK `(resume_id, vacancy_id)`. Rows are permanent (a vacancy is LLM-scored at mos
 | Table | Column | Type | Notes |
 |---|---|---|---|
 | vacancies | apply_contact | jsonb nullable | extracted at ingestion: `{ "kind": "email" \| "telegram" \| "url", "value": ... }` |
-| vacancies | seniority | text nullable | coarse level detected at ingestion (ADR-012): `intern \| junior \| middle \| senior \| lead`; null = unstated. Powers the feed's soft resume-driven level filter |
+| vacancies | seniority | text nullable | coarse level detected at ingestion from the **title**, or an explicit hashtag in the description (ADR-012, rule amended by ADR-018): `intern \| junior \| middle \| senior \| lead`; null = unstated, and unstated always passes the feed's soft resume-driven level filter |
 | vacancies | summary_ru | text nullable | cached on-demand Russian brief (employer, what they do, fit) |
 | vacancies | summary_generated_at | timestamptz nullable | |
 | vacancies | summary_en | text nullable | cached on-demand English brief; per-language slot (ADR-014) |

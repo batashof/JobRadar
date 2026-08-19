@@ -62,6 +62,7 @@ export class HealthController {
       botConfigured: Boolean(this.config.get<string>('TELEGRAM_BOT_TOKEN')),
       sentryConfigured: Boolean(this.config.get<string>('SENTRY_DSN')),
       llmProviders: this.llm.configuredProviderNames(),
+      llmStatus: this.llm.providerStatus(),
     };
 
     return {
