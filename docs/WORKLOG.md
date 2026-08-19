@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-20 — The posting arrives collapsed (v1.21.1)
+
+- **The complaint:** ten vacancies with their full text is ten walls of text to scroll past. The posting should arrive folded and unfold on demand.
+- **`<blockquote expandable>`** does exactly that natively — Telegram shows a few lines and an expand control, and the text unfolds *in the chat*, which is why v1.20.0 put it there in the first place.
+- **Verified the syntax instead of trusting it.** The Bot API docs render truncated over fetch, and an unsupported tag does not degrade — it fails the whole send with `can't parse entities`. Probed `sendMessage` against a nonexistent chat: a control tag `<bogus>` came back as a parse error at byte offset 0, while `<blockquote expandable>` got as far as "chat not found". Parse errors precede the chat lookup, so that is a clean positive with nothing sent to anyone.
+- **What stays outside the fold:** the facts head (it is what decides whether to expand at all) and the "there is more" notice on a capped card. The 36 characters of tags are subtracted from the 4096 budget — forgetting them would push a full message over the ceiling and get it rejected.
+- **Tests:** the quote wraps the posting and not the head, every part of a split posting is collapsed, the tags are counted at four lengths straddling the limit, the notice sits after `</blockquote>`, and a textless posting renders no quote at all. Digest suite 106 green, API 641, web 137.
+- **Next step:** see it land in a real digest and decide whether three collapsed parts per vacancy is still the right split now that length costs no screen space.
+
 ## 2026-08-20 — Seniority from the title, LLM diagnostics, source link (v1.21.0)
 
 - **Three follow-ups from the v1.20.1 session**, all of them things that release made visible.

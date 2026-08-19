@@ -75,6 +75,46 @@ describe('renderCardParts', () => {
     expect(renderCardParts(item({ description: filler(1000) }), 'ru')).toHaveLength(1);
   });
 
+  it('collapses the posting into an expandable quote, leaving the facts visible', () => {
+    const [card] = renderCardParts(item({ description: 'Мы ищем инженера.' }), 'ru');
+
+    expect(card).toContain('<blockquote expandable>Мы ищем инженера.</blockquote>');
+    // The head decides whether the posting is worth expanding, so it must not
+    // be inside the thing that is collapsed.
+    expect(card?.indexOf('<b>Senior Frontend Engineer</b>')).toBeLessThan(
+      card?.indexOf('<blockquote expandable>') ?? 0,
+    );
+  });
+
+  it('collapses every part of a split posting, not just the first', () => {
+    const parts = renderCardParts(item({ description: filler(6000) }), 'ru');
+
+    expect(parts.length).toBeGreaterThan(1);
+    for (const part of parts) {
+      expect(part).toContain('<blockquote expandable>');
+      expect(part).toContain('</blockquote>');
+    }
+  });
+
+  it('counts the quote tags against the message limit', () => {
+    // The tags are 36 characters the budget has to reserve; forgetting them
+    // pushes a full message over the ceiling and Telegram rejects the send.
+    for (const length of [3900, 4000, 4100, 4300]) {
+      for (const part of renderCardParts(item({ description: filler(length) }), 'ru')) {
+        expect(part.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
+      }
+    }
+  });
+
+  it('leaves the "there is more" notice outside the quote, where it stays readable', () => {
+    const last = renderCardParts(item({ description: filler(40_000) }), 'ru').at(-1);
+    expect(last?.indexOf('</blockquote>')).toBeLessThan(last?.indexOf('«Подробнее»') ?? 0);
+  });
+
+  it('renders no quote at all when the posting has no text', () => {
+    expect(renderCardParts(item({ description: '' }), 'ru')[0]).not.toContain('<blockquote');
+  });
+
   it('splits a long posting across messages, each inside the Telegram limit', () => {
     const parts = renderCardParts(item({ description: filler(6000) }), 'ru');
 

@@ -7,6 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.21.1] — 2026-08-20
+
+### Changed
+
+- **The posting travels collapsed.** Telegram renders `<blockquote expandable>` as the first few lines plus an expand control, so a ten-vacancy digest reads as ten cards rather than ten walls of text — and the full posting is still one tap away *inside the chat*, which is the reason it is carried there at all (v1.20.0). The facts head stays outside the quote, since it is what decides whether the posting is worth expanding, and so does the "there is more" notice on a capped card. The tags are counted against Telegram's 4096-character budget; the syntax was verified against the Bot API rather than assumed, an unsupported tag being a rejected send.
+
 ## [1.21.0] — 2026-08-20
 
 ### Fixed

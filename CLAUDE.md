@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.21.0** (vacancy seniority comes from the title rather than the description's prose — ADR-018, 45% of the board was mislabelled `lead`; `/health` reports each LLM provider's last call; the digest card links the original posting, 2026-08-20; keep this line in sync on every bump).
+- **Current version: 1.21.1** (the digest carries the posting in a collapsed `<blockquote expandable>`, so a card is a card and the full text expands in place, 2026-08-20; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

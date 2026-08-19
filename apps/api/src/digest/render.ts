@@ -11,6 +11,19 @@ const NS = BOT_CALLBACK_NAMESPACES.digest;
 const MESSAGE_LIMIT = 4096;
 
 /**
+ * The posting text rides in a collapsed quote: Telegram shows the first few
+ * lines with an expand control, so a ten-vacancy digest reads as ten cards
+ * instead of ten walls of text, and the full posting is still one tap away —
+ * inside the chat, which is the entire point of carrying it here (v1.20.0).
+ *
+ * `expandable` is an attribute on `blockquote`, verified against the Bot API
+ * itself rather than assumed: an unsupported tag fails the message with
+ * `can't parse entities`, and this one parses.
+ */
+const QUOTE_OPEN = '<blockquote expandable>';
+const QUOTE_CLOSE = '</blockquote>';
+
+/**
  * Messages per vacancy. Real postings run ~4k characters and the long tail
  * reaches 17k, so one message would cut half of them mid-sentence; three cover
  * the overwhelming majority and still stop a single vacancy from flooding the
@@ -115,14 +128,19 @@ export function renderCardParts(
         ? `${head}\n\n`
         : `<i>${escapeHtml(`${cut(item.title, 150)} — ${digestText(lang, 'continued')}`)}</i>\n\n`;
     // Only the final part can end mid-posting, so only it reserves the notice.
+    // It sits outside the quote, where it stays readable while that is collapsed.
     const tail = last ? `\n\n<i>${escapeHtml(digestText(lang, 'truncated'))}</i>` : '';
 
-    const [chunk, remainder] = takeChunk(rest, MESSAGE_LIMIT - prefix.length - tail.length);
+    const budget =
+      MESSAGE_LIMIT - prefix.length - tail.length - QUOTE_OPEN.length - QUOTE_CLOSE.length;
+    const [chunk, remainder] = takeChunk(rest, budget);
     // A budget too small for even one word: stop rather than loop forever.
     if (!chunk) break;
 
     rest = remainder;
-    parts.push(`${prefix}${escapeHtml(chunk)}${rest ? tail : ''}`);
+    parts.push(
+      `${prefix}${QUOTE_OPEN}${escapeHtml(chunk)}${QUOTE_CLOSE}${rest ? tail : ''}`,
+    );
   }
 
   return parts.length > 0 ? parts : [head];
