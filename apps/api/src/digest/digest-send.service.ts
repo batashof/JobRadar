@@ -38,6 +38,7 @@ import {
   vacancies,
 } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
+import { extractResumeTerms, lexicalRelevanceSql, normalizeLexScore } from '../matching/resume-terms';
 import { resolveDue } from './due';
 import { DIGEST_ACTION, digestText, renderCardParts, renderHeader, renderKeyboard } from './render';
 import {
@@ -53,6 +54,14 @@ import {
 
 /** How many candidates the LLM ranks in one call. Above this the prompt bloats. */
 const BATCH_LIMIT = 30;
+
+/**
+ * Output budget for that one call. A verdict costs ~75 tokens once its Russian
+ * note is written, so a full batch needs ~2300 — 1600 cut the reply off partway
+ * through and, before the parser learned to salvage what arrived, cost the whole
+ * digest. The headroom above 2300 is for models that reason before answering.
+ */
+const SCORING_MAX_TOKENS = 3000;
 
 /**
  * How many fresh vacancies the ranking stage weighs before slicing to
@@ -218,6 +227,15 @@ export class DigestSendService implements OnModuleInit {
     const scored = await this.score(user.userId, candidates, resume?.text ?? null, language);
     const picked = shortlist(scored, user.maxItems, user.minScore);
     if (picked.length === 0) {
+      // An empty digest is a legitimate outcome and a plausible symptom of a
+      // broken funnel, and the two are indistinguishable from the outside —
+      // both bugs fixed in v1.19.1 and v1.20.1 sent this exact message for days
+      // without a trace. The best score of the batch tells them apart.
+      const best = scored.reduce((max, item) => Math.max(max, item.score), 0);
+      this.logger.log(
+        `digest empty for user ${user.userId}: ${candidates.length} candidate(s), ` +
+          `best score ${best}, floor ${user.minScore}`,
+      );
       await this.bot.sendToUser(user.userId, digestText(language, 'empty'));
       return 0;
     }
@@ -261,12 +279,21 @@ export class DigestSendService implements OnModuleInit {
   }
 
   /**
-   * The freshest canonical vacancies the user has neither been sent nor hidden
-   * — deliberately the same population the in-app feed draws from
+   * The canonical vacancies the user has neither been sent nor hidden —
+   * deliberately the same population the in-app feed draws from
    * (VacanciesService.feed). This used to start from `profile_matches`, which
    * made an active search profile a hard gate: an account without one got
    * "nothing worth your attention" every single day while the feed was full of
    * matches. Profiles are a ranking signal here now, not an entry condition.
+   *
+   * Ordering is the other half of that story. Taking the *freshest* rows and
+   * re-ranking them in memory only works when the cached signals exist; for an
+   * account with no search profile and no scored resume matches they are all
+   * zero, so the LLM was handed the 30 newest postings on the board — product,
+   * marketing and support roles for a frontend résumé — and correctly scored
+   * every one of them below the floor. The pool is ordered by résumé relevance
+   * first now, computed in SQL over the whole window, so the expensive stage
+   * sees the plausible vacancies rather than the recent ones.
    *
    * This is the cheap stage and it does all the narrowing it can before any
    * token is spent.
@@ -307,6 +334,12 @@ export class DigestSendService implements OnModuleInit {
       if (clause) conditions.push(clause);
     }
 
+    const relevance = lexicalRelevanceSql(
+      extractResumeTerms(resume?.text ?? ''),
+      vacancies.title,
+      vacancies.description,
+    );
+
     const rows = await this.db
       .select({
         id: vacancies.id,
@@ -325,6 +358,7 @@ export class DigestSendService implements OnModuleInit {
         url: vacancies.url,
         publishedAt: vacancies.publishedAt,
         resumeScore: resumeMatches.score,
+        lexScore: relevance,
       })
       .from(vacancies)
       .leftJoin(sources, eq(sources.id, vacancies.sourceId))
@@ -336,7 +370,9 @@ export class DigestSendService implements OnModuleInit {
         ),
       )
       .where(and(...conditions))
-      .orderBy(sql`${vacancies.publishedAt} desc nulls last, ${vacancies.ingestedAt} desc`)
+      .orderBy(
+        sql`${relevance} desc, ${vacancies.publishedAt} desc nulls last, ${vacancies.ingestedAt} desc`,
+      )
       .limit(CANDIDATE_POOL);
 
     const ruleScores = await this.ruleScores(
@@ -348,6 +384,7 @@ export class DigestSendService implements OnModuleInit {
       ...row,
       resumeScore: row.resumeScore ?? 0,
       ruleScore: ruleScores.get(row.id) ?? 0,
+      lexScore: normalizeLexScore(row.lexScore),
     }));
 
     // Title-based catch for the rows ingestion left unlevelled.
@@ -410,7 +447,11 @@ export class DigestSendService implements OnModuleInit {
 
     try {
       const prompt = buildBatchPrompt(candidates, resumeText, language);
-      const reply = await this.llm.complete({ ...prompt, maxTokens: 1600, temperature: 0.2 });
+      const reply = await this.llm.complete({
+        ...prompt,
+        maxTokens: SCORING_MAX_TOKENS,
+        temperature: 0.2,
+      });
       const scored = parseBatchReply(reply.text, candidates);
       // A reply that parsed to nothing is a failed call, not an empty digest.
       return scored.length > 0 ? scored : fallbackScores(candidates);

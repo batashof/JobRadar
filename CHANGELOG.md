@@ -7,6 +7,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.20.1] — 2026-08-20
+
+### Fixed
+
+- **The digest went quiet for three days while the board was full of matching vacancies.** Its candidate ordering rests on cached signals — the rules-based profile score and the cached resume-match score — and an account with no search profile and an empty `resume_matches` scores 0 on both. The order then fell through to "newest first", so the one LLM call per digest was spent on the 30 most recent postings on the board: product managers, designers and support roles against a frontend résumé. The model scored them 0–30, every one below the user's floor of 60, and the push said "Сегодня ничего стоящего" — with 192 unseen frontend vacancies in the same pool. Candidates are now ordered by résumé relevance (ADR-017), computed in SQL over the whole window.
+- **The résumé batch scorer could never fill the cache the digest wanted to rank on.** It started from `profile_matches` × active `search_profiles` — the same gate v1.19.1 removed from the digest, left behind here — so an account without a profile scored nothing on every run, forever. It now reads the feed's own population, most résumé-relevant first, within a 30-day window.
+- **A reply cut off by the output cap lost the whole batch.** Thirty verdicts with Russian notes sit right on 1600 tokens, and a model that reasons before answering spends part of the budget getting there; an unterminated JSON array then parsed to nothing, the caller fell back to cached scores it did not have, and the digest went out empty. Verdicts are now read one object at a time, so whatever arrived intact is kept, and the cap is 3000.
+
+### Added
+
+- **Lexical résumé relevance** (ADR-017): the ranking signal that needs nothing cached. A résumé yields its job families — expanded to the title words postings actually use — and its top technologies from a closed dictionary; vacancies are scored on word-boundary hits in the title and description directly in SQL, for no tokens. A family counts only when it is at least half as present as the strongest one, so a frontend résumé mentioning DevOps once does not inherit the whole infrastructure vocabulary.
+- **An empty digest now says why in the log** — candidate count, best score, and the floor it failed to clear. Both silent failures fixed in v1.19.1 and this release sent the same polite message for days with nothing to distinguish them from a genuinely quiet board.
+
 ## [1.20.0] — 2026-08-12
 
 ### Added

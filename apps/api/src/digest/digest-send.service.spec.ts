@@ -107,6 +107,9 @@ const vacancyRow = (over: Record<string, unknown> = {}) => ({
   url: 'https://acme.test/1',
   publishedAt: new Date('2026-08-10T00:00:00Z'),
   resumeScore: null,
+  // Raw weighted sum as Postgres computes it for the ordering; 0 = the résumé
+  // and the posting have no word in common.
+  lexScore: 0,
   ...over,
 });
 
@@ -166,6 +169,23 @@ describe('DigestSendService.sendNow', () => {
 
     expect(llm.complete).toHaveBeenCalledTimes(1);
     expect(writes[0]?.values).toMatchObject({ vacancyId: 'a', score: 88 });
+  });
+
+  it('still sends on lexical relevance when nothing at all is cached', async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow({ maxItems: 1 })]);
+    // No profile, no scored resume match, no LLM: exactly the account state
+    // that answered "nothing worth your attention" for three days straight.
+    queue(vacancies, [
+      vacancyRow({ id: 'unrelated', lexScore: 0 }),
+      vacancyRow({ id: 'right-job', lexScore: 6 }),
+    ]);
+    queue(profileMatches, []);
+    queue(resumes, []);
+    const bot = makeBot();
+
+    await expect(service(db, bot, makeLlm()).sendNow('user-1')).resolves.toBe(1);
+    expect(writes[0]?.values).toMatchObject({ vacancyId: 'right-job', score: 100 });
   });
 
   it('ranks on the cached resume score when there is no rules score', async () => {

@@ -19,6 +19,7 @@ const item = (over: Partial<ScoredCandidate> = {}): ScoredCandidate => ({
   publishedAt: new Date('2026-08-10T00:00:00Z'),
   ruleScore: 0.8,
   resumeScore: 0,
+  lexScore: 0,
   score: 84,
   note: 'Стек совпадает почти полностью',
   ...over,

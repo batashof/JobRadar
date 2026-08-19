@@ -2,6 +2,19 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-08-20 — The digest was ranking on nothing (v1.20.1)
+
+- **The complaint:** two days of empty digests — "Сегодня ничего стоящего" at every slot.
+- **Not a breakage; a blind funnel.** Checked prod end to end first: `/health` green, ingest healthy (~300 vacancies/day, every source refreshed), slots consuming normally (`last_sent_key` current). Last vacancy actually delivered was 08-17 08:08 UTC, then six slots at zero.
+- **Why:** the account has no search profile, and `resume_matches` held **2 rows against 2 643 candidates** — so `rankScore` was 0 for the entire pool and the ordering fell through to `published_at desc`. The single LLM call per digest was therefore spent on the 30 newest postings on the board: product managers, designers, DevOps, support. Reproduced the real prompt against the live batch — the model returned 0–30 for all of them, correctly, and the floor of 60 emptied the digest. 192 frontend vacancies sat unseen in the same pool.
+- **Why `resume_matches` was empty:** `ResumeMatchingService` still started from `profile_matches` × active `search_profiles` — the exact gate v1.19.1 removed from the digest, left behind in the matching service. No profile → nothing scored, on every run since v1.1.0.
+- **Second, independent failure:** with `gemini-flash-latest` the batch reply hit `finish_reason: length` at 1600 tokens. An unterminated array parsed to nothing, the caller fell back to cached scores that did not exist, and the digest emptied a second way. Both failure modes produce the identical polite message.
+- **The fix (ADR-017):** lexical résumé relevance in SQL — role families expanded to the title words postings use, plus the top 12 technologies from a closed dictionary, word-boundary matched (`~*` with `\y`, same semantics as `match-logic.ts`). Ranks, never rejects; `rankScore` takes the max of the three signals. Ungated the résumé batch scorer and gave it the same ordering, so its ~10 calls per run go somewhere useful. Parser reads verdicts one object at a time; cap raised to 3000.
+- **Caught by running it against prod, not fixtures:** the first version put DevOps roles in 20 of 30 slots — the résumé mentions DevOps 4 times against frontend's 14, and every matched family carried equal weight. Added the dominance rule (a family counts at ≥50% of the strongest), re-ran, batch came back pure frontend.
+- **Verified end to end on live prod data**, without sending anything: pool → SQL ranking (612 ms, 200 rows) → real prompt → real model → parse → shortlist. **Would send 10 vacancies at 85–95%**, where the same query yesterday sent zero.
+- **Tests:** new `resume-terms` suite (family expansion, dominance, boundary matching, punctuation-safe patterns, normalisation), new `resume-matching.service` suite (scores without a profile, per-run cap, provider exhaustion, unparseable reply), digest — sends on lexical relevance alone with nothing cached, keeps verdicts from a reply cut off mid-object, accepts a lone verdict, survives braces inside a note. API 621 green (+29), web 137, typecheck + lint clean.
+- **Next step:** deploy and watch the 11:00 Minsk slot land; after a few ingestion runs check that `resume_matches` is actually accumulating now.
+
 ## 2026-08-12 — The digest card carries the whole vacancy (v1.20.0)
 
 - **The complaint:** vacancies arrived in Telegram as a title and a link — everything that decides whether a posting is worth anything lived one browser tap away. The digest exists so that tap is not needed.

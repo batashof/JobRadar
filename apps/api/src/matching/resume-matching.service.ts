@@ -1,19 +1,28 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ResumeMatchRunResult } from '@jobradar/shared';
-import { and, desc, eq, isNull, notExists, sql } from 'drizzle-orm';
+import { and, eq, gte, isNull, notExists, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
-import { profileMatches, resumeMatches, resumes, searchProfiles, vacancies } from '../db/schema';
+import { resumeMatches, resumes, vacancies } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
 import { buildResumeMatchPrompt, parseResumeMatchReply } from './resume-match';
+import { extractResumeTerms, lexicalRelevanceSql } from './resume-terms';
 
 /**
  * LLM resume ↔ vacancy scoring (ADR-011). Token discipline (ADR-005):
- * - only vacancies that already pass rules-based profile matching are scored;
+ * - the most résumé-relevant unscored vacancies are scored first;
  * - results are permanent (`resume_matches`) — one LLM call per resume × vacancy;
- * - each run is capped, newest vacancies first; the rest wait for future runs.
+ * - each run is capped; the rest wait for future runs.
  */
 const DEFAULT_RUN_LIMIT = 10;
+
+/**
+ * How far back a vacancy stays worth an LLM call. A run can never catch up with
+ * the whole board, and a two-month-old posting is usually closed — spending the
+ * budget on what is still live is the better trade.
+ */
+const SCORING_WINDOW_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class ResumeMatchingService {
@@ -58,24 +67,37 @@ export class ResumeMatchingService {
     resume: { id: string; userId: string; text: string },
     limit: number,
   ): Promise<ResumeMatchRunResult> {
-    // Candidates: canonical vacancies matched by the user's active profiles and
-    // not yet scored against this resume, newest first.
+    // Candidates: canonical vacancies not yet scored against this resume, the
+    // most résumé-relevant first.
+    //
+    // This used to start from `profile_matches`, which made an active search
+    // profile a hard gate — the same gate v1.19.1 removed from the digest, left
+    // behind here. An account without a profile had every run score nothing, so
+    // `resume_matches` stayed empty forever, and everything downstream that
+    // ranks on that cached score silently had no signal to rank with.
+    //
+    // Relevance ordering is what makes the ungating affordable: a run is a
+    // handful of LLM calls against a board of thousands of postings, and
+    // "newest first" would spend them on whatever was posted last.
+    const relevance = lexicalRelevanceSql(
+      extractResumeTerms(resume.text),
+      vacancies.title,
+      vacancies.description,
+    );
+
     const candidates = await this.db
-      .selectDistinctOn([vacancies.publishedAt, vacancies.id], {
+      .select({
         id: vacancies.id,
         title: vacancies.title,
         company: vacancies.companyRaw,
         description: vacancies.description,
         location: vacancies.location,
       })
-      .from(profileMatches)
-      .innerJoin(searchProfiles, eq(searchProfiles.id, profileMatches.profileId))
-      .innerJoin(vacancies, eq(vacancies.id, profileMatches.vacancyId))
+      .from(vacancies)
       .where(
         and(
-          eq(searchProfiles.userId, resume.userId),
-          eq(searchProfiles.isActive, true),
           isNull(vacancies.canonicalVacancyId),
+          gte(vacancies.ingestedAt, new Date(Date.now() - SCORING_WINDOW_DAYS * DAY_MS)),
           notExists(
             this.db
               .select({ one: sql`1` })
@@ -89,7 +111,7 @@ export class ResumeMatchingService {
           ),
         ),
       )
-      .orderBy(desc(vacancies.publishedAt), vacancies.id)
+      .orderBy(sql`${relevance} desc, ${vacancies.publishedAt} desc nulls last`)
       .limit(limit + 50); // cheap overshoot to report a meaningful `remaining`
 
     const batch = candidates.slice(0, limit);

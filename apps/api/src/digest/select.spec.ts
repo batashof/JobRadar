@@ -28,6 +28,7 @@ function candidate(over: Partial<DigestCandidate> = {}): DigestCandidate {
     publishedAt: new Date('2026-08-10T00:00:00Z'),
     ruleScore: 0.8,
     resumeScore: 0,
+    lexScore: 0,
     ...over,
   };
 }
@@ -133,18 +134,24 @@ describe('fallbackScores', () => {
 });
 
 describe('rankScore', () => {
-  it('takes the better of the two cached signals', () => {
-    expect(rankScore({ ruleScore: 0.3, resumeScore: 0.9 })).toBe(0.9);
-    expect(rankScore({ ruleScore: 0.7, resumeScore: 0.2 })).toBe(0.7);
+  it('takes the best of the signals', () => {
+    expect(rankScore({ ruleScore: 0.3, resumeScore: 0.9, lexScore: 0.5 })).toBe(0.9);
+    expect(rankScore({ ruleScore: 0.7, resumeScore: 0.2, lexScore: 0 })).toBe(0.7);
   });
 
-  it('is zero when neither signal exists, so nothing is invented', () => {
-    expect(rankScore({ ruleScore: 0, resumeScore: 0 })).toBe(0);
+  it('ranks on the lexical score alone when nothing is cached', () => {
+    // The case that made the digest go quiet: a fresh account has no profile
+    // and no scored matches, and used to rank every candidate at zero.
+    expect(rankScore({ ruleScore: 0, resumeScore: 0, lexScore: 0.67 })).toBe(0.67);
+  });
+
+  it('is zero when no signal exists at all, so nothing is invented', () => {
+    expect(rankScore({ ruleScore: 0, resumeScore: 0, lexScore: 0 })).toBe(0);
   });
 
   it('clamps into 0..1', () => {
-    expect(rankScore({ ruleScore: 1.4, resumeScore: 0 })).toBe(1);
-    expect(rankScore({ ruleScore: -0.5, resumeScore: -0.2 })).toBe(0);
+    expect(rankScore({ ruleScore: 1.4, resumeScore: 0, lexScore: 0 })).toBe(1);
+    expect(rankScore({ ruleScore: -0.5, resumeScore: -0.2, lexScore: -1 })).toBe(0);
   });
 });
 
@@ -220,8 +227,29 @@ describe('parseBatchReply', () => {
   it('returns nothing on garbage, so the caller can fall back', () => {
     expect(parseBatchReply('sorry, I cannot help with that', candidates)).toEqual([]);
     expect(parseBatchReply('[{"i":0,', candidates)).toEqual([]);
-    expect(parseBatchReply('{"i":0,"score":80}', candidates)).toEqual([]);
     expect(parseBatchReply('', candidates)).toEqual([]);
+  });
+
+  it('keeps the verdicts that arrived when the reply was cut off mid-object', () => {
+    // What the output cap actually produces: a full stop partway through the
+    // last note, and no closing bracket. Losing the whole batch over that is
+    // what emptied the digest for three days.
+    const truncated =
+      '[{"i":0,"score":85,"note":"Стек совпадает"},\n {"i":1,"score":74,"note":"Совпад';
+    const parsed = parseBatchReply(truncated, candidates);
+    expect(parsed.map((item) => item.id)).toEqual(['a']);
+    expect(parsed[0]?.score).toBe(85);
+  });
+
+  it('accepts a lone verdict that never got wrapped in an array', () => {
+    expect(parseBatchReply('{"i":0,"score":80}', candidates)[0]?.score).toBe(80);
+  });
+
+  it('is not confused by braces or quotes inside a note', () => {
+    const reply = '[{"i":0,"score":80,"note":"React {SSR}, \\"Next.js\\" — точное совпадение"}]';
+    expect(parseBatchReply(reply, candidates)[0]?.note).toBe(
+      'React {SSR}, "Next.js" — точное совпадение',
+    );
   });
 
   it('skips entries without a usable score', () => {
