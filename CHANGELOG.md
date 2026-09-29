@@ -7,6 +7,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.22.0] — 2026-09-29
+
+### Added
+
+- **Instant delivery for the Telegram digest** (ADR-019). A new *delivery* setting: *on a schedule* (unchanged, the default) or *as soon as they appear*. In instant mode the 5-minute digest tick checks, with one aggregate query, whether settled vacancies were ingested past the user's watermark; if so it runs the same funnel — level gate, résumé-relevance order, one batch LLM call — over exactly that window and pushes what clears the floor, under a "New:" header. New postings reach the chat 10 minutes to ~4 hours after they are published (the source politeness rule caps fetching at every 4 hours), instead of at the next send time.
+- **Quiet hours** (default 22:00–08:00, in the user's timezone, may wrap midnight): nothing is pushed during them and the watermark stays put, so the night's arrivals come as one message when they end.
+- **A stricter floor for instant pushes** (default 75%): a scheduled digest weighs a day's vacancies against each other, an instant push judges a few on their own and interrupts every time. An instant push that finds nothing sends nothing — no "nothing worth your attention" several times a day.
+- A 10-minute settle delay keeps the window behind dedup, so a posting seen in three channels is pushed once, as its canonical row.
+
+### Fixed
+
+- **The digest failed outright for an account without a résumé.** With no résumé terms the relevance expression was a bare `0`, and in `ORDER BY` Postgres reads a bare integer as a column position — `order by 0` is an error, not a constant. The whole candidate query failed; now it is `0::int`. The same expression orders résumé scoring, which had the same failure for a résumé with no recognised terms.
+
 ## [1.21.2] — 2026-09-29
 
 ### Fixed

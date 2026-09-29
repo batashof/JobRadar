@@ -1,23 +1,27 @@
-'use client';
+"use client";
 
 import {
   DIGEST_MAX_ITEMS_LIMIT,
   DIGEST_MAX_SENDS_PER_DAY,
+  type DigestMode,
   type DigestSettings as DigestSettingsValue,
-} from '@jobradar/shared';
-import { useState } from 'react';
+} from "@jobradar/shared";
+import { useState } from "react";
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { runDigestNow, updateDigestSettings } from '@/lib/digest';
-import { useI18n } from '@/lib/i18n/context';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { runDigestNow, updateDigestSettings } from "@/lib/digest";
+import { useI18n } from "@/lib/i18n/context";
 
 /**
  * When the daily digest goes out, how often, and how strict it is. Each send
  * time is one push; the count of them *is* "how many times a day", so there is
  * no separate frequency control to keep consistent with the schedule.
+ *
+ * Instant mode (ADR-019) replaces the send times with quiet hours and its own,
+ * stricter floor — so only the controls of the chosen mode are shown.
  */
 export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
   const { t } = useI18n();
@@ -48,6 +52,10 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
           sendTimes: optimistic.sendTimes,
           maxItems: optimistic.maxItems,
           minScore: optimistic.minScore,
+          mode: optimistic.mode,
+          quietStart: optimistic.quietStart,
+          quietEnd: optimistic.quietEnd,
+          instantMinScore: optimistic.instantMinScore,
           // Adopted on save, not on load: the schedule follows the device the
           // user is actually setting it from, and nothing moves until they
           // touch it. Travelling does not silently reschedule yesterday's times.
@@ -58,14 +66,16 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
     } catch {
       // Roll back, so the UI never claims a schedule the server did not accept.
       setSettings(settings);
-      setError(t('digest.error'));
+      setError(t("digest.error"));
     } finally {
       setBusy(false);
     }
   };
 
   const setTime = (index: number, value: string) => {
-    const sendTimes = settings.sendTimes.map((time, i) => (i === index ? value : time));
+    const sendTimes = settings.sendTimes.map((time, i) =>
+      i === index ? value : time,
+    );
     setSettings({ ...settings, sendTimes });
   };
 
@@ -77,7 +87,7 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
 
   const addTime = () => {
     if (settings.sendTimes.length >= DIGEST_MAX_SENDS_PER_DAY) return;
-    const candidate = settings.sendTimes.includes('19:00') ? '13:00' : '19:00';
+    const candidate = settings.sendTimes.includes("19:00") ? "13:00" : "19:00";
     void save({ sendTimes: [...settings.sendTimes, candidate].sort() });
   };
 
@@ -94,9 +104,11 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
     setRunResult(null);
     try {
       const { sent } = await runDigestNow();
-      setRunResult(sent > 0 ? t('digest.runSent', { count: sent }) : t('digest.runEmpty'));
+      setRunResult(
+        sent > 0 ? t("digest.runSent", { count: sent }) : t("digest.runEmpty"),
+      );
     } catch {
-      setError(t('digest.error'));
+      setError(t("digest.error"));
     } finally {
       setBusy(false);
     }
@@ -105,13 +117,13 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <h2 className="text-lg font-semibold">{t('digest.title')}</h2>
+        <h2 className="text-lg font-semibold">{t("digest.title")}</h2>
         <p className="text-sm text-[var(--color-muted-foreground)]">
-          {t('digest.subtitle', { timezone: settings.timezone })}
+          {t("digest.subtitle", { timezone: settings.timezone })}
         </p>
         {deviceTimezone && deviceTimezone !== settings.timezone && (
           <p className="text-sm text-[var(--color-muted-foreground)]">
-            {t('digest.timezoneAdopt', { device: deviceTimezone })}
+            {t("digest.timezoneAdopt", { device: deviceTimezone })}
           </p>
         )}
       </CardHeader>
@@ -124,46 +136,113 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
             disabled={busy}
             onChange={(event) => void save({ enabled: event.target.checked })}
           />
-          {t('digest.enabled')}
+          {t("digest.enabled")}
         </label>
 
-        <div className="space-y-2">
-          <Label>{t('digest.times', { count: settings.sendTimes.length })}</Label>
-          <div className="flex flex-wrap items-center gap-2">
-            {settings.sendTimes.map((time, index) => (
-              <div key={index} className="flex items-center gap-1">
-                <Input
-                  type="time"
-                  aria-label={t('digest.timeAt', { index: index + 1 })}
-                  value={time}
+        <fieldset className="space-y-1">
+          <legend className="text-sm font-medium">{t("digest.mode")}</legend>
+          <div className="flex flex-wrap gap-4">
+            {(
+              ["scheduled", "instant"] as const satisfies readonly DigestMode[]
+            ).map((mode) => (
+              <label key={mode} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="digest-mode"
+                  value={mode}
+                  checked={settings.mode === mode}
                   disabled={busy}
-                  onChange={(event) => setTime(index, event.target.value)}
-                  onBlur={commitTimes}
+                  onChange={() => void save({ mode })}
+                />
+                {t(
+                  mode === "scheduled"
+                    ? "digest.modeScheduled"
+                    : "digest.modeInstant",
+                )}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {settings.mode === "instant" ? (
+          <div className="space-y-2">
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              {t("digest.instantHint")}
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="digest-quiet-start">
+                  {t("digest.quietStart")}
+                </Label>
+                <Input
+                  id="digest-quiet-start"
+                  type="time"
+                  value={settings.quietStart}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setSettings({ ...settings, quietStart: event.target.value })
+                  }
+                  onBlur={() => void save({ quietStart: settings.quietStart })}
                   className="w-28"
                 />
-                {settings.sendTimes.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    aria-label={t('digest.removeTime')}
-                    disabled={busy}
-                    onClick={() => removeTime(index)}
-                  >
-                    ×
-                  </Button>
-                )}
               </div>
-            ))}
-            {settings.sendTimes.length < DIGEST_MAX_SENDS_PER_DAY && (
-              <Button variant="outline" onClick={addTime} disabled={busy}>
-                {t('digest.addTime')}
-              </Button>
-            )}
+              <div className="space-y-1">
+                <Label htmlFor="digest-quiet-end">{t("digest.quietEnd")}</Label>
+                <Input
+                  id="digest-quiet-end"
+                  type="time"
+                  value={settings.quietEnd}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setSettings({ ...settings, quietEnd: event.target.value })
+                  }
+                  onBlur={() => void save({ quietEnd: settings.quietEnd })}
+                  className="w-28"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <Label>
+              {t("digest.times", { count: settings.sendTimes.length })}
+            </Label>
+            <div className="flex flex-wrap items-center gap-2">
+              {settings.sendTimes.map((time, index) => (
+                <div key={index} className="flex items-center gap-1">
+                  <Input
+                    type="time"
+                    aria-label={t("digest.timeAt", { index: index + 1 })}
+                    value={time}
+                    disabled={busy}
+                    onChange={(event) => setTime(index, event.target.value)}
+                    onBlur={commitTimes}
+                    className="w-28"
+                  />
+                  {settings.sendTimes.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      aria-label={t("digest.removeTime")}
+                      disabled={busy}
+                      onClick={() => removeTime(index)}
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {settings.sendTimes.length < DIGEST_MAX_SENDS_PER_DAY && (
+                <Button variant="outline" onClick={addTime} disabled={busy}>
+                  {t("digest.addTime")}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-4">
           <div className="space-y-1">
-            <Label htmlFor="digest-max-items">{t('digest.maxItems')}</Label>
+            <Label htmlFor="digest-max-items">{t("digest.maxItems")}</Label>
             <Input
               id="digest-max-items"
               type="number"
@@ -172,43 +251,84 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
               value={settings.maxItems}
               disabled={busy}
               onChange={(event) =>
-                setSettings({ ...settings, maxItems: Number(event.target.value) })
+                setSettings({
+                  ...settings,
+                  maxItems: Number(event.target.value),
+                })
               }
               onBlur={() => void save({ maxItems: settings.maxItems })}
               className="w-24"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="digest-min-score">{t('digest.minScore')}</Label>
-            <Input
-              id="digest-min-score"
-              type="number"
-              min={0}
-              max={100}
-              step={5}
-              value={settings.minScore}
-              disabled={busy}
-              onChange={(event) =>
-                setSettings({ ...settings, minScore: Number(event.target.value) })
-              }
-              onBlur={() => void save({ minScore: settings.minScore })}
-              className="w-24"
-            />
-          </div>
+          {settings.mode === "instant" ? (
+            <div className="space-y-1">
+              <Label htmlFor="digest-instant-min-score">
+                {t("digest.instantMinScore")}
+              </Label>
+              <Input
+                id="digest-instant-min-score"
+                type="number"
+                min={0}
+                max={100}
+                step={5}
+                value={settings.instantMinScore}
+                disabled={busy}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    instantMinScore: Number(event.target.value),
+                  })
+                }
+                onBlur={() =>
+                  void save({ instantMinScore: settings.instantMinScore })
+                }
+                className="w-24"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label htmlFor="digest-min-score">{t("digest.minScore")}</Label>
+              <Input
+                id="digest-min-score"
+                type="number"
+                min={0}
+                max={100}
+                step={5}
+                value={settings.minScore}
+                disabled={busy}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    minScore: Number(event.target.value),
+                  })
+                }
+                onBlur={() => void save({ minScore: settings.minScore })}
+                className="w-24"
+              />
+            </div>
+          )}
         </div>
 
-        <p className="text-xs text-[var(--color-muted-foreground)]">{t('digest.hint')}</p>
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          {t("digest.hint")}
+        </p>
 
         <Button variant="outline" onClick={() => void runNow()} disabled={busy}>
-          {t('digest.runNow')}
+          {t("digest.runNow")}
         </Button>
 
-        {error && <p className="text-sm text-[var(--color-destructive)]">{error}</p>}
+        {error && (
+          <p className="text-sm text-[var(--color-destructive)]">{error}</p>
+        )}
         {runResult && !error && (
-          <p className="text-sm text-[var(--color-muted-foreground)]">{runResult}</p>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {runResult}
+          </p>
         )}
         {saved && !error && !runResult && (
-          <p className="text-sm text-[var(--color-muted-foreground)]">{t('digest.saved')}</p>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {t("digest.saved")}
+          </p>
         )}
       </CardContent>
     </Card>

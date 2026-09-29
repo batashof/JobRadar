@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.21.2** (profile matching reads the delta instead of the whole board, which had exhausted Neon's free network-transfer quota, 2026-09-29; keep this line in sync on every bump).
+- **Current version: 1.22.0** (instant digest delivery — new matches pushed right after each ingestion run, with quiet hours and a stricter floor, ADR-019, 2026-09-29; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

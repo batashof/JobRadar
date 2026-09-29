@@ -24,6 +24,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [016](016-board-quality-gate.md) | Board quality gate: shared description sanitizer, RemoteOK dropped, Himalayas added | Accepted |
 | [017](017-resume-lexical-prerank.md) | Résumé-lexical pre-ranking as the always-present relevance signal | Accepted |
 | [018](018-vacancy-seniority-from-title.md) | A vacancy's seniority comes from its title, not from its prose (amends ADR-012 §3) | Accepted |
+| [019](019-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted |
 
 ## Template
 

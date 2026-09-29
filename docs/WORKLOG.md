@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-09-29 — Instant digest delivery (v1.22.0)
+
+- **The ask:** push a matching vacancy to Telegram as soon as it appears, instead of waiting for the next digest slot.
+- **What "as soon as" can honestly mean:** sources are fetched at most every 4 hours (politeness rule), so the earliest delivery is right after an ingestion run. Real-time MTProto updates for the Telegram channels would change ADR-009's ingestion model — out of scope, noted in the ADR.
+- **Decision (ADR-019):** `digest_settings.mode` = `scheduled` | `instant`. Instant rides the existing 5-minute digest tick, not the ingestion pipeline (no module coupling; a missed tick just widens the next window): one aggregate query per instant user asks for settled vacancies past `instant_through`; if any, the same funnel runs over that window only, the push goes out under a "New:"/"Свежее:" header, the watermark moves. 10-minute settle delay keeps it behind dedup. Quiet hours (default 22:00–08:00, user timezone, wrap-aware) hold the watermark so the night comes as one push. Separate floor `instant_min_score` (default 75); an empty instant push is silent. Switching to instant resets the watermark (null = look back 24 h).
+- **Migration `0016`:** `mode`, `quiet_start`, `quiet_end`, `instant_min_score`, `instant_through` on `digest_settings`. Shared schema + `DigestSettings` carry the new fields; the day-surface card got a delivery switch, quiet-hours inputs and the instant floor (only the chosen mode's controls are shown).
+- **Found on the way, fixed:** a digest for an account without a résumé failed outright — `lexicalRelevanceSql` returned a bare `0`, and `order by 0` is a column-position error in Postgres. Now `0::int`; regression test added.
+- **Verified on a real Postgres 16** (local): a 3-day-old posting stays out of the first 24 h window; a posting inside the settle delay waits, then goes out on the next tick; nothing new → no send, no write; quiet hours → watermark unchanged; after them, a window where nothing clears the floor → silent, watermark moves. Tests: `isQuietTime` (wrap, same-day, timezone, fail-open), instant `run()` (quiet, nothing new, push + slot key + watermark, stricter floor, silent empty, send times ignored), settings (defaults, stored values, watermark reset only on entering instant), schema, header; web: mode switch, controls per mode, quiet hours + floor saved. API 671, web 142; lint, typecheck, build clean.
+- **Prod TODO (developer, after the Neon quota resets):** `pnpm --filter @jobradar/api db:migrate:prod` applies `0015` + `0016`; then switch the digest card to *As soon as they appear*.
+- **Next step:** watch the first instant pushes in prod — whether 75 is the right floor and whether one push per ingestion run feels right.
+
 ## 2026-09-29 — Matching stops re-reading the whole board (v1.21.2)
 
 - **The incident:** Neon suspended the production compute — "You've used all of your monthly network transfer allowance" (5 GB on the free plan). Prod is down until the billing period resets; no data is lost.

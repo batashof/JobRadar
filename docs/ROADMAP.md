@@ -101,6 +101,7 @@ A personal execution surface over existing app state: `planner/` on the API, `/a
   - [x] Bot channel (v1.16.0) — linking, outbound send, inline buttons, webhook.
   - [x] Schedule configuration (v1.17.0) — `digest_settings`: on/off, 1–4 send times a day in the user's timezone, per-send cap, resume-fit floor; `GET`/`PATCH /digest/settings` + a card on the day surface.
   - [x] The send itself (v1.18.0) — `digest_items` (never repeat a vacancy), the SQL → level-gate → one-batch-LLM funnel, an in-process scheduler on the per-user local times, Telegram cards with *Apply* / *Details* / *Hide* / 👍👎, and a "send it now" button.
+  - [x] Instant delivery mode (v1.22.0, ADR-019) — push new matches right after each ingestion run instead of at fixed times, with quiet hours and a stricter floor.
   - [x] The three apply paths keyed on `vacancies.apply_contact` (v1.19.0): `email` → draft + confirm + send via Gmail; `telegram` → ready-made text plus a link to the chat; `url`/absent → the letter plus links into the app and the posting.
 - [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
 - [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21); **Himalayas + HN "Who is hiring?"**, WWR across five category feeds, Jobicy across four industries (2026-07-28, ADR-016 — RemoteOK dropped in the same pass). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Also **company career pages via Greenhouse/Ashby/Lever** (36 curated boards, 2026-07-28). Still open: Djinni.

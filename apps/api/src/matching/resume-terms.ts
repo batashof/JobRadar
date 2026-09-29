@@ -166,7 +166,10 @@ export function lexicalRelevanceSql(
 ): SQL<number> {
   const rolePattern = termsPattern(terms.roles);
   const stackPattern = termsPattern(terms.stack);
-  if (!rolePattern && !stackPattern) return sql<number>`0`;
+  // Cast, not a bare literal: in `order by`, Postgres reads a plain integer as
+  // a column position, and `order by 0` fails the whole query. That took down
+  // the digest for any account without a résumé (or one with no known terms).
+  if (!rolePattern && !stackPattern) return sql<number>`0::int`;
 
   const parts: SQL[] = [];
   if (rolePattern) {
