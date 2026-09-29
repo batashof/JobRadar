@@ -215,6 +215,11 @@ export const searchProfiles = pgTable(
     salaryMax: integer('salary_max'),
     salaryCurrency: text('salary_currency'),
     isActive: boolean('is_active').notNull().default(true),
+    // Matching bookkeeping, not configuration: the `vacancies.content_changed_at`
+    // this profile has been matched through. Null = never matched (or edited
+    // since), so the next run does the full pass. String mode keeps Postgres'
+    // microseconds, which a JS Date would round away and re-read forever.
+    matchedThrough: timestamp('matched_through', { withTimezone: true, mode: 'string' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -270,6 +275,13 @@ export const vacancies = pgTable(
     summaryEn: text('summary_en'),
     summaryEnGeneratedAt: timestamp('summary_en_generated_at', { withTimezone: true }),
     ingestedAt: timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
+    // When a field profile matching reads last changed. Ingestion re-upserts
+    // every posting it sees again, so `ingested_at` cannot say this; the upsert
+    // bumps it only when the matched content actually differs, which is what
+    // lets matching work on the delta instead of re-reading the whole board.
+    contentChangedAt: timestamp('content_changed_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     canonicalVacancyId: uuid('canonical_vacancy_id').references(
       (): AnyPgColumn => vacancies.id,
       { onDelete: 'set null' },

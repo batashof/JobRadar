@@ -7,6 +7,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.21.2] — 2026-09-29
+
+### Fixed
+
+- **Matching exhausted Neon's free network-transfer quota.** After every ingestion cycle — six times a day — `MatchingService.rematchAll()` read every canonical vacancy *with its full description* to re-score it in JS, and did so even when no active search profile existed to score against. Thousands of postings × several KB × six runs a day is gigabytes a month of egress, the 5 GB free allowance (ADR-001), and in September 2026 Neon suspended the production compute for the rest of the billing period. A run now reads only what it has to: nothing at all without an active profile; for a profile matched before, only the vacancies whose matched content changed since its watermark; the full pass only for a profile never matched, edited, or reactivated. Matches of vacancies dedup later links as duplicates are pruned in SQL, without pulling a row.
+- **The upsert tells a re-seen posting from a changed one.** Sources re-list what is still open, so every run re-upserts the same rows; the new `vacancies.content_changed_at` moves only when a field matching reads actually differs (`is distinct from`, null-safe), which is what makes the delta small.
+
 ## [1.21.1] — 2026-08-20
 
 ### Changed

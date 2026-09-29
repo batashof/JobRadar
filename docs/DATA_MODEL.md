@@ -79,6 +79,7 @@ Index: `(user_id)`.
 | salary_min / salary_max | integer nullable | |
 | salary_currency | text nullable | ISO 4217 |
 | is_active | boolean default true | |
+| matched_through | timestamptz nullable | matching watermark: the `vacancies.content_changed_at` this profile is matched through; null = next run does the full pass (never matched, edited, or deactivated). Read/written as text to keep microseconds |
 | created_at / updated_at | timestamptz | |
 
 ### sources
@@ -112,6 +113,7 @@ Index: `(user_id)`.
 | location | text nullable | |
 | published_at | timestamptz nullable | from source |
 | ingested_at | timestamptz | |
+| content_changed_at | timestamptz default now() | bumped by the ingestion upsert only when a field profile matching reads (title, description, work format, employment type, salary) differs — lets matching read the delta instead of the whole board |
 | canonical_vacancy_id | uuid FK → vacancies, nullable | set on duplicates; null = canonical |
 
 Indexes: `(source_id, external_id)` unique; GIN on `search_vector`; `(company_normalized)`; `(published_at)`.

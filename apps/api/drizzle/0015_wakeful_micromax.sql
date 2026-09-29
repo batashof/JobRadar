@@ -1,0 +1,2 @@
+ALTER TABLE "search_profiles" ADD COLUMN "matched_through" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "vacancies" ADD COLUMN "content_changed_at" timestamp with time zone DEFAULT now() NOT NULL;

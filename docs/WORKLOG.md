@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-09-29 — Matching stops re-reading the whole board (v1.21.2)
+
+- **The incident:** Neon suspended the production compute — "You've used all of your monthly network transfer allowance" (5 GB on the free plan). Prod is down until the billing period resets; no data is lost.
+- **Cause, found in code:** `rematchAll()` ran after every ingestion cycle (6×/day) and selected every canonical vacancy *with its description* — thousands of rows, several KB each — to score them in JS, even with zero active search profiles (the author's account has none). Order of magnitude: 20–30 MB per run → 3.6–5.4 GB/month, i.e. the whole allowance. Could not measure on prod: the quota blocks queries, and this environment's network policy does not allow `*.neon.tech`. The digest (5-min tick reads only `digest_settings` until a slot is due), `/health` (`select 1`), the feed (400-char excerpts) and dedup (titles only) were checked and are small.
+- **Fix:** migration `0015` adds `vacancies.content_changed_at` (the upsert bumps it only when title/description/format/employment/salary differ) and `search_profiles.matched_through` (per-profile watermark, stored and compared as Postgres text so microseconds survive). A run reads nothing without an active profile, the delta for a matched one, the full pass for a new/edited/reactivated one; duplicate matches are pruned in one SQL delete; clearing a profile resets its watermark so reactivation cannot degrade into a delta.
+- **Verified on a real Postgres 16** (local, migrations + seed): full pass → nothing new (0 rows read) → identical re-upsert (0 read) → content change drops a match → new posting + dedup link swaps the match → deactivate clears → reactivation via `rematchAll` does the full pass. Jest: `matching.service.spec` (10) + `vacancy-upsert.spec` (2). API 653, web 137, lint + typecheck clean.
+- **Prod TODO (developer, after the quota resets):** `pnpm --filter @jobradar/api db:migrate:prod` (migration `0015`).
+- **Next step:** instant delivery mode for the digest (ADR-019), built on the same "work on the delta" idea.
+
 ## 2026-08-20 — The posting arrives collapsed (v1.21.1)
 
 - **The complaint:** ten vacancies with their full text is ten walls of text to scroll past. The posting should arrive folded and unfold on demand.
