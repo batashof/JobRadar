@@ -20,9 +20,9 @@ One-off. Everything that touches production runs in GitHub Actions (`DB (prod)` 
 - **CA certificate:** **Project Settings → Database → SSL Configuration → Download certificate**. The file is PEM text (`-----BEGIN CERTIFICATE-----` … `-----END CERTIFICATE-----`).
 - **Neon URL:** the current `DATABASE_URL` on Render (or Neon console → Connect). A `-pooler` host is fine; the copy script switches to the direct host.
 
-## 3. GitHub repository secrets
+## 3. GitHub secrets
 
-Repository → **Settings → Secrets and variables → Actions → New repository secret**:
+Repository → **Settings → Secrets and variables → Actions**. The workflow job runs in the `main - jobradar-api` environment, so either place works: **Manage environment secrets → main - jobradar-api**, or **New repository secret**. When a name exists in both, the environment's value wins.
 
 | Secret | Value |
 |---|---|

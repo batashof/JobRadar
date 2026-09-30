@@ -4,7 +4,9 @@ name: DB (prod)
 # on the developer's machine, whose network blocks outbound TCP 5432.
 #
 # Secrets: DATABASE_URL_PROD (Supabase session pooler URL), DATABASE_CA_CERT_PROD
-# (Supabase root CA, PEM), NEON_DATABASE_URL (only for the one-off copy).
+# (Supabase root CA, PEM), NEON_DATABASE_URL (only for the one-off copy). They
+# live in the `main - jobradar-api` environment; repository secrets of the same
+# names work too (an environment secret wins over a repository one).
 on:
   workflow_dispatch:
     inputs:
@@ -33,6 +35,8 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Environment secrets are only handed to jobs that name their environment.
+    environment: 'main - jobradar-api'
     env:
       DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
       DATABASE_CA_CERT_PROD: ${{ secrets.DATABASE_CA_CERT_PROD }}
