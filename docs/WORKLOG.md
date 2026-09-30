@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-09-30 — DB (prod) reads the environment's secrets
+
+- PR #2 merged. The first `check` run failed with every secret empty: they had been added as **environment** secrets of `main - jobradar-api` (Render's GitHub deployment environment), and a job only receives those when it names the environment.
+- The `DB (prod)` job now declares `environment: 'main - jobradar-api'`. Repository secrets of the same names keep working, and the environment's value wins. The runbook's secrets step says so.
+- Next step: `check`, then `copy-from-neon` once Neon answers, then the Render switch.
+
 ## 2026-09-30 — Supabase cutover: review and hardening (v1.21.2, unreleased)
 
 - **Reviewed the branch before the cutover** and rehearsed it end to end on two local clusters: a plain "Neon" with 2k vacancies, duplicates stored physically before their canonical row, a résumé `bytea` and planner rows; and a TLS-only "Supabase" signed by a private CA, with `anon`/`authenticated` roles and Supabase's default grants.
