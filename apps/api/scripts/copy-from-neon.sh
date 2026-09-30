@@ -47,12 +47,16 @@ if echo "$target_before" | awk '$2 != 0 { found = 1 } END { exit !found }'; then
   exit 1
 fi
 
+# Outside the checkout, so the dump can never be committed by accident.
+dump="$(mktemp -d)/neon-data.sql"
+trap 'rm -rf "$(dirname "$dump")"' EXIT
+
 echo "Dumping Neon (data only, schema public)..."
 neon pg_dump "$NEON_DATABASE_URL" --data-only --schema=public \
-  --no-owner --no-privileges --file=neon-data.sql
+  --no-owner --no-privileges --file="$dump"
 
 echo "Restoring into the target in one transaction..."
-psql "$DATABASE_URL_PROD" -v ON_ERROR_STOP=1 --single-transaction --quiet -f neon-data.sql
+psql "$DATABASE_URL_PROD" -v ON_ERROR_STOP=1 --single-transaction --quiet -f "$dump"
 
 echo "Comparing row counts..."
 source_counts=$(row_counts "$NEON_DATABASE_URL")
