@@ -7,6 +7,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.21.2] — 2026-09-30
+
+### Fixed
+
+- **Digests stopped arriving towards the end of every month** because the database was suspended (ADR-019). Neon's free plan allows 100 compute-hours a month and only stops billing after 5 idle minutes. The planner tick queries Postgres every minute, so the database never slept: about 180 hours of demand against 100. Production Postgres moves to **Supabase's free plan**, an always-on instance with no compute-hour quota.
+
+### Changed
+
+- **The API verifies the database's certificate against a configured CA.** `DATABASE_CA_CERT` (PEM) is handed to `pg`, and TLS parameters in the URL are dropped so they cannot override it. Supabase's root CA is not publicly trusted, and the alternative was turning verification off.
+- **Production maintenance runs from the `DB (prod)` workflow** (manual dispatch: `migrate`, `copy-from-neon`, `backfill:seniority`, `backfill:contacts`, `cleanup:junk`, with a dry-run toggle). The developer's network blocks port 5432, which is what the Neon HTTP driver worked around. `neon-apply.ts` becomes `prod-apply.ts` over plain `pg`, the scripts share `openScriptDb`, and `@neondatabase/serverless` is removed.
+- **`copy-from-neon`** moves the data once: the schema comes from our own migrations, the rows from a data-only `pg_dump` restored in one transaction. It refuses a non-empty target and fails if any table's row count differs afterwards.
+
 ## [1.21.1] — 2026-08-20
 
 ### Changed

@@ -2,6 +2,18 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-09-30 — Postgres leaves Neon for Supabase (v1.21.2)
+
+- **The complaint:** at the end of the month the database hits its limits and digests do not arrive.
+- **Why:** Neon's free plan gives 100 CU-hours a month and scales to zero only after 5 idle minutes. The planner tick hits Postgres every minute and the keep-alive keeps the process up, so the compute never sleeps. That is ~0.25 CU × 730 h ≈ 180 CU-hours of demand against 100, and the compute is suspended until the month rolls over. Stretching the timers only moves the date.
+- **Decision (ADR-019):** Supabase free plan, an always-on Postgres with no compute quota, already allowed by ADR-001. Storage stays ~500 MB, so growth is still a future problem (retention of old duplicates is the lever).
+- **TLS:** node-postgres reads `sslmode=require` as `verify-full`, and Supabase's CA is private. Reproduced locally with a self-signed root: the plain URL fails "unable to verify the first certificate", and `buildPoolConfig(url, DATABASE_CA_CERT)` connects verified. TLS params are stripped from the URL because pg lets the parsed URL override `ssl`.
+- **Prod tooling:** `neon-apply.ts` → `prod-apply.ts` (node-postgres migrator, `--no-seed`). The three maintenance scripts share `openScriptDb`, and the Neon driver is removed. A new `DB (prod)` workflow runs them from GitHub Actions, since this network blocks 5432.
+- **Data move:** `scripts/copy-from-neon.sh` (migrate the target → data-only `pg_dump` → single-transaction restore → per-table row-count comparison). Rehearsed on two local databases: copy verified, `search_vector` regenerated, and a second run refused the non-empty target. The migrate script and all three maintenance scripts were also run against a local DB through `--prod`.
+- **Tests:** `pool-config` suite (pass-through without a CA, CA verification, TLS params dropped but others kept, credentials intact, escaped PEM). API 647 green (+6), typecheck + lint clean.
+- **Developer TODO:** create the Supabase project, disable its Data API, add secrets `DATABASE_URL_PROD`, `DATABASE_CA_CERT_PROD`, `NEON_DATABASE_URL`, run `DB (prod)` → `copy-from-neon`, then switch `DATABASE_URL` + `DATABASE_CA_CERT` on Render.
+- **Next step:** watch a couple of digest slots land from Supabase, then retire the Neon project.
+
 ## 2026-08-20 — The posting arrives collapsed (v1.21.1)
 
 - **The complaint:** ten vacancies with their full text is ten walls of text to scroll past. The posting should arrive folded and unfold on demand.

@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.21.1** (the digest carries the posting in a collapsed `<blockquote expandable>`, so a card is a card and the full text expands in place, 2026-08-20; keep this line in sync on every bump).
+- **Current version: 1.21.2** (production Postgres moves from Neon to Supabase — the always-on API exhausted Neon's compute-hour quota and the database was suspended at month's end, ADR-019, 2026-09-30; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;
