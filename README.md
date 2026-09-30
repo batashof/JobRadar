@@ -51,7 +51,7 @@ The author is a frontend developer (React, 8 years) using this project as a path
 |---|---|
 | Frontend | React + Next.js (App Router) on Vercel |
 | Backend | NestJS + TypeScript (separate service) on Render |
-| Database | PostgreSQL (Neon free tier) + Postgres FTS |
+| Database | PostgreSQL (Supabase free tier, ADR-019) + Postgres FTS |
 | ORM | Drizzle, with migrations (ADR-008) |
 | Queue / cache | Redis (Upstash free) + BullMQ |
 | Cron | GitHub Actions schedule → authenticated ingestion hook (ADR-006) |

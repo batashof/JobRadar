@@ -11,17 +11,14 @@
  *
  * Run with: pnpm --filter @jobradar/api backfill:seniority (DATABASE_URL from
  * the environment / repo-root .env). Pass --prod to run against
- * DATABASE_URL_PROD over Neon HTTPS (this machine blocks TCP 5432), and
+ * DATABASE_URL_PROD (the "DB (prod)" workflow), and
  * --dry-run to print the change summary without writing anything.
  */
-import { neon } from '@neondatabase/serverless';
 import { detectVacancySeniority, type SeniorityLevel } from '@jobradar/shared';
 import { config } from 'dotenv';
 import { inArray } from 'drizzle-orm';
-import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
 
+import { openScriptDb } from '../src/db/prod-db';
 import { vacancies } from '../src/db/schema';
 
 config({ path: '../../.env' });
@@ -32,16 +29,7 @@ const UPDATE_CHUNK = 500;
 async function main(): Promise<void> {
   const prod = process.argv.includes('--prod');
   const dryRun = process.argv.includes('--dry-run');
-  let pool: Pool | null = null;
-  let db;
-  if (prod) {
-    const url = process.env.DATABASE_URL_PROD;
-    if (!url) throw new Error('DATABASE_URL_PROD is not set (see .env)');
-    db = drizzleNeon(neon(url));
-  } else {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    db = drizzle(pool);
-  }
+  const { db, close } = openScriptDb(prod);
 
   const rows = await db
     .select({
@@ -72,7 +60,7 @@ async function main(): Promise<void> {
 
   if (dryRun) {
     console.log('\n--dry-run: nothing written.');
-    await pool?.end();
+    await close();
     return;
   }
 
@@ -86,7 +74,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`\nRelabelled ${changed} vacancies.`);
-  await pool?.end();
+  await close();
 }
 
 main().catch((err) => {
