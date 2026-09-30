@@ -1,4 +1,6 @@
-import { buildPoolConfig } from './pool-config';
+import { Client } from 'pg';
+
+import { buildPoolConfig, createPool } from './pool-config';
 
 const PEM = '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----';
 
@@ -29,6 +31,23 @@ describe('buildPoolConfig', () => {
     expect(url.searchParams.get('application_name')).toBe('api');
   });
 
+  it.each(['ssl=true', 'sslnegotiation=direct', 'sslmode=verify-full&sslrootcert=system'])(
+    'leaves pg with the CA when the URL carries %s',
+    (params) => {
+      const url = `postgresql://u:p@pooler.supabase.com:5432/postgres?${params}`;
+      const config = buildPoolConfig(url, PEM);
+      // What pg itself resolves after merging the parsed URL over the config.
+      const client = new Client(config) as unknown as { connectionParameters: { ssl: unknown } };
+      expect(client.connectionParameters.ssl).toEqual({ ca: PEM, rejectUnauthorized: true });
+    },
+  );
+
+  it('rejects a malformed URL without echoing it', () => {
+    const build = () => buildPoolConfig('postgresql://u:pa ss@[bad/postgres', PEM);
+    expect(build).toThrow(/DATABASE_URL is not a valid URL/);
+    expect(build).not.toThrow(/pa ss/);
+  });
+
   it('keeps credentials and database intact', () => {
     const config = buildPoolConfig(
       'postgresql://postgres.abc:s%40cret@pooler.supabase.com:5432/postgres?sslmode=require',
@@ -44,5 +63,24 @@ describe('buildPoolConfig', () => {
     const escaped = PEM.replace(/\n/g, '\\n');
     const config = buildPoolConfig('postgresql://u:p@h:5432/db', escaped);
     expect(config.ssl).toEqual({ ca: PEM, rejectUnauthorized: true });
+  });
+});
+
+describe('createPool', () => {
+  it('survives an idle connection being dropped', async () => {
+    const onIdleError = jest.fn();
+    const pool = createPool(undefined, undefined, onIdleError);
+    const error = new Error('terminating connection due to administrator command');
+
+    // Without a listener, EventEmitter throws this out as an uncaught exception.
+    expect(() => pool.emit('error', error)).not.toThrow();
+    expect(onIdleError).toHaveBeenCalledWith(error);
+    await pool.end();
+  });
+
+  it('applies the CA from buildPoolConfig', async () => {
+    const pool = createPool('postgresql://u:p@h:5432/db?sslmode=require', PEM, jest.fn());
+    expect(pool.options.ssl).toEqual({ ca: PEM, rejectUnauthorized: true });
+    await pool.end();
   });
 });

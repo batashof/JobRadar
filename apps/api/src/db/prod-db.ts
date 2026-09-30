@@ -1,7 +1,6 @@
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
 
-import { buildPoolConfig } from './pool-config';
+import { createPool } from './pool-config';
 import * as schema from './schema';
 
 export interface ScriptDb {
@@ -22,6 +21,8 @@ export function openScriptDb(prod: boolean): ScriptDb {
   if (prod && !url) throw new Error('DATABASE_URL_PROD is not set');
   const ca = prod ? process.env.DATABASE_CA_CERT_PROD : process.env.DATABASE_CA_CERT;
 
-  const pool = new Pool(buildPoolConfig(url, ca));
+  const pool = createPool(url, ca, (error) =>
+    console.warn(`idle connection dropped: ${error.message}`),
+  );
   return { db: drizzle(pool, { schema }), close: () => pool.end() };
 }

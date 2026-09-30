@@ -1,9 +1,8 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
 
-import { buildPoolConfig } from './pool-config';
+import { createPool } from './pool-config';
 import * as schema from './schema';
 
 export const DB = Symbol('DB');
@@ -21,8 +20,11 @@ export type Database = NodePgDatabase<typeof schema>;
         // (e.g. the hello-world deploy) and only fails on first query.
         // DATABASE_CA_CERT: the provider's root CA (Supabase, ADR-019), so TLS
         // is verified rather than disabled.
-        const pool = new Pool(
-          buildPoolConfig(config.get<string>('DATABASE_URL'), config.get<string>('DATABASE_CA_CERT')),
+        const logger = new Logger('Database');
+        const pool = createPool(
+          config.get<string>('DATABASE_URL'),
+          config.get<string>('DATABASE_CA_CERT'),
+          (error) => logger.warn(`idle connection dropped: ${error.message}`),
         );
         return drizzle(pool, { schema });
       },

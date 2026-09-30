@@ -1,5 +1,6 @@
 /**
- * Applies migrations + source seed to the production database (ADR-019).
+ * Applies migrations + source seed to the production database (ADR-019), and
+ * takes table access away from Supabase's Data API roles.
  *
  * Runs from the "DB (prod)" GitHub Actions workflow with DATABASE_URL_PROD /
  * DATABASE_CA_CERT_PROD from repo secrets. `--no-seed` skips the source upsert
@@ -10,6 +11,7 @@
 import { config } from 'dotenv';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
+import { revokeDataApiGrants } from './data-api-grants';
 import { openScriptDb } from './prod-db';
 import * as schema from './schema';
 import { SEED_SOURCES } from './seed-data';
@@ -21,6 +23,13 @@ async function main(): Promise<void> {
   try {
     await migrate(db, { migrationsFolder: './drizzle' });
     console.log('Migrations applied.');
+
+    const revoked = await revokeDataApiGrants(db);
+    console.log(
+      revoked.length
+        ? `Data API roles hold no grants on public tables: ${revoked.join(', ')}.`
+        : 'No Data API roles on this server (not Supabase) - nothing to revoke.',
+    );
 
     if (process.argv.includes('--no-seed')) return;
     for (const source of SEED_SOURCES) {

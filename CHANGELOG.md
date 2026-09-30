@@ -12,12 +12,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Fixed
 
 - **Digests stopped arriving towards the end of every month** because the database was suspended (ADR-019). Neon's free plan allows 100 compute-hours a month and only stops billing after 5 idle minutes. The planner tick queries Postgres every minute, so the database never slept: about 180 hours of demand against 100. Production Postgres moves to **Supabase's free plan**, an always-on instance with no compute-hour quota.
+- **A dropped idle connection no longer kills the API.** pg emits `error` on the pool when the server or pooler closes an idle client. With no listener attached, Node crashed the process, planner tick and digest runner included. Reproduced by terminating the backend: the process died without a listener and survived with one, and the next query reconnected. `createPool` now logs it.
+- **`?ssl=true` or `?sslnegotiation=direct` in `DATABASE_URL` no longer replaces the configured CA** with Node's trust store, which made verification fail. Both are stripped along with `sslmode`. A malformed URL fails with a message that does not echo the password.
+
+### Added
+
+- **`GET /health` reports the database side of the switch:** `dbHost` (hostname only), `dbCaConfigured`, and `dbError`, the driver's own message rather than Drizzle's "Failed query" wrapper. A wrong CA reads `unable to verify the first certificate`, a wrong password `password authentication failed`.
+- **`DB (prod)` → `check`** (`db:check:prod`): a read-only connection test that prints the server, the table count, and how many tables each Data API role can reach. It proves the secrets before the copy.
+- **Runbook** for the cutover: [docs/runbooks/supabase-cutover.md](docs/runbooks/supabase-cutover.md).
 
 ### Changed
 
 - **The API verifies the database's certificate against a configured CA.** `DATABASE_CA_CERT` (PEM) is handed to `pg`, and TLS parameters in the URL are dropped so they cannot override it. Supabase's root CA is not publicly trusted, and the alternative was turning verification off.
-- **Production maintenance runs from the `DB (prod)` workflow** (manual dispatch: `migrate`, `copy-from-neon`, `backfill:seniority`, `backfill:contacts`, `cleanup:junk`, with a dry-run toggle). The developer's network blocks port 5432, which is what the Neon HTTP driver worked around. `neon-apply.ts` becomes `prod-apply.ts` over plain `pg`, the scripts share `openScriptDb`, and `@neondatabase/serverless` is removed.
-- **`copy-from-neon`** moves the data once: the schema comes from our own migrations, the rows from a data-only `pg_dump` restored in one transaction. It refuses a non-empty target and fails if any table's row count differs afterwards.
+- **Production maintenance runs from the `DB (prod)` workflow** (manual dispatch: `check`, `migrate`, `copy-from-neon`, `backfill:seniority`, `backfill:contacts`, `cleanup:junk`, with a dry-run toggle). The developer's network blocks port 5432, which is what the Neon HTTP driver worked around. `neon-apply.ts` becomes `prod-apply.ts` over plain `pg`, the scripts share `openScriptDb`, and `@neondatabase/serverless` is removed. The workflow fails fast without `DATABASE_CA_CERT_PROD`, and psql/pg_dump verify the target too (`PGSSLMODE=verify-full`).
+- **`copy-from-neon`** moves the data once: the schema comes from our own migrations, the rows from a data-only `pg_dump` restored in one transaction. It refuses a non-empty target and fails if any table's row count differs from the dump's. Writes that reach live Neon during the copy are reported as a warning rather than failing a correct copy, which the non-empty-target guard would then block from being re-run. It also dumps from Neon's direct host even when given the `-pooler` one, prints the source size against Supabase's 500 MB, drops pg_dump 17+'s `SET transaction_timeout` for targets older than 17, and runs `ANALYZE` after the restore.
+- **`db:migrate:prod` revokes the Supabase Data API roles' grants** (`anon`, `authenticated`, `service_role`) on every table and sequence in `public`, now and by default for future tables. The Data API is switched off as well; this makes that switch not the only thing standing between PostgREST and tables without row-level security. It is a no-op on plain Postgres.
 
 ## [1.21.1] — 2026-08-20
 

@@ -2,6 +2,20 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-09-30 — Supabase cutover: review and hardening (v1.21.2, unreleased)
+
+- **Reviewed the branch before the cutover** and rehearsed it end to end on two local clusters: a plain "Neon" with 2k vacancies, duplicates stored physically before their canonical row, a résumé `bytea` and planner rows; and a TLS-only "Supabase" signed by a private CA, with `anon`/`authenticated` roles and Supabase's default grants.
+- **Fixed: the API died when an idle connection was dropped.** Without an `error` listener on the pg pool, a server-side termination was an uncaught exception. Reproduced (process crash), fixed with `createPool` (logs a warning), and re-verified on the built API: the connections were killed, the process survived, and `/health` stayed ok.
+- **Fixed: `?ssl=true` / `?sslnegotiation=direct` in the URL overrode the CA** (checked through pg's own `connectionParameters`). They are now stripped too, and a malformed URL no longer echoes the password.
+- **Fixed: the copy could fail itself into a dead end.** It compared the target with *live* Neon after the restore, so a single write from the still-running API made it fail, and a re-run was then refused because the target had rows. It now compares with the dump, the snapshot, and reports later Neon writes as a warning. Rehearsed with a writer inserting into Neon throughout: copy verified, 22 late rows reported.
+- **Copy script:** the Neon `-pooler` host is switched to the direct host for pg_dump. It prints the source size against 500 MB, drops `SET transaction_timeout` for targets < 17, and runs `ANALYZE`. The pg_dump "circular foreign-key" warnings are self-references and restore fine, as the rehearsal confirmed.
+- **Data API roles lose their grants in `db:migrate:prod`** (ADR-019 §5): after the rehearsal `anon` reached 0 tables, a table created later was not granted either, and the step was a no-op on plain Postgres.
+- **Workflow:** new read-only `check` task (`db:check:prod`), fail-fast CA secret check, `apt-get update`, `PGSSLMODE=verify-full` for psql/pg_dump (a wrong CA is rejected), `permissions: contents: read`.
+- **`/health`:** `dbHost`, `dbCaConfigured`, `dbError`. The live API with a wrong CA reports `unable to verify the first certificate`.
+- **Docs:** ADR-019 §2, §4, §5 updated and §6 added; runbook `docs/runbooks/supabase-cutover.md`; CHANGELOG 1.21.2 extended. The version is unchanged, since 1.21.2 had not shipped.
+- **Tests:** API 662 (+15), web 137; lint, typecheck and build clean.
+- **Next step (developer):** follow the runbook: merge, create Supabase, add secrets, `check`, `copy-from-neon` once Neon's quota has reset, switch Render, verify `/health`.
+
 ## 2026-09-30 — Postgres leaves Neon for Supabase (v1.21.2)
 
 - **The complaint:** at the end of the month the database hits its limits and digests do not arrive.
