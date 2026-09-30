@@ -54,6 +54,7 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 13 | Interview-prep module: resume-driven plan, generated Q&A, LLM-reviewed live-coding, text mock interview (phase 4) | [013](decisions/013-interview-prep-module.md) |
 | 14 | Two-language interface (EN/RU) stored on the account, driving UI strings and AI-generation language | [014](decisions/014-interface-language-i18n.md) |
 | 15 | Day planner with accountability loop: LLM-composed timebox queue, in-process minute tick, Telegram-bot nudges, rolling debt (phase 4) | [015](decisions/015-day-planner-accountability.md) |
+| 20 | LinkedIn via the job-alert emails LinkedIn sends the user, read over IMAP; still no request to linkedin.com (amends 003) | [020](decisions/020-linkedin-job-alert-emails.md) |
 
 ## Repository layout (monorepo)
 

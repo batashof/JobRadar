@@ -88,7 +88,7 @@ Index: `(user_id)`.
 |---|---|---|
 | id | uuid PK | |
 | slug | text unique | `hh`, `remoteok`, `weworkremotely`, ... |
-| kind | enum | `api` / `rss` / `telegram` / `manual` |
+| kind | enum | `api` / `rss` / `telegram` / `manual` / `email` (ADR-020: LinkedIn job-alert emails) |
 | config | jsonb | endpoint, feed URL, fetch interval |
 | is_active | boolean | |
 | last_run_at | timestamptz nullable | |

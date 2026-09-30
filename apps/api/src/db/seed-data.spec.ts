@@ -18,6 +18,7 @@ describe('seed data', () => {
       'ats',
       'himalayas',
       'workingnomads',
+      'linkedin',
     ]);
   });
 
@@ -44,6 +45,14 @@ describe('seed data', () => {
       expect(channel).not.toContain('@');
       expect(channel).toMatch(/^[a-z0-9_]+$/i);
     }
+  });
+
+  it('reads LinkedIn only from alert emails, never from linkedin.com (ADR-020)', () => {
+    const linkedin = SEED_SOURCES.find((s) => s.slug === 'linkedin');
+    expect(linkedin?.kind).toBe('email');
+    const config = linkedin?.config as { senders?: string[]; feedUrl?: string } | undefined;
+    expect(config?.senders).toEqual(['jobalerts-noreply@linkedin.com']);
+    expect(config?.feedUrl).toBeUndefined();
   });
 
   it('uses only valid source kinds', () => {

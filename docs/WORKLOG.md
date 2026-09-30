@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-09-30 — LinkedIn via job-alert emails (v1.23.0)
+
+- **The ask:** a LinkedIn bot that finds vacancies "unnoticed" from a secondary account and sends them to Telegram.
+- **Rejected, with reasons (ADR-020 §Context):** a fresh account searching on a schedule is restricted fast, accounts are linked by fingerprint/IP/phone (main account at risk), fake profiles breach the User Agreement (*hiQ v. LinkedIn*), ingestion runs from datacenter IPs that LinkedIn walls off, and stealth means paid proxies (ADR-001). And it buys nothing: LinkedIn already emails saved-search results.
+- **Decision (ADR-020, amends ADR-003):** source `linkedin`, kind `email` — reads LinkedIn's job-alert emails from the user's mailbox over IMAP (`imapflow` + `mailparser`), read-only, sender search in "All Mail". Card → vacancy: job id as `external_id`, clean `/jobs/view/<id>/` URL, `(Remote)/(Hybrid)/(On-site)` → work format, annual salary via `parseSalaryString`, synthesized description (the developer confirmed the card is enough — the apply is on LinkedIn/the employer's site anyway). Emails but no jobs → `empty` (layout changed); no emails → `notModified`.
+- **Why IMAP + app password, not the existing Gmail OAuth:** refresh tokens of an unverified Google app in *Testing* expire every 7 days. The app password opens the whole mailbox → a dedicated mailbox with forwarded alerts is the documented setup.
+- **Caveat:** no real alert email was available in this session — fixtures are modelled on LinkedIn's layout. `linkedin:alerts:preview --file <eml>` exists to check the parser on real mail before trusting it; verified end to end on a synthetic multipart `.eml` (MIME → 4 jobs).
+- **Also:** migration `0017` (`source_kind += email`), seed row, `GET /health` → `linkedinAlertsConfigured`, web source label "LinkedIn", `.env.example`, DATA_SOURCES §9, ROADMAP, ARCHITECTURE. Tests: parser (HTML, text, merge, query), normalize, service (skip, window, empty vs not-modified, dedup across emails, failure), IMAP module (read-only lock, All Mail, sender union, newest-first cap, cleanup on failure), seed, health, web label. API 719, web 145; lint, typecheck, build clean.
+- **Prod TODO (developer):** set up Job Alerts + dedicated mailbox + app password (DATA_SOURCES §9 → Setup); run the preview on a real email; `ALERTS_IMAP_USER`/`ALERTS_IMAP_PASSWORD` in Render; `pnpm --filter @jobradar/api db:migrate:prod` (applies `0015`–`0017` and seeds the `linkedin` source).
+- **Next step:** check the parser against the first real alert emails; tune the instant floor for thin LinkedIn cards if they score low.
+
 ## 2026-09-29 — Instant digest delivery (v1.22.0)
 
 - **The ask:** push a matching vacancy to Telegram as soon as it appears, instead of waiting for the next digest slot.

@@ -60,12 +60,38 @@ describe('HealthController', () => {
       redisError: null,
       ingestionTokenConfigured: true,
       telegramConfigured: false,
+      linkedinAlertsConfigured: false,
       botConfigured: false,
       sentryConfigured: false,
       llmProviders: [],
       llmStatus: [],
     });
     expect(JSON.stringify(health)).not.toContain('secret');
+  });
+
+  it('reports the LinkedIn alert mailbox as configured without exposing it', async () => {
+    const env: Record<string, string> = {
+      REDIS_URL: 'redis://localhost:6379',
+      ALERTS_IMAP_USER: 'alerts@example.com',
+      ALERTS_IMAP_PASSWORD: 'app-pass-secret',
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [HealthController],
+      providers: [
+        { provide: DB, useValue: dbMock },
+        { provide: ConfigService, useValue: { get: (key: string) => env[key] } },
+        {
+          provide: LlmService,
+          useValue: { configuredProviderNames: () => [], providerStatus: () => [] },
+        },
+      ],
+    }).compile();
+
+    const health = await moduleRef.get(HealthController).getHealth();
+
+    expect(health.checks?.linkedinAlertsConfigured).toBe(true);
+    expect(JSON.stringify(health)).not.toContain('alerts@example.com');
+    expect(JSON.stringify(health)).not.toContain('app-pass-secret');
   });
 
   it('reports each provider’s last call, so a silently failing chain is visible', async () => {

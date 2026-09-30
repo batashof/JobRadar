@@ -41,7 +41,7 @@ export const employmentTypeEnum = pgEnum('employment_type', [
   'freelance',
 ]);
 
-export const sourceKindEnum = pgEnum('source_kind', ['api', 'rss', 'telegram', 'manual']);
+export const sourceKindEnum = pgEnum('source_kind', ['api', 'rss', 'telegram', 'manual', 'email']);
 
 export const sourceRunStatusEnum = pgEnum('source_run_status', ['ok', 'empty', 'error']);
 

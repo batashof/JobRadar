@@ -8,6 +8,7 @@ import { HhIngestService } from './hh/hh.service';
 import { HimalayasIngestService } from './himalayas/himalayas.service';
 import { HnIngestService } from './hn/hn.service';
 import { JobicyIngestService } from './jobicy/jobicy.service';
+import { LinkedInAlertsIngestService } from './linkedin/linkedin-alerts.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
 import { TelegramIngestService } from './telegram/telegram.service';
@@ -33,6 +34,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
     WorkingNomadsIngestService,
     TelegramIngestService,
     WwrIngestService,
+    LinkedInAlertsIngestService,
     IngestionTokenGuard,
   ],
 })

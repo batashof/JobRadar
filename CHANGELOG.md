@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - Phase 4 remainder: browser extension, calendar sync.
 
+## [1.23.0] — 2026-09-30
+
+### Added
+
+- **LinkedIn vacancies, from the job-alert emails LinkedIn sends you** (ADR-020, amending ADR-003). Create Job Alerts on your LinkedIn account; a new source, `linkedin`, reads those emails from a mailbox over IMAP and ingests one vacancy per card — title, company, location, workplace type, salary when shown, and a link to the clean `linkedin.com/jobs/view/<id>/`. They flow into the feed and the Telegram digest like any other source (instantly in instant mode). **No request ever goes to linkedin.com** and no account is automated: LinkedIn runs the search, JobRadar reads mail addressed to you.
+- The mailbox is opened **read-only** (nothing is marked as read) and searched by sender across "All Mail", so a filter that archives the alerts does not hide them. Credentials are a Gmail app password in `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD`; a dedicated mailbox receiving only the forwarded alerts is the recommended setup. Without them the source skips quietly. `GET /health` reports `linkedinAlertsConfigured`.
+- The parser anchors on the job link alone — HTML part first, plain-text part as a fallback, English and Russian chrome filtered — and a window with alert emails but no parsed job marks the run `empty` (Sentry), which is how a LinkedIn layout change surfaces. `pnpm --filter @jobradar/api linkedin:alerts:preview [--file alert.eml]` shows what would be ingested from a saved email or the live mailbox, writing nothing.
+- Migration `0017` adds `email` to the `source_kind` enum.
+
 ## [1.22.0] — 2026-09-29
 
 ### Added
