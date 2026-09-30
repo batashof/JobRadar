@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { sourceLabel } from './labels';
 
 describe('sourceLabel', () => {
-  it('names the LinkedIn job-alert source (ADR-020)', () => {
+  it('names the LinkedIn job-alert source (ADR-021)', () => {
     expect(sourceLabel('linkedin')).toBe('LinkedIn');
   });
 

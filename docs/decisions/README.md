@@ -8,7 +8,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 |---|---|---|
 | [001](001-zero-budget.md) | Zero-budget constraint: free tiers only | Accepted |
 | [002](002-separate-backend.md) | Backend as a separate service | Accepted |
-| [003](003-no-linkedin-scraping.md) | No LinkedIn scraping | Accepted (amended by ADR-020) |
+| [003](003-no-linkedin-scraping.md) | No LinkedIn scraping | Accepted (amended by ADR-021) |
 | [004](004-dedup-heuristic-first.md) | Deduplication: heuristic first, LLM later | Accepted |
 | [005](005-llm-free-tier-failover.md) | LLM via free tiers with provider failover | Accepted |
 | [006](006-github-actions-cron.md) | External cron via GitHub Actions | Accepted |
@@ -24,8 +24,9 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [016](016-board-quality-gate.md) | Board quality gate: shared description sanitizer, RemoteOK dropped, Himalayas added | Accepted |
 | [017](017-resume-lexical-prerank.md) | Résumé-lexical pre-ranking as the always-present relevance signal | Accepted |
 | [018](018-vacancy-seniority-from-title.md) | A vacancy's seniority comes from its title, not from its prose (amends ADR-012 §3) | Accepted |
-| [019](019-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted |
-| [020](020-linkedin-job-alert-emails.md) | LinkedIn vacancies from job-alert emails read over IMAP — no request to linkedin.com (amends ADR-003) | Accepted |
+| [019](019-postgres-on-supabase.md) | Production Postgres moves from Neon to Supabase (compute-hour quota exhausted by the always-on API) | Accepted |
+| [020](020-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted |
+| [021](021-linkedin-job-alert-emails.md) | LinkedIn vacancies from job-alert emails read over IMAP — no request to linkedin.com (amends ADR-003) | Accepted |
 
 ## Template
 

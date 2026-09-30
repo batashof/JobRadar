@@ -47,7 +47,7 @@ describe('seed data', () => {
     }
   });
 
-  it('reads LinkedIn only from alert emails, never from linkedin.com (ADR-020)', () => {
+  it('reads LinkedIn only from alert emails, never from linkedin.com (ADR-021)', () => {
     const linkedin = SEED_SOURCES.find((s) => s.slug === 'linkedin');
     expect(linkedin?.kind).toBe('email');
     const config = linkedin?.config as { senders?: string[]; feedUrl?: string } | undefined;

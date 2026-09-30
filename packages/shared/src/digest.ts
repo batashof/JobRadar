@@ -20,7 +20,7 @@ export const DIGEST_MAX_ITEMS_LIMIT = 10;
 export const DIGEST_MAX_SENDS_PER_DAY = 4;
 
 /**
- * How the digest is delivered (ADR-019). `scheduled` pushes a ranked shortlist
+ * How the digest is delivered (ADR-020). `scheduled` pushes a ranked shortlist
  * at the send times; `instant` pushes new matches as soon as an ingestion run
  * brings them in, outside quiet hours, and ignores the send times.
  */
@@ -47,7 +47,7 @@ export interface DigestSettings {
   maxItems: number;
   /** Resume-fit floor in percent — below it a vacancy is not worth a push. */
   minScore: number;
-  /** `scheduled` = at the send times; `instant` = as new matches arrive (ADR-019). */
+  /** `scheduled` = at the send times; `instant` = as new matches arrive (ADR-020). */
   mode: DigestMode;
   /**
    * Instant mode stays silent from `quietStart` to `quietEnd` (local `HH:MM`,

@@ -77,7 +77,7 @@ describe("DigestService.getSettings", () => {
       sendTimes: ["09:00", "19:00"],
       maxItems: 5,
       minScore: 70,
-      // A row from before ADR-019 has no delivery columns; the defaults apply.
+      // A row from before ADR-020 has no delivery columns; the defaults apply.
       mode: "scheduled",
       quietStart: DIGEST_DEFAULTS.quietStart,
       quietEnd: DIGEST_DEFAULTS.quietEnd,

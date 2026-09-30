@@ -25,6 +25,15 @@ const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
   }
 };
 
+/** Hostname of a connection URL, never its credentials; null if unset or invalid. */
+const hostOf = (url: string | undefined): string | null => {
+  try {
+    return url ? new URL(url.trim()).hostname || null : null;
+  } catch {
+    return null;
+  }
+};
+
 @Controller('health')
 export class HealthController {
   constructor(
@@ -39,7 +48,7 @@ export class HealthController {
       this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
     );
 
-    const [db, redisProbe] = await Promise.all([
+    const [dbProbe, redisProbe] = await Promise.all([
       this.checkDb(),
       redisConn
         ? probeRedis(redisConn)
@@ -47,7 +56,10 @@ export class HealthController {
     ]);
 
     const checks: HealthChecks = {
-      db,
+      db: dbProbe.ok ? 'ok' : 'unreachable',
+      dbHost: hostOf(this.config.get<string>('DATABASE_URL')),
+      dbCaConfigured: Boolean(this.config.get<string>('DATABASE_CA_CERT')?.trim()),
+      dbError: dbProbe.ok ? null : dbProbe.error,
       redis: redisProbe.ok ? 'ok' : 'unreachable',
       redisHost: redisConn?.host ?? null,
       redisPort: redisConn?.port ?? null,
@@ -78,12 +90,16 @@ export class HealthController {
     };
   }
 
-  private async checkDb(): Promise<HealthChecks['db']> {
+  private async checkDb(): Promise<{ ok: true } | { ok: false; error: string }> {
     try {
       await withTimeout(this.db.execute(sql`select 1`), 1500);
-      return 'ok';
-    } catch {
-      return 'unreachable';
+      return { ok: true };
+    } catch (error) {
+      // Drizzle wraps the driver error ("Failed query: ..."); the cause says
+      // what actually went wrong (TLS, auth, DNS). pg never echoes the password.
+      const { cause } = error as Error;
+      const root = cause instanceof Error ? cause : (error as Error);
+      return { ok: false, error: root.message.slice(0, 160) };
     }
   }
 }

@@ -5,7 +5,7 @@ import {
   updateDigestSettingsSchema,
 } from "@jobradar/shared";
 
-describe("updateDigestSettingsSchema — instant delivery (ADR-019)", () => {
+describe("updateDigestSettingsSchema — instant delivery (ADR-020)", () => {
   it("accepts the delivery mode, quiet hours and instant floor", () => {
     expect(
       updateDigestSettingsSchema.parse({

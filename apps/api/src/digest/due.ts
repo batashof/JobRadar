@@ -67,7 +67,7 @@ export function resolveDue(input: DueInput): DueResult {
 }
 
 /**
- * Whether instant delivery should hold its fire (ADR-019). The window is local
+ * Whether instant delivery should hold its fire (ADR-020). The window is local
  * wall-clock in the user's timezone and may wrap midnight (22:00–08:00);
  * equal or malformed bounds mean no quiet hours at all — failing open is the
  * lesser evil than a mode that silently never sends.

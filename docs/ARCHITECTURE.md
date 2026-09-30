@@ -24,8 +24,8 @@
                                           │ Prisma/Drizzle
                                           ▼
                                ┌──────────────────────┐
-                               │ PostgreSQL (Neon /   │
-                               │ Supabase) + FTS      │
+                               │ PostgreSQL (Supabase │
+                               │ free tier) + FTS     │
                                └──────────────────────┘
 
 External sources: hh.ru API, RemoteOK / WeWorkRemotely (RSS/JSON),
@@ -54,7 +54,9 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 13 | Interview-prep module: resume-driven plan, generated Q&A, LLM-reviewed live-coding, text mock interview (phase 4) | [013](decisions/013-interview-prep-module.md) |
 | 14 | Two-language interface (EN/RU) stored on the account, driving UI strings and AI-generation language | [014](decisions/014-interface-language-i18n.md) |
 | 15 | Day planner with accountability loop: LLM-composed timebox queue, in-process minute tick, Telegram-bot nudges, rolling debt (phase 4) | [015](decisions/015-day-planner-accountability.md) |
-| 20 | LinkedIn via the job-alert emails LinkedIn sends the user, read over IMAP; still no request to linkedin.com (amends 003) | [020](decisions/020-linkedin-job-alert-emails.md) |
+| 19 | Production Postgres on Supabase: always-on, no compute-hour quota; session pooler + verified TLS; prod maintenance via the `DB (prod)` workflow | [019](decisions/019-postgres-on-supabase.md) |
+| 20 | Instant digest delivery: new matches pushed right after each ingestion, quiet hours, stricter floor | [020](decisions/020-instant-digest-delivery.md) |
+| 21 | LinkedIn via the job-alert emails LinkedIn sends the user, read over IMAP; still no request to linkedin.com (amends 003) | [021](decisions/021-linkedin-job-alert-emails.md) |
 
 ## Repository layout (monorepo)
 
@@ -80,7 +82,7 @@ Tooling: pnpm workspaces (+ Turborepo if build orchestration becomes painful). O
 |---|---|---|
 | Frontend | React + Next.js on Vercel | Author's strong side; Vercel free tier; SSR available if needed |
 | Backend | NestJS + TypeScript | Learning goal: real backend framework with DI, modules, guards; opinionated structure teaches good habits. Fallback option: Fastify if NestJS feels too heavy |
-| Database | PostgreSQL (Neon or Supabase free tier) | Relational fits the domain; free tier; **Postgres FTS** covers full-text search without extra infrastructure |
+| Database | PostgreSQL (Supabase free tier, ADR-019) | Relational fits the domain; free tier; **Postgres FTS** covers full-text search without extra infrastructure. Always-on instance with no compute-hour quota — the per-minute planner tick exhausted Neon's (ADR-019) |
 | ORM | Drizzle (ADR-008) | Type-safe queries + first-class migrations; generated tsvector and enum arrays expressible in schema; no query engine — fast cold starts |
 | Queue / cache | Redis (Upstash free) + BullMQ | Background ingestion jobs, retries, backoff; also response caching |
 | Cron | GitHub Actions schedule → HTTP hook | Free; sidesteps free-tier container sleeping (ADR-006) |

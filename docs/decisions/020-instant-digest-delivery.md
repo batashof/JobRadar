@@ -1,4 +1,4 @@
-# ADR-019: Instant digest delivery — push new matches after each ingestion, not only on a schedule
+# ADR-020: Instant digest delivery — push new matches after each ingestion, not only on a schedule
 
 - Status: Accepted
 - Date: 2026-09-29
@@ -12,7 +12,7 @@ The digest (v1.17–v1.21) goes out at 1–4 fixed local times a day and ranks a
 
 Two further constraints shape the design:
 
-- **Database egress** (ADR-001, and the September 2026 Neon suspension fixed in v1.21.2): an extra delivery path must read the *new* vacancies, never re-scan the board.
+- **Database egress** (ADR-001, and the September 2026 Neon transfer-quota suspension fixed in v1.21.3): an extra delivery path must read the *new* vacancies, never re-scan the board.
 - **LLM free tiers** (ADR-005): one call per push, over a short pre-filtered batch — not one call per vacancy.
 
 ## Decision

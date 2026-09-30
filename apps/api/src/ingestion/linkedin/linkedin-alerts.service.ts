@@ -26,7 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * LinkedIn vacancies from the job-alert emails LinkedIn sends the user
- * (ADR-020, amending ADR-003). No request ever goes to linkedin.com: LinkedIn
+ * (ADR-021, amending ADR-003). No request ever goes to linkedin.com: LinkedIn
  * runs the saved search and mails the result, and this worker reads the
  * user's own mailbox.
  */

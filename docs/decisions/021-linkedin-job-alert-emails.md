@@ -1,4 +1,4 @@
-# ADR-020: LinkedIn vacancies from job-alert emails (amends ADR-003)
+# ADR-021: LinkedIn vacancies from job-alert emails (amends ADR-003)
 
 - Status: Accepted
 - Date: 2026-09-30
@@ -21,7 +21,7 @@ That route was examined and rejected on its merits, not only because ADR-003 say
 3. **Identity and dedup.** `external_id` is LinkedIn's numeric job id, `url` the clean `linkedin.com/jobs/view/<id>/` (tracking parameters dropped). Re-reading the same emails is idempotent. Cross-source dedup is the existing ADR-004 heuristic (company + title similarity): a posting already ingested from an ATS board stays canonical and the LinkedIn row links to it.
 4. **Parsing anchors on the job link only.** The one stable element of the email is `/jobs/view/<id>`; title, company and location are read relative to it, from the HTML part (primary — it has the salary line) with the plain-text part as a fallback. No class names or table structure are relied on. A window that contains alert emails but yields no job marks the run `empty` (→ Sentry alert): that is the "LinkedIn changed the layout" signal. A window with no alert emails is `notModified` — alerts are daily at best.
 5. **Mailbox access is IMAP with an app password, read-only.** The mailbox is opened read-only (nothing is marked as seen), searched by sender in "All Mail" so a filter that archives the alerts does not hide them. IMAP was chosen over the Gmail API already used for sending (ADR-011): a refresh token of an unverified Google app in *Testing* status expires every 7 days, an app password does not. Because an app password opens the whole mailbox, the recommended setup is a **dedicated mailbox** that receives only the forwarded alerts (a Gmail filter on the main account forwards `jobalerts-noreply@linkedin.com`).
-6. Politeness and cadence are unchanged: the worker runs with every ingestion cycle (every 4 hours, ADR-006) under the same interval rule, and new cards reach Telegram through the existing digest — instantly in ADR-019's instant mode.
+6. Politeness and cadence are unchanged: the worker runs with every ingestion cycle (every 4 hours, ADR-006) under the same interval rule, and new cards reach Telegram through the existing digest — instantly in ADR-020's instant mode.
 
 ## Consequences
 

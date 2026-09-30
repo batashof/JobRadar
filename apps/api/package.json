@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
-    "db:migrate:prod": "tsx src/db/neon-apply.ts",
+    "db:migrate:prod": "tsx src/db/prod-apply.ts",
+    "db:check:prod": "tsx src/db/prod-check.ts",
     "telegram:session": "tsx scripts/telegram-session.ts",
     "bot:webhook": "tsx scripts/telegram-webhook.ts",
     "backfill:contacts": "tsx scripts/backfill-apply-contacts.ts",
@@ -42,7 +43,6 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@neondatabase/serverless": "^1.1.0",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.1.28",

@@ -32,7 +32,7 @@ describe("renderHeader", () => {
     expect(renderHeader("en", 3)).toContain("3 vacancies");
   });
 
-  it("marks an instant push as fresh arrivals, not the digest (ADR-019)", () => {
+  it("marks an instant push as fresh arrivals, not the digest (ADR-020)", () => {
     expect(renderHeader("ru", 2, "instant")).toContain("Свежее: 2 вакансий");
     expect(renderHeader("ru", 1, "instant")).toContain("Свежее: одна вакансия");
     expect(renderHeader("en", 1, "instant")).toContain("New: one vacancy");

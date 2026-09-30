@@ -93,7 +93,7 @@
 | Data quality | Medium: `title`, `company_name`, `category_name`, comma-joined `tags`, `location`, `pub_date`. No salary or employment type. Only the "exposed" slice (~40 items) is public |
 | Notes | Aggregates remote/contract roles including freelance marketplaces (e.g. Lemon.io). The worker keeps only the `Development` category to stay on-topic. `external_id` is the trailing numeric id in the job URL |
 
-### 9. LinkedIn job-alert emails — IMAP — **active (secondary, ADR-020)**
+### 9. LinkedIn job-alert emails — IMAP — **active (secondary, ADR-021)**
 
 | | |
 |---|---|
@@ -104,7 +104,7 @@
 | `external_id` / `url` | LinkedIn's numeric job id / `https://www.linkedin.com/jobs/view/<id>/` with tracking parameters dropped. `published_at` = date of the earliest email that carried the card |
 | Parsing | Anchored on the job link (`/jobs/view/<id>`) only — no class names or table structure. HTML part first (it has the salary line), plain-text part fills gaps and stands in when the HTML yields nothing. English and Russian interface chrome is filtered out |
 | Alerts | Emails in the window but zero jobs parsed → `empty` (the layout changed). No alert emails in the window → `notModified` (normal: alerts are daily). An IMAP failure → `error` |
-| Setup | 1. On the LinkedIn account: Jobs → create 3–5 **Job Alerts** (keywords, location, Remote, experience level), email notifications on. 2. Recommended: a **dedicated Gmail** for JobRadar (the app password opens the whole mailbox); on the main Gmail, a filter `from:jobalerts-noreply@linkedin.com` → *Forward to* that address. 3. On the dedicated account: 2-step verification → App passwords → create one. 4. `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD` in `.env` and in Render. 5. Check the parse: `pnpm --filter @jobradar/api linkedin:alerts:preview` (live mailbox, read-only) or `… --file alert.eml` (a saved email) — prints the jobs, writes nothing |
+| Setup | 1. On the LinkedIn account: Jobs → create 3–5 **Job Alerts** (keywords, location, Remote, experience level), email notifications on. 2. Recommended: a **dedicated Gmail** for JobRadar (the app password opens the whole mailbox); on the main Gmail, a filter `from:jobalerts-noreply@linkedin.com` → *Forward to* that address. 3. On the dedicated account: 2-step verification → App passwords → create one. 4. `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD` in `.env` and in Render. 5. Check the parse: `pnpm --filter @jobradar/api linkedin:alerts:preview` (live mailbox, read-only) or `… --file alert.eml` (a saved email) — prints the jobs, writes nothing. 6. Production: GitHub Actions → `DB (prod)` → `migrate` (migration `0017` + the `linkedin` source row); `GET /health` → `checks.linkedinAlertsConfigured: true` |
 
 ## Later sources (phase 4)
 
@@ -139,9 +139,9 @@ Was an active v1.0 secondary source. Their free `https://remoteok.com/api` has d
 
 Was the intended primary v1.0 source but never went live: the API geo-403s anonymous calls from non-CIS IPs, and a dev.hh.ru application token requires a Russian phone number the developer doesn't have (a paid/infra workaround is barred by ADR-001). Not part of v1.0 or any later phase. The existing worker + `HH_API_TOKEN` plumbing is inactive legacy code. Telegram replaces it as the primary source.
 
-### LinkedIn — no automated access to linkedin.com, ever (ADR-003, amended by ADR-020)
+### LinkedIn — no automated access to linkedin.com, ever (ADR-003, amended by ADR-021)
 
-Aggressive anti-bot systems, no public API for vacancies, account-ban risk. No crawler, no guest endpoints, no logged-in automation, no secondary accounts. LinkedIn vacancies arrive only through the **job-alert emails** LinkedIn sends the user (source 9 above, ADR-020) and, later, the **browser extension** (phase 4) — a one-click "Save to JobRadar" button that sends the currently open vacancy page (any site, including LinkedIn and Djinni) to the API as a `manual`-source vacancy.
+Aggressive anti-bot systems, no public API for vacancies, account-ban risk. No crawler, no guest endpoints, no logged-in automation, no secondary accounts. LinkedIn vacancies arrive only through the **job-alert emails** LinkedIn sends the user (source 9 above, ADR-021) and, later, the **browser extension** (phase 4) — a one-click "Save to JobRadar" button that sends the currently open vacancy page (any site, including LinkedIn and Djinni) to the API as a `manual`-source vacancy.
 
 ## Normalization contract
 

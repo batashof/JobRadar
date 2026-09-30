@@ -74,7 +74,7 @@ const CANDIDATE_POOL = 200;
 const CANDIDATE_WINDOW_DAYS = 14;
 
 /**
- * Instant mode (ADR-019) only considers vacancies ingested at least this long
+ * Instant mode (ADR-020) only considers vacancies ingested at least this long
  * ago: dedup and matching run after the source jobs, and a posting seen in
  * three channels must be pushed once, as its canonical row.
  */
@@ -104,7 +104,7 @@ export interface DigestRunResult {
   sent: number;
   vacancies: number;
   skipped: number;
-  /** Instant-mode users whose window held new vacancies this tick (ADR-019). */
+  /** Instant-mode users whose window held new vacancies this tick (ADR-020). */
   instant: number;
 }
 
@@ -224,7 +224,7 @@ export class DigestSendService implements OnModuleInit {
   }
 
   /**
-   * Instant delivery for one user (ADR-019): if vacancies arrived since the
+   * Instant delivery for one user (ADR-020): if vacancies arrived since the
    * watermark and it is not quiet time, run the funnel over exactly those and
    * move the watermark past them. Returns how many were pushed, or null when
    * there was nothing to consider (quiet hours, or no new vacancies).

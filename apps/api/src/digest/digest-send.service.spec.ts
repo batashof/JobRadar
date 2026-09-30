@@ -427,7 +427,7 @@ describe("DigestSendService.run", () => {
   });
 });
 
-describe("DigestSendService.run — instant mode (ADR-019)", () => {
+describe("DigestSendService.run — instant mode (ADR-020)", () => {
   const WINDOW = {
     after: "2026-08-11 08:00:00.100001+00",
     until: "2026-08-11 11:50:00.200002+00",

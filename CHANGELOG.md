@@ -6,21 +6,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 - Phase 4 remainder: browser extension, calendar sync.
+- `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 
 ## [1.23.0] — 2026-09-30
 
 ### Added
 
-- **LinkedIn vacancies, from the job-alert emails LinkedIn sends you** (ADR-020, amending ADR-003). Create Job Alerts on your LinkedIn account; a new source, `linkedin`, reads those emails from a mailbox over IMAP and ingests one vacancy per card — title, company, location, workplace type, salary when shown, and a link to the clean `linkedin.com/jobs/view/<id>/`. They flow into the feed and the Telegram digest like any other source (instantly in instant mode). **No request ever goes to linkedin.com** and no account is automated: LinkedIn runs the search, JobRadar reads mail addressed to you.
+- **LinkedIn vacancies, from the job-alert emails LinkedIn sends you** (ADR-021, amending ADR-003). Create Job Alerts on your LinkedIn account; a new source, `linkedin`, reads those emails from a mailbox over IMAP and ingests one vacancy per card — title, company, location, workplace type, salary when shown, and a link to the clean `linkedin.com/jobs/view/<id>/`. They flow into the feed and the Telegram digest like any other source (instantly in instant mode). **No request ever goes to linkedin.com** and no account is automated: LinkedIn runs the search, JobRadar reads mail addressed to you.
 - The mailbox is opened **read-only** (nothing is marked as read) and searched by sender across "All Mail", so a filter that archives the alerts does not hide them. Credentials are a Gmail app password in `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD`; a dedicated mailbox receiving only the forwarded alerts is the recommended setup. Without them the source skips quietly. `GET /health` reports `linkedinAlertsConfigured`.
 - The parser anchors on the job link alone — HTML part first, plain-text part as a fallback, English and Russian chrome filtered — and a window with alert emails but no parsed job marks the run `empty` (Sentry), which is how a LinkedIn layout change surfaces. `pnpm --filter @jobradar/api linkedin:alerts:preview [--file alert.eml]` shows what would be ingested from a saved email or the live mailbox, writing nothing.
 - Migration `0017` adds `email` to the `source_kind` enum.
 
-## [1.22.0] — 2026-09-29
+## [1.22.0] — 2026-09-30
 
 ### Added
 
-- **Instant delivery for the Telegram digest** (ADR-019). A new *delivery* setting: *on a schedule* (unchanged, the default) or *as soon as they appear*. In instant mode the 5-minute digest tick checks, with one aggregate query, whether settled vacancies were ingested past the user's watermark; if so it runs the same funnel — level gate, résumé-relevance order, one batch LLM call — over exactly that window and pushes what clears the floor, under a "New:" header. New postings reach the chat 10 minutes to ~4 hours after they are published (the source politeness rule caps fetching at every 4 hours), instead of at the next send time.
+- **Instant delivery for the Telegram digest** (ADR-020). A new *delivery* setting: *on a schedule* (unchanged, the default) or *as soon as they appear*. In instant mode the 5-minute digest tick checks, with one aggregate query, whether settled vacancies were ingested past the user's watermark; if so it runs the same funnel — level gate, résumé-relevance order, one batch LLM call — over exactly that window and pushes what clears the floor, under a "New:" header. New postings reach the chat 10 minutes to ~4 hours after they are published (the source politeness rule caps fetching at every 4 hours), instead of at the next send time.
 - **Quiet hours** (default 22:00–08:00, in the user's timezone, may wrap midnight): nothing is pushed during them and the watermark stays put, so the night's arrivals come as one message when they end.
 - **A stricter floor for instant pushes** (default 75%): a scheduled digest weighs a day's vacancies against each other, an instant push judges a few on their own and interrupts every time. An instant push that finds nothing sends nothing — no "nothing worth your attention" several times a day.
 - A 10-minute settle delay keeps the window behind dedup, so a posting seen in three channels is pushed once, as its canonical row.
@@ -29,12 +30,33 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 - **The digest failed outright for an account without a résumé.** With no résumé terms the relevance expression was a bare `0`, and in `ORDER BY` Postgres reads a bare integer as a column position — `order by 0` is an error, not a constant. The whole candidate query failed; now it is `0::int`. The same expression orders résumé scoring, which had the same failure for a résumé with no recognised terms.
 
-## [1.21.2] — 2026-09-29
+## [1.21.3] — 2026-09-30
 
 ### Fixed
 
 - **Matching exhausted Neon's free network-transfer quota.** After every ingestion cycle — six times a day — `MatchingService.rematchAll()` read every canonical vacancy *with its full description* to re-score it in JS, and did so even when no active search profile existed to score against. Thousands of postings × several KB × six runs a day is gigabytes a month of egress, the 5 GB free allowance (ADR-001), and in September 2026 Neon suspended the production compute for the rest of the billing period. A run now reads only what it has to: nothing at all without an active profile; for a profile matched before, only the vacancies whose matched content changed since its watermark; the full pass only for a profile never matched, edited, or reactivated. Matches of vacancies dedup later links as duplicates are pruned in SQL, without pulling a row.
 - **The upsert tells a re-seen posting from a changed one.** Sources re-list what is still open, so every run re-upserts the same rows; the new `vacancies.content_changed_at` moves only when a field matching reads actually differs (`is distinct from`, null-safe), which is what makes the delta small.
+
+## [1.21.2] — 2026-09-30
+
+### Fixed
+
+- **Digests stopped arriving towards the end of every month** because the database was suspended (ADR-019). Neon's free plan allows 100 compute-hours a month and only stops billing after 5 idle minutes. The planner tick queries Postgres every minute, so the database never slept: about 180 hours of demand against 100. Production Postgres moves to **Supabase's free plan**, an always-on instance with no compute-hour quota.
+- **A dropped idle connection no longer kills the API.** pg emits `error` on the pool when the server or pooler closes an idle client. With no listener attached, Node crashed the process, planner tick and digest runner included. Reproduced by terminating the backend: the process died without a listener and survived with one, and the next query reconnected. `createPool` now logs it.
+- **`?ssl=true` or `?sslnegotiation=direct` in `DATABASE_URL` no longer replaces the configured CA** with Node's trust store, which made verification fail. Both are stripped along with `sslmode`. A malformed URL fails with a message that does not echo the password.
+
+### Added
+
+- **`GET /health` reports the database side of the switch:** `dbHost` (hostname only), `dbCaConfigured`, and `dbError`, the driver's own message rather than Drizzle's "Failed query" wrapper. A wrong CA reads `unable to verify the first certificate`, a wrong password `password authentication failed`.
+- **`DB (prod)` → `check`** (`db:check:prod`): a read-only connection test that prints the server, the table count, and how many tables each Data API role can reach. It proves the secrets before the copy.
+- **Runbook** for the cutover: [docs/runbooks/supabase-cutover.md](docs/runbooks/supabase-cutover.md).
+
+### Changed
+
+- **The API verifies the database's certificate against a configured CA.** `DATABASE_CA_CERT` (PEM) is handed to `pg`, and TLS parameters in the URL are dropped so they cannot override it. Supabase's root CA is not publicly trusted, and the alternative was turning verification off.
+- **Production maintenance runs from the `DB (prod)` workflow** (manual dispatch: `check`, `migrate`, `copy-from-neon`, `backfill:seniority`, `backfill:contacts`, `cleanup:junk`, with a dry-run toggle). The developer's network blocks port 5432, which is what the Neon HTTP driver worked around. `neon-apply.ts` becomes `prod-apply.ts` over plain `pg`, the scripts share `openScriptDb`, and `@neondatabase/serverless` is removed. The workflow fails fast without `DATABASE_CA_CERT_PROD`, and psql/pg_dump verify the target too (`PGSSLMODE=verify-full`).
+- **`copy-from-neon`** moves the data once: the schema comes from our own migrations, the rows from a data-only `pg_dump` restored in one transaction. It refuses a non-empty target and fails if any table's row count differs from the dump's. Writes that reach live Neon during the copy are reported as a warning rather than failing a correct copy, which the non-empty-target guard would then block from being re-run. It also dumps from Neon's direct host even when given the `-pooler` one, prints the source size against Supabase's 500 MB, drops pg_dump 17+'s `SET transaction_timeout` for targets older than 17, and runs `ANALYZE` after the restore.
+- **`db:migrate:prod` revokes the Supabase Data API roles' grants** (`anon`, `authenticated`, `service_role`) on every table and sequence in `public`, now and by default for future tables. The Data API is switched off as well; this makes that switch not the only thing standing between PostgREST and tables without row-level security. It is a no-op on plain Postgres.
 
 ## [1.21.1] — 2026-08-20
 

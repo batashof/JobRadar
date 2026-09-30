@@ -203,7 +203,7 @@ describe("DigestSettings", () => {
     );
   });
 
-  describe("instant delivery (ADR-019)", () => {
+  describe("instant delivery (ADR-020)", () => {
     it("switches the mode and saves it", async () => {
       updateDigestSettings.mockResolvedValue(settings({ mode: "instant" }));
       render(<DigestSettings initial={settings()} />);

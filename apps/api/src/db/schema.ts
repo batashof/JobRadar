@@ -597,7 +597,7 @@ export const digestSettings = pgTable('digest_settings', {
   maxItems: smallint('max_items').notNull().default(10),
   // Resume-fit floor in percent; below it a vacancy is not worth a push.
   minScore: smallint('min_score').notNull().default(60),
-  // 'scheduled' | 'instant' (ADR-019). Instant ignores send_times and pushes
+  // 'scheduled' | 'instant' (ADR-020). Instant ignores send_times and pushes
   // new matches after each ingestion run, outside the quiet hours below.
   mode: text('mode').notNull().default('scheduled'),
   // Local `HH:MM`; may wrap midnight, equal = never quiet.

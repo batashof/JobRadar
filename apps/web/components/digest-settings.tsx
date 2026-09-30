@@ -20,7 +20,7 @@ import { useI18n } from "@/lib/i18n/context";
  * time is one push; the count of them *is* "how many times a day", so there is
  * no separate frequency control to keep consistent with the schedule.
  *
- * Instant mode (ADR-019) replaces the send times with quiet hours and its own,
+ * Instant mode (ADR-020) replaces the send times with quiet hours and its own,
  * stricter floor — so only the controls of the chosen mode are shown.
  */
 export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {

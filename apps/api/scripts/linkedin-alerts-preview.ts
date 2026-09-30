@@ -1,5 +1,5 @@
 /**
- * Shows what the LinkedIn job-alert worker (ADR-020) would ingest, without
+ * Shows what the LinkedIn job-alert worker (ADR-021) would ingest, without
  * writing anything. The email layout is LinkedIn's to change, so this is how a
  * parser assumption gets checked against real mail before it is trusted.
  *

@@ -1,7 +1,7 @@
 import { stripHtml } from '../description';
 
 /**
- * LinkedIn job-alert emails → job cards (ADR-020).
+ * LinkedIn job-alert emails → job cards (ADR-021).
  *
  * LinkedIn runs the search itself and mails the result to the user; JobRadar
  * only reads what arrived in the user's own mailbox. The email is the whole

@@ -11,16 +11,13 @@
  *
  * Run with: pnpm --filter @jobradar/api cleanup:junk (DATABASE_URL from the
  * environment / repo-root .env). Pass --prod to run against DATABASE_URL_PROD
- * over Neon HTTPS (this machine blocks TCP 5432), --dry-run to only report.
+ * (the "DB (prod)" workflow), --dry-run to only report.
  */
-import { neon } from '@neondatabase/serverless';
 import { config } from 'dotenv';
 import { eq, inArray, ne } from 'drizzle-orm';
-import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
 
 import { cleanDescription, MIN_DESCRIPTION_LENGTH } from '../src/ingestion/description';
+import { openScriptDb } from '../src/db/prod-db';
 import { applications, outreachEmails, sources, vacancies } from '../src/db/schema';
 
 config({ path: '../../.env' });
@@ -28,16 +25,7 @@ config({ path: '../../.env' });
 async function main(): Promise<void> {
   const prod = process.argv.includes('--prod');
   const dryRun = process.argv.includes('--dry-run');
-  let pool: Pool | null = null;
-  let db;
-  if (prod) {
-    const url = process.env.DATABASE_URL_PROD;
-    if (!url) throw new Error('DATABASE_URL_PROD is not set (see .env)');
-    db = drizzleNeon(neon(url));
-  } else {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    db = drizzle(pool);
-  }
+  const { db, close } = openScriptDb(prod);
 
   const [telegram] = await db
     .select({ id: sources.id })
@@ -71,7 +59,7 @@ async function main(): Promise<void> {
       `${rewrites.length} to re-clean${dryRun ? ' (dry run, nothing written)' : ''}.`,
   );
   if (dryRun) {
-    await pool?.end();
+    await close();
     return;
   }
 
@@ -84,7 +72,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`Deleted ${junkIds.length} junk vacancies, re-cleaned ${rewrites.length}.`);
-  await pool?.end();
+  await close();
 }
 
 main().catch((err) => {

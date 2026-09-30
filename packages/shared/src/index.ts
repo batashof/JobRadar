@@ -22,6 +22,12 @@ export * from './vacancies';
 /** Component diagnostics included in the health response. Never carries secrets. */
 export interface HealthChecks {
   db: 'ok' | 'unreachable';
+  /** Hostname (no credentials) DATABASE_URL points at; null if it is unset or invalid. */
+  dbHost: string | null;
+  /** Whether DATABASE_CA_CERT is set, i.e. TLS is verified against the provider's CA (ADR-019). */
+  dbCaConfigured: boolean;
+  /** Connection failure detail (no secrets); null when the db is ok. */
+  dbError: string | null;
   redis: 'ok' | 'unreachable';
   /** Hostname (no credentials) the queue is configured against; null if REDIS_URL is invalid. */
   redisHost: string | null;
@@ -33,7 +39,7 @@ export interface HealthChecks {
   ingestionTokenConfigured: boolean;
   /** Whether all three TELEGRAM_* env vars are present (not their values). */
   telegramConfigured: boolean;
-  /** Whether ALERTS_IMAP_USER + ALERTS_IMAP_PASSWORD are set, i.e. LinkedIn job-alert emails are read (ADR-020). */
+  /** Whether ALERTS_IMAP_USER + ALERTS_IMAP_PASSWORD are set, i.e. LinkedIn job-alert emails are read (ADR-021). */
   linkedinAlertsConfigured: boolean;
   /** Whether `TELEGRAM_BOT_TOKEN` is set, i.e. the bot channel can send. */
   botConfigured: boolean;

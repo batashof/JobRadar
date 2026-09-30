@@ -24,7 +24,7 @@ export interface AlertMailboxOptions {
 }
 
 /**
- * Reads the alert emails from the user's own mailbox over IMAP (ADR-020).
+ * Reads the alert emails from the user's own mailbox over IMAP (ADR-021).
  *
  * Opened read-only: fetching a message would otherwise flag it as seen, and
  * this worker has no business changing the state of anyone's inbox. Searching

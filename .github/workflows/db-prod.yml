@@ -1,0 +1,107 @@
+name: DB (prod)
+
+# Maintenance against the production database (ADR-019). Runs here rather than
+# on the developer's machine, whose network blocks outbound TCP 5432.
+#
+# Secrets: DATABASE_URL_PROD (Supabase session pooler URL), DATABASE_CA_CERT_PROD
+# (Supabase root CA, PEM), NEON_DATABASE_URL (only for the one-off copy). They
+# live in the `main - jobradar-api` environment; repository secrets of the same
+# names work too (an environment secret wins over a repository one).
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to run
+        type: choice
+        options:
+          - check
+          - migrate
+          - copy-from-neon
+          - backfill:seniority
+          - backfill:contacts
+          - cleanup:junk
+      dry_run:
+        description: Dry run (backfill:seniority, cleanup:junk)
+        type: boolean
+        default: true
+
+concurrency:
+  group: db-prod # never two writers against prod at once
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Environment secrets are only handed to jobs that name their environment.
+    environment: 'main - jobradar-api'
+    env:
+      DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
+      DATABASE_CA_CERT_PROD: ${{ secrets.DATABASE_CA_CERT_PROD }}
+    steps:
+      - name: Check secrets
+        run: |
+          if [ -z "$DATABASE_URL_PROD" ]; then
+            echo "::error::DATABASE_URL_PROD secret is not set"; exit 1
+          fi
+          # Without the CA, pg fails with "self-signed certificate in certificate chain".
+          if [ -z "$DATABASE_CA_CERT_PROD" ]; then
+            echo "::error::DATABASE_CA_CERT_PROD secret is not set (Supabase root CA, PEM)"; exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check the connection (read-only)
+        if: inputs.task == 'check'
+        run: pnpm --filter @jobradar/api db:check:prod
+
+      - name: Migrate + seed sources
+        if: inputs.task == 'migrate'
+        run: pnpm --filter @jobradar/api db:migrate:prod
+
+      # pg_dump must be at least the source server's version; 18 dumps any older Neon.
+      - name: Install PostgreSQL 18 client
+        if: inputs.task == 'copy-from-neon'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+
+      - name: Copy all rows from Neon
+        if: inputs.task == 'copy-from-neon'
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ]; then
+            echo "::error::NEON_DATABASE_URL secret is not set"; exit 1
+          fi
+          # psql/pg_dump verify the target the way the API does (the script
+          # keeps both variables away from Neon).
+          printf '%s\n' "$DATABASE_CA_CERT_PROD" | sed 's/\\n/\n/g' > "$RUNNER_TEMP/prod-ca.crt"
+          export PGSSLROOTCERT="$RUNNER_TEMP/prod-ca.crt" PGSSLMODE=verify-full
+          pnpm --filter @jobradar/api db:migrate:prod --no-seed
+          cd apps/api && ./scripts/copy-from-neon.sh
+
+      - name: Run maintenance script
+        if: startsWith(inputs.task, 'backfill:') || inputs.task == 'cleanup:junk'
+        env:
+          TASK: ${{ inputs.task }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args="--prod"
+          if [ "$DRY_RUN" = "true" ] && [ "$TASK" != "backfill:contacts" ]; then args="$args --dry-run"; fi
+          pnpm --filter @jobradar/api "$TASK" $args

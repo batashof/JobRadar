@@ -97,7 +97,7 @@ export function digestText(lang: Language, key: DigestTextKey): string {
   return TEXT[lang]?.[key] ?? TEXT.en[key];
 }
 
-/** `instant` marks a push of just-arrived vacancies (ADR-019), not the scheduled digest. */
+/** `instant` marks a push of just-arrived vacancies (ADR-020), not the scheduled digest. */
 export function renderHeader(
   lang: Language,
   count: number,
