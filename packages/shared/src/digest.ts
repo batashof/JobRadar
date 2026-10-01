@@ -19,11 +19,23 @@ export const DIGEST_MAX_ITEMS_LIMIT = 10;
 /** More than a handful of pushes a day stops being a digest and becomes noise. */
 export const DIGEST_MAX_SENDS_PER_DAY = 4;
 
+/**
+ * How the digest is delivered (ADR-020). `scheduled` pushes a ranked shortlist
+ * at the send times; `instant` pushes new matches as soon as an ingestion run
+ * brings them in, outside quiet hours, and ignores the send times.
+ */
+export const DIGEST_MODES = ['scheduled', 'instant'] as const;
+export type DigestMode = (typeof DIGEST_MODES)[number];
+
 export const DIGEST_DEFAULTS = {
   enabled: true,
+  mode: 'scheduled' as DigestMode,
   sendTimes: ['09:00'],
   maxItems: DIGEST_MAX_ITEMS_LIMIT,
   minScore: 60,
+  quietStart: '22:00',
+  quietEnd: '08:00',
+  instantMinScore: 75,
 } as const;
 
 export interface DigestSettings {
@@ -35,6 +47,20 @@ export interface DigestSettings {
   maxItems: number;
   /** Resume-fit floor in percent — below it a vacancy is not worth a push. */
   minScore: number;
+  /** `scheduled` = at the send times; `instant` = as new matches arrive (ADR-020). */
+  mode: DigestMode;
+  /**
+   * Instant mode stays silent from `quietStart` to `quietEnd` (local `HH:MM`,
+   * may wrap midnight; equal = never quiet) and catches up when it ends.
+   */
+  quietStart: string;
+  quietEnd: string;
+  /**
+   * Instant mode's floor. Stricter than `minScore`: a scheduled digest weighs a
+   * day's vacancies against each other, an instant push judges a few on their
+   * own and interrupts every time.
+   */
+  instantMinScore: number;
   /** The timezone the times are resolved in; shared with the planner. */
   timezone: string;
 }
@@ -52,6 +78,10 @@ export const updateDigestSettingsSchema = z
       .refine((times) => new Set(times).size === times.length, 'Send times must be unique'),
     maxItems: z.number().int().min(1).max(DIGEST_MAX_ITEMS_LIMIT),
     minScore: z.number().int().min(0).max(100),
+    mode: z.enum(DIGEST_MODES),
+    quietStart: timeOfDay,
+    quietEnd: timeOfDay,
+    instantMinScore: z.number().int().min(0).max(100),
     /**
      * The zone the send times were entered in. Stored on `planner_settings`,
      * not here — there is one timezone per user, and a second copy would let

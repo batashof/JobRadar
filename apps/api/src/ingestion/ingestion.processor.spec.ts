@@ -34,6 +34,7 @@ describe('IngestionProcessor error handling', () => {
       { ingest: jest.fn() } as never, // workingnomads
       { ingest: jest.fn() } as never, // telegram
       { ingest: jest.fn() } as never, // wwr
+      { ingest: jest.fn() } as never, // linkedin
       { run: jest.fn() } as never, // dedup
       { rematchAll: jest.fn() } as never, // matching
       { scorePending: jest.fn().mockResolvedValue({ scored: 0, remaining: 0 }) } as never, // resume matching

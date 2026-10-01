@@ -15,6 +15,7 @@ import { HimalayasIngestService } from './himalayas/himalayas.service';
 import { HnIngestService } from './hn/hn.service';
 import { AtsIngestService } from './ats/ats.service';
 import { JobicyIngestService } from './jobicy/jobicy.service';
+import { LinkedInAlertsIngestService } from './linkedin/linkedin-alerts.service';
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
 import { TelegramIngestService } from './telegram/telegram.service';
@@ -59,6 +60,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly workingnomads: WorkingNomadsIngestService,
     private readonly telegram: TelegramIngestService,
     private readonly wwr: WwrIngestService,
+    private readonly linkedin: LinkedInAlertsIngestService,
     private readonly dedup: DedupService,
     private readonly matching: MatchingService,
     private readonly resumeMatching: ResumeMatchingService,
@@ -127,6 +129,9 @@ export class IngestionProcessor extends WorkerHost {
           break;
         case 'weworkremotely':
           result = await this.wwr.ingest(source);
+          break;
+        case 'linkedin':
+          result = await this.linkedin.ingest(source);
           break;
         default:
           this.logger.warn(`${source.slug}: no worker implemented yet`);

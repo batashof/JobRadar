@@ -13,6 +13,7 @@ const SOURCE_LABELS: Record<string, string> = {
   hn: 'Hacker News',
   ats: 'Company boards',
   workingnomads: 'Working Nomads',
+  linkedin: 'LinkedIn',
   hh: 'hh.ru',
 };
 

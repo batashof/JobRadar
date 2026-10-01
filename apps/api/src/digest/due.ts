@@ -66,6 +66,25 @@ export function resolveDue(input: DueInput): DueResult {
     : { kind: 'send', key, slot: due.slot };
 }
 
+/**
+ * Whether instant delivery should hold its fire (ADR-020). The window is local
+ * wall-clock in the user's timezone and may wrap midnight (22:00–08:00);
+ * equal or malformed bounds mean no quiet hours at all — failing open is the
+ * lesser evil than a mode that silently never sends.
+ */
+export function isQuietTime(input: {
+  now: Date;
+  timezone: string;
+  quietStart: string;
+  quietEnd: string;
+}): boolean {
+  const start = toMinutes(input.quietStart);
+  const end = toMinutes(input.quietEnd);
+  if (start === null || end === null || start === end) return false;
+  const minutes = localMinutes(input.now, input.timezone);
+  return start < end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
+}
+
 function toMinutes(time: string): number | null {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
   if (!match) return null;

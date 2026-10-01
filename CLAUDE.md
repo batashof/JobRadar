@@ -20,7 +20,7 @@ This file is the entry point for AI assistants (Claude Code) working on this rep
 ## Non-negotiable project constraints
 
 - **Budget is $0** — free tiers only (ADR-001). Never introduce a paid dependency or service.
-- **No LinkedIn scraping** in any form (ADR-003).
+- **No LinkedIn scraping** in any form (ADR-003) — no requests to linkedin.com, no secondary accounts. LinkedIn vacancies arrive only via the job-alert emails LinkedIn sends the user (ADR-021).
 - **Scraping politeness**: API/RSS-first, min 4-hour intervals, caching, backoff, no proxies (see docs/DATA_SOURCES.md).
 - **Backend is a separate service** — do not move backend logic into Next.js API routes (ADR-002).
 - **Scope discipline**: do not start phase N+1 features while the current phase is not deployed (see docs/ROADMAP.md).
@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.21.2** (production Postgres moves from Neon to Supabase — the always-on API exhausted Neon's compute-hour quota and the database was suspended at month's end, ADR-019, 2026-09-30; keep this line in sync on every bump).
+- **Current version: 1.23.0** (LinkedIn vacancies from the job-alert emails LinkedIn sends the user, read over IMAP — no request to linkedin.com, ADR-021, 2026-09-30; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

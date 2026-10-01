@@ -55,6 +55,8 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 14 | Two-language interface (EN/RU) stored on the account, driving UI strings and AI-generation language | [014](decisions/014-interface-language-i18n.md) |
 | 15 | Day planner with accountability loop: LLM-composed timebox queue, in-process minute tick, Telegram-bot nudges, rolling debt (phase 4) | [015](decisions/015-day-planner-accountability.md) |
 | 19 | Production Postgres on Supabase: always-on, no compute-hour quota; session pooler + verified TLS; prod maintenance via the `DB (prod)` workflow | [019](decisions/019-postgres-on-supabase.md) |
+| 20 | Instant digest delivery: new matches pushed right after each ingestion, quiet hours, stricter floor | [020](decisions/020-instant-digest-delivery.md) |
+| 21 | LinkedIn via the job-alert emails LinkedIn sends the user, read over IMAP; still no request to linkedin.com (amends 003) | [021](decisions/021-linkedin-job-alert-emails.md) |
 
 ## Repository layout (monorepo)
 
