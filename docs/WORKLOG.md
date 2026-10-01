@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-01 — Production runs on Supabase
+
+- **Copy:** `DB (prod)` → `copy-from-neon` succeeded at 02:40 UTC, after Neon's monthly quota reset (the run the evening before had failed with "exceeded the quota"). Neon's public tables were 252 MB with indexes. Rows came over for 25 tables (17,065 vacancies, 1,491 profile matches, 199 digest items, 3 users, …) and were verified against the dump. No writes reached Neon during the copy.
+- **Switch:** Render `jobradar-api` was switched at 19:17 UTC through the Render connector. `DATABASE_URL` now points at the Supabase session pooler (`aws-0-us-west-2`, Oregon, the same region as Render; Neon was in Frankfurt). `DATABASE_CA_CERT` holds Supabase Root 2021 CA, valid until 2031. `/health`: `db ok`, `dbHost aws-0-us-west-2.pooler.supabase.com`, `dbCaConfigured true`, and no errors after start-up (planner tick, digest runner).
+- **Gap:** rows written to Neon between the copy and the switch (02:40–19:17 UTC) stayed in Neon. That covers vacancies ingested in that window (they come back with the next ingestion runs), that day's digest records and new sessions. A refresh-by-truncate mode for the copy was not added.
+- **Next:** keep Neon about a week as a fallback. Rollback is the Neon `DATABASE_URL` on Render plus an empty `DATABASE_CA_CERT`. After that, delete the Neon project and the `NEON_DATABASE_URL` secret. Storage is 252 MB of Supabase's 500 MB, so retention of old duplicate vacancies is the next lever (ADR-019).
+
 ## 2026-09-30 — DB (prod) reads the environment's secrets
 
 - PR #2 merged. The first `check` run failed with every secret empty: they had been added as **environment** secrets of `main - jobradar-api` (Render's GitHub deployment environment), and a job only receives those when it names the environment.
