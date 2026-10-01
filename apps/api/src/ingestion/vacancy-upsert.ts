@@ -3,6 +3,24 @@ import { detectVacancySeniority } from '@jobradar/shared';
 
 import type { Database } from '../db/db.module';
 import { vacancies } from '../db/schema';
+
+/**
+ * `content_changed_at` moves only when a field profile matching reads differs
+ * from what is stored. Every run re-upserts the postings a source still lists,
+ * so bumping it unconditionally would hand matching the same rows every time.
+ * `is distinct from` treats two nulls as equal, which `<>` does not.
+ */
+const contentChangedAt = sql`case
+  when ("vacancies"."title", "vacancies"."description", "vacancies"."work_format",
+        "vacancies"."employment_type", "vacancies"."salary_min", "vacancies"."salary_max",
+        "vacancies"."salary_currency")
+    is distinct from
+       (excluded.title, excluded.description, excluded.work_format,
+        excluded.employment_type, excluded.salary_min, excluded.salary_max,
+        excluded.salary_currency)
+  then now()
+  else "vacancies"."content_changed_at"
+end`;
 import { extractApplyContact } from './apply-contact';
 import type { NewVacancy } from './hh/hh-normalize';
 
@@ -43,6 +61,7 @@ export async function upsertVacancies(db: Database, rows: NewVacancy[]): Promise
           publishedAt: sql`excluded.published_at`,
           applyContact: sql`excluded.apply_contact`,
           seniority: sql`excluded.seniority`,
+          contentChangedAt,
         },
       });
     upserted += chunk.length;

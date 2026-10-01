@@ -42,6 +42,8 @@ const TEXT = {
   en: {
     header: 'Digest: {count} vacancies for you',
     headerOne: 'Digest: one vacancy for you',
+    instantHeader: 'New: {count} vacancies for you',
+    instantHeaderOne: 'New: one vacancy for you',
     empty: 'Nothing worth your attention today.',
     apply: 'Apply',
     details: 'Details',
@@ -65,6 +67,8 @@ const TEXT = {
   ru: {
     header: 'Выжимка: {count} вакансий для тебя',
     headerOne: 'Выжимка: одна вакансия для тебя',
+    instantHeader: 'Свежее: {count} вакансий для тебя',
+    instantHeaderOne: 'Свежее: одна вакансия для тебя',
     empty: 'Сегодня ничего стоящего.',
     apply: 'Откликнуться',
     details: 'Подробнее',
@@ -93,9 +97,17 @@ export function digestText(lang: Language, key: DigestTextKey): string {
   return TEXT[lang]?.[key] ?? TEXT.en[key];
 }
 
-export function renderHeader(lang: Language, count: number): string {
-  const template =
-    count === 1 ? digestText(lang, 'headerOne') : digestText(lang, 'header');
+/** `instant` marks a push of just-arrived vacancies (ADR-020), not the scheduled digest. */
+export function renderHeader(
+  lang: Language,
+  count: number,
+  kind: 'digest' | 'instant' = 'digest',
+): string {
+  const [one, many] =
+    kind === 'instant'
+      ? (['instantHeaderOne', 'instantHeader'] as const)
+      : (['headerOne', 'header'] as const);
+  const template = digestText(lang, count === 1 ? one : many);
   return `<b>${escapeHtml(template.replace('{count}', String(count)))}</b>`;
 }
 

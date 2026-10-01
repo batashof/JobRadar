@@ -1,219 +1,260 @@
-import type { ScoredCandidate } from './select';
-import { renderCardParts, renderHeader, renderKeyboard } from './render';
+import type { ScoredCandidate } from "./select";
+import { renderCardParts, renderHeader, renderKeyboard } from "./render";
 
 const item = (over: Partial<ScoredCandidate> = {}): ScoredCandidate => ({
-  id: '11111111-2222-3333-4444-555555555555',
-  title: 'Senior Frontend Engineer',
-  company: 'Acme',
-  description: '',
-  location: 'Remote (EU)',
-  seniority: 'senior',
+  id: "11111111-2222-3333-4444-555555555555",
+  title: "Senior Frontend Engineer",
+  company: "Acme",
+  description: "",
+  location: "Remote (EU)",
+  seniority: "senior",
   salaryMin: 5000,
   salaryMax: 7000,
-  salaryCurrency: 'USD',
-  workFormat: 'remote',
-  employmentType: 'full_time',
+  salaryCurrency: "USD",
+  workFormat: "remote",
+  employmentType: "full_time",
   applyContact: null,
-  sourceSlug: 'remoteok',
-  url: 'https://acme.test/jobs/1',
-  publishedAt: new Date('2026-08-10T00:00:00Z'),
+  sourceSlug: "remoteok",
+  url: "https://acme.test/jobs/1",
+  publishedAt: new Date("2026-08-10T00:00:00Z"),
   ruleScore: 0.8,
   resumeScore: 0,
   lexScore: 0,
   score: 84,
-  note: 'Стек совпадает почти полностью',
+  note: "Стек совпадает почти полностью",
   ...over,
 });
 
-describe('renderHeader', () => {
-  it('counts the vacancies, with a singular form', () => {
-    expect(renderHeader('ru', 5)).toContain('5 вакансий');
-    expect(renderHeader('ru', 1)).toContain('одна вакансия');
-    expect(renderHeader('en', 3)).toContain('3 vacancies');
+describe("renderHeader", () => {
+  it("counts the vacancies, with a singular form", () => {
+    expect(renderHeader("ru", 5)).toContain("5 вакансий");
+    expect(renderHeader("ru", 1)).toContain("одна вакансия");
+    expect(renderHeader("en", 3)).toContain("3 vacancies");
+  });
+
+  it("marks an instant push as fresh arrivals, not the digest (ADR-020)", () => {
+    expect(renderHeader("ru", 2, "instant")).toContain("Свежее: 2 вакансий");
+    expect(renderHeader("ru", 1, "instant")).toContain("Свежее: одна вакансия");
+    expect(renderHeader("en", 1, "instant")).toContain("New: one vacancy");
+    expect(renderHeader("en", 3, "instant")).not.toContain("Digest");
   });
 });
 
-describe('renderCardParts', () => {
+describe("renderCardParts", () => {
   /** Telegram's own ceiling — every part has to stay under it. */
   const MESSAGE_LIMIT = 4096;
 
-  const filler = (length: number) => 'слово '.repeat(Math.ceil(length / 6)).slice(0, length);
+  const filler = (length: number) =>
+    "слово ".repeat(Math.ceil(length / 6)).slice(0, length);
 
-  it('leads with the title and shows the fit, salary and location', () => {
-    const [card] = renderCardParts(item(), 'ru');
-    expect(card).toContain('<b>Senior Frontend Engineer</b>');
-    expect(card).toContain('Acme');
-    expect(card).toContain('84% соответствие');
-    expect(card).toContain('5000–7000 USD');
-    expect(card).toContain('Remote (EU)');
-    expect(card).toContain('<i>Стек совпадает почти полностью</i>');
+  it("leads with the title and shows the fit, salary and location", () => {
+    const [card] = renderCardParts(item(), "ru");
+    expect(card).toContain("<b>Senior Frontend Engineer</b>");
+    expect(card).toContain("Acme");
+    expect(card).toContain("84% соответствие");
+    expect(card).toContain("5000–7000 USD");
+    expect(card).toContain("Remote (EU)");
+    expect(card).toContain("<i>Стек совпадает почти полностью</i>");
   });
 
-  it('carries the posting itself, not just the headline', () => {
-    const description = 'Мы ищем инженера. • React и TypeScript • Опыт от 5 лет';
-    const [card] = renderCardParts(item({ description }), 'ru');
-    expect(card).toContain('Мы ищем инженера.');
-    expect(card).toContain('Опыт от 5 лет');
+  it("carries the posting itself, not just the headline", () => {
+    const description =
+      "Мы ищем инженера. • React и TypeScript • Опыт от 5 лет";
+    const [card] = renderCardParts(item({ description }), "ru");
+    expect(card).toContain("Мы ищем инженера.");
+    expect(card).toContain("Опыт от 5 лет");
     // Bullets survive as a list: ingestion collapsed the original line breaks.
-    expect(card).toContain('\n• React и TypeScript');
+    expect(card).toContain("\n• React и TypeScript");
   });
 
-  it('shows the format, employment type, publication date, source and contact', () => {
+  it("shows the format, employment type, publication date, source and contact", () => {
     const [card] = renderCardParts(
-      item({ applyContact: { kind: 'email', value: 'jobs@acme.test' } }),
-      'ru',
-      'Europe/Moscow',
+      item({ applyContact: { kind: "email", value: "jobs@acme.test" } }),
+      "ru",
+      "Europe/Moscow",
     );
-    expect(card).toContain('Удалённо');
-    expect(card).toContain('Полная занятость');
-    expect(card).toContain('опубликовано');
-    expect(card).toContain('remoteok');
-    expect(card).toContain('Контакт: jobs@acme.test');
+    expect(card).toContain("Удалённо");
+    expect(card).toContain("Полная занятость");
+    expect(card).toContain("опубликовано");
+    expect(card).toContain("remoteok");
+    expect(card).toContain("Контакт: jobs@acme.test");
   });
 
-  it('keeps a whole posting in one message when it fits', () => {
-    expect(renderCardParts(item({ description: filler(1000) }), 'ru')).toHaveLength(1);
+  it("keeps a whole posting in one message when it fits", () => {
+    expect(
+      renderCardParts(item({ description: filler(1000) }), "ru"),
+    ).toHaveLength(1);
   });
 
-  it('collapses the posting into an expandable quote, leaving the facts visible', () => {
-    const [card] = renderCardParts(item({ description: 'Мы ищем инженера.' }), 'ru');
+  it("collapses the posting into an expandable quote, leaving the facts visible", () => {
+    const [card] = renderCardParts(
+      item({ description: "Мы ищем инженера." }),
+      "ru",
+    );
 
-    expect(card).toContain('<blockquote expandable>Мы ищем инженера.</blockquote>');
+    expect(card).toContain(
+      "<blockquote expandable>Мы ищем инженера.</blockquote>",
+    );
     // The head decides whether the posting is worth expanding, so it must not
     // be inside the thing that is collapsed.
-    expect(card?.indexOf('<b>Senior Frontend Engineer</b>')).toBeLessThan(
-      card?.indexOf('<blockquote expandable>') ?? 0,
+    expect(card?.indexOf("<b>Senior Frontend Engineer</b>")).toBeLessThan(
+      card?.indexOf("<blockquote expandable>") ?? 0,
     );
   });
 
-  it('collapses every part of a split posting, not just the first', () => {
-    const parts = renderCardParts(item({ description: filler(6000) }), 'ru');
+  it("collapses every part of a split posting, not just the first", () => {
+    const parts = renderCardParts(item({ description: filler(6000) }), "ru");
 
     expect(parts.length).toBeGreaterThan(1);
     for (const part of parts) {
-      expect(part).toContain('<blockquote expandable>');
-      expect(part).toContain('</blockquote>');
+      expect(part).toContain("<blockquote expandable>");
+      expect(part).toContain("</blockquote>");
     }
   });
 
-  it('counts the quote tags against the message limit', () => {
+  it("counts the quote tags against the message limit", () => {
     // The tags are 36 characters the budget has to reserve; forgetting them
     // pushes a full message over the ceiling and Telegram rejects the send.
     for (const length of [3900, 4000, 4100, 4300]) {
-      for (const part of renderCardParts(item({ description: filler(length) }), 'ru')) {
+      for (const part of renderCardParts(
+        item({ description: filler(length) }),
+        "ru",
+      )) {
         expect(part.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
       }
     }
   });
 
   it('leaves the "there is more" notice outside the quote, where it stays readable', () => {
-    const last = renderCardParts(item({ description: filler(40_000) }), 'ru').at(-1);
-    expect(last?.indexOf('</blockquote>')).toBeLessThan(last?.indexOf('«Подробнее»') ?? 0);
+    const last = renderCardParts(
+      item({ description: filler(40_000) }),
+      "ru",
+    ).at(-1);
+    expect(last?.indexOf("</blockquote>")).toBeLessThan(
+      last?.indexOf("«Подробнее»") ?? 0,
+    );
   });
 
-  it('renders no quote at all when the posting has no text', () => {
-    expect(renderCardParts(item({ description: '' }), 'ru')[0]).not.toContain('<blockquote');
+  it("renders no quote at all when the posting has no text", () => {
+    expect(renderCardParts(item({ description: "" }), "ru")[0]).not.toContain(
+      "<blockquote",
+    );
   });
 
-  it('splits a long posting across messages, each inside the Telegram limit', () => {
-    const parts = renderCardParts(item({ description: filler(6000) }), 'ru');
+  it("splits a long posting across messages, each inside the Telegram limit", () => {
+    const parts = renderCardParts(item({ description: filler(6000) }), "ru");
 
     expect(parts.length).toBeGreaterThan(1);
-    for (const part of parts) expect(part.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
+    for (const part of parts)
+      expect(part.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
     // Continuations say what they continue, so a stray message is never orphaned.
-    expect(parts[1]).toContain('Senior Frontend Engineer — продолжение');
+    expect(parts[1]).toContain("Senior Frontend Engineer — продолжение");
   });
 
-  it('caps a monster posting and points at the app for the rest', () => {
-    const parts = renderCardParts(item({ description: filler(40_000) }), 'ru');
+  it("caps a monster posting and points at the app for the rest", () => {
+    const parts = renderCardParts(item({ description: filler(40_000) }), "ru");
 
     expect(parts).toHaveLength(3);
-    for (const part of parts) expect(part.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
-    expect(parts.at(-1)).toContain('«Подробнее»');
+    for (const part of parts)
+      expect(part.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
+    expect(parts.at(-1)).toContain("«Подробнее»");
   });
 
-  it('never splits mid-word', () => {
-    const parts = renderCardParts(item({ description: filler(6000) }), 'ru');
+  it("never splits mid-word", () => {
+    const parts = renderCardParts(item({ description: filler(6000) }), "ru");
     for (const part of parts) expect(part).not.toMatch(/сло$|слов$/);
   });
 
-  it('escapes scraped text — titles and postings come from arbitrary job posts', () => {
+  it("escapes scraped text — titles and postings come from arbitrary job posts", () => {
     const [card] = renderCardParts(
-      item({ title: '<script>alert(1)</script> & co', note: '', description: '<b>hi</b> & bye' }),
-      'ru',
+      item({
+        title: "<script>alert(1)</script> & co",
+        note: "",
+        description: "<b>hi</b> & bye",
+      }),
+      "ru",
     );
-    expect(card).toContain('&lt;script&gt;alert(1)&lt;/script&gt; &amp; co');
-    expect(card).toContain('&lt;b&gt;hi&lt;/b&gt; &amp; bye');
-    expect(card).not.toContain('<script>');
+    expect(card).toContain("&lt;script&gt;alert(1)&lt;/script&gt; &amp; co");
+    expect(card).toContain("&lt;b&gt;hi&lt;/b&gt; &amp; bye");
+    expect(card).not.toContain("<script>");
   });
 
-  it('never cuts an escaped entity in half', () => {
+  it("never cuts an escaped entity in half", () => {
     // A description of nothing but ampersands is the worst case for a cut made
     // after escaping: every character becomes five.
-    for (const part of renderCardParts(item({ description: '& '.repeat(4000) }), 'ru')) {
+    for (const part of renderCardParts(
+      item({ description: "& ".repeat(4000) }),
+      "ru",
+    )) {
       expect(part).not.toMatch(/&(?!amp;|quot;|lt;|gt;)/);
     }
   });
 
-  it('omits the salary line when the vacancy has none', () => {
+  it("omits the salary line when the vacancy has none", () => {
     const [card] = renderCardParts(
       item({ salaryMin: null, salaryMax: null, salaryCurrency: null }),
-      'ru',
+      "ru",
     );
-    expect(card).not.toContain('USD');
-    expect(card).toContain('84% соответствие');
+    expect(card).not.toContain("USD");
+    expect(card).toContain("84% соответствие");
   });
 
-  it('omits the note when the model gave none', () => {
-    expect(renderCardParts(item({ note: '' }), 'ru')[0]).not.toContain('<i>');
+  it("omits the note when the model gave none", () => {
+    expect(renderCardParts(item({ note: "" }), "ru")[0]).not.toContain("<i>");
   });
 
-  it('falls back to UTC when the stored timezone is nonsense', () => {
-    expect(() => renderCardParts(item(), 'ru', 'Mars/Olympus')).not.toThrow();
+  it("falls back to UTC when the stored timezone is nonsense", () => {
+    expect(() => renderCardParts(item(), "ru", "Mars/Olympus")).not.toThrow();
   });
 });
 
-describe('renderKeyboard', () => {
-  it('makes Apply a callback — the point is not leaving the chat', () => {
-    const keyboard = renderKeyboard(item(), 'ru', 'https://web.test');
+describe("renderKeyboard", () => {
+  it("makes Apply a callback — the point is not leaving the chat", () => {
+    const keyboard = renderKeyboard(item(), "ru", "https://web.test");
     expect(keyboard[0]).toEqual([
       // Namespaced to outreach: this module renders the button without knowing
       // how applying works.
-      { text: 'Откликнуться', callbackData: `a:d:${item().id}` },
-      { text: 'Подробнее', url: `https://web.test/app/vacancies/${item().id}` },
-      { text: 'Первоисточник', url: 'https://acme.test/jobs/1' },
+      { text: "Откликнуться", callbackData: `a:d:${item().id}` },
+      { text: "Подробнее", url: `https://web.test/app/vacancies/${item().id}` },
+      { text: "Первоисточник", url: "https://acme.test/jobs/1" },
     ]);
   });
 
-  it('links the original posting alongside the app, in both languages', () => {
+  it("links the original posting alongside the app, in both languages", () => {
     // The app's copy is sanitized, collapsed and capped at three messages; the
     // board's own page is where an application form actually lives.
-    expect(renderKeyboard(item(), 'en', 'https://web.test')[0]?.[2]).toEqual({
-      text: 'Original',
-      url: 'https://acme.test/jobs/1',
+    expect(renderKeyboard(item(), "en", "https://web.test")[0]?.[2]).toEqual({
+      text: "Original",
+      url: "https://acme.test/jobs/1",
     });
   });
 
-  it('does not repeat the same link twice when there is no web origin', () => {
-    const top = renderKeyboard(item(), 'ru', '')[0];
+  it("does not repeat the same link twice when there is no web origin", () => {
+    const top = renderKeyboard(item(), "ru", "")[0];
     expect(top).toHaveLength(2);
-    expect(top?.[1]?.url).toBe('https://acme.test/jobs/1');
+    expect(top?.[1]?.url).toBe("https://acme.test/jobs/1");
   });
 
-  it('falls back to the original posting when no web origin is configured', () => {
-    expect(renderKeyboard(item(), 'ru', '')[0]?.[1]?.url).toBe('https://acme.test/jobs/1');
+  it("falls back to the original posting when no web origin is configured", () => {
+    expect(renderKeyboard(item(), "ru", "")[0]?.[1]?.url).toBe(
+      "https://acme.test/jobs/1",
+    );
   });
 
-  it('keeps callback data inside the 64-byte Telegram limit', () => {
-    for (const button of renderKeyboard(item(), 'ru', 'https://web.test').flat()) {
+  it("keeps callback data inside the 64-byte Telegram limit", () => {
+    for (const button of renderKeyboard(
+      item(),
+      "ru",
+      "https://web.test",
+    ).flat()) {
       if (button.callbackData) {
         expect(Buffer.byteLength(button.callbackData)).toBeLessThanOrEqual(64);
       }
     }
   });
 
-  it('offers both thumbs and hide, namespaced to the digest', () => {
-    const actions = renderKeyboard(item(), 'ru', 'https://web.test')[1] ?? [];
+  it("offers both thumbs and hide, namespaced to the digest", () => {
+    const actions = renderKeyboard(item(), "ru", "https://web.test")[1] ?? [];
     expect(actions.map((button) => button.callbackData)).toEqual([
       `d:u:${item().id}`,
       `d:w:${item().id}`,

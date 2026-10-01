@@ -41,7 +41,7 @@ export const employmentTypeEnum = pgEnum('employment_type', [
   'freelance',
 ]);
 
-export const sourceKindEnum = pgEnum('source_kind', ['api', 'rss', 'telegram', 'manual']);
+export const sourceKindEnum = pgEnum('source_kind', ['api', 'rss', 'telegram', 'manual', 'email']);
 
 export const sourceRunStatusEnum = pgEnum('source_run_status', ['ok', 'empty', 'error']);
 
@@ -215,6 +215,11 @@ export const searchProfiles = pgTable(
     salaryMax: integer('salary_max'),
     salaryCurrency: text('salary_currency'),
     isActive: boolean('is_active').notNull().default(true),
+    // Matching bookkeeping, not configuration: the `vacancies.content_changed_at`
+    // this profile has been matched through. Null = never matched (or edited
+    // since), so the next run does the full pass. String mode keeps Postgres'
+    // microseconds, which a JS Date would round away and re-read forever.
+    matchedThrough: timestamp('matched_through', { withTimezone: true, mode: 'string' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -270,6 +275,13 @@ export const vacancies = pgTable(
     summaryEn: text('summary_en'),
     summaryEnGeneratedAt: timestamp('summary_en_generated_at', { withTimezone: true }),
     ingestedAt: timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
+    // When a field profile matching reads last changed. Ingestion re-upserts
+    // every posting it sees again, so `ingested_at` cannot say this; the upsert
+    // bumps it only when the matched content actually differs, which is what
+    // lets matching work on the delta instead of re-reading the whole board.
+    contentChangedAt: timestamp('content_changed_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     canonicalVacancyId: uuid('canonical_vacancy_id').references(
       (): AnyPgColumn => vacancies.id,
       { onDelete: 'set null' },
@@ -585,6 +597,18 @@ export const digestSettings = pgTable('digest_settings', {
   maxItems: smallint('max_items').notNull().default(10),
   // Resume-fit floor in percent; below it a vacancy is not worth a push.
   minScore: smallint('min_score').notNull().default(60),
+  // 'scheduled' | 'instant' (ADR-020). Instant ignores send_times and pushes
+  // new matches after each ingestion run, outside the quiet hours below.
+  mode: text('mode').notNull().default('scheduled'),
+  // Local `HH:MM`; may wrap midnight, equal = never quiet.
+  quietStart: text('quiet_start').notNull().default('22:00'),
+  quietEnd: text('quiet_end').notNull().default('08:00'),
+  // Instant mode's floor — stricter, since every push interrupts.
+  instantMinScore: smallint('instant_min_score').notNull().default(75),
+  // Delivery bookkeeping for instant mode: the latest `vacancies.ingested_at`
+  // already considered. Null = look back a day. String mode keeps Postgres'
+  // microseconds, which a JS Date would round away and re-read forever.
+  instantThrough: timestamp('instant_through', { withTimezone: true, mode: 'string' }),
   // Delivery bookkeeping, not configuration: `YYYY-MM-DD HH:MM` of the last
   // consumed slot. The scheduler compares the due slot against it, so a restart
   // (or a minute-granularity tick) can never send the same slot twice.

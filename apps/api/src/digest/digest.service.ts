@@ -30,10 +30,14 @@ export class DigestService {
     userId: string,
     input: UpdateDigestSettingsInput,
   ): Promise<DigestSettings> {
-    await this.settingsRow(userId);
+    const current = await this.settingsRow(userId);
 
     const { timezone, ...schedule } = input;
     if (timezone !== undefined) await this.setTimezone(userId, timezone);
+
+    // Turning instant mode on starts from "the last day", not from wherever an
+    // earlier stint left off — that could be weeks of postings in one push.
+    const enteringInstant = schedule.mode === 'instant' && current?.mode !== 'instant';
 
     const [updated] = await this.db
       .update(digestSettings)
@@ -41,6 +45,7 @@ export class DigestService {
         ...schedule,
         // Stored sorted so "the next send" is a scan from the front.
         ...(schedule.sendTimes ? { sendTimes: sortSendTimes(schedule.sendTimes) } : {}),
+        ...(enteringInstant ? { instantThrough: null } : {}),
         updatedAt: new Date(),
       })
       .where(eq(digestSettings.userId, userId))
@@ -112,6 +117,10 @@ export class DigestService {
       sendTimes: row ? sortSendTimes(row.sendTimes) : [...DIGEST_DEFAULTS.sendTimes],
       maxItems: row?.maxItems ?? DIGEST_DEFAULTS.maxItems,
       minScore: row?.minScore ?? DIGEST_DEFAULTS.minScore,
+      mode: row?.mode === 'instant' ? 'instant' : 'scheduled',
+      quietStart: row?.quietStart ?? DIGEST_DEFAULTS.quietStart,
+      quietEnd: row?.quietEnd ?? DIGEST_DEFAULTS.quietEnd,
+      instantMinScore: row?.instantMinScore ?? DIGEST_DEFAULTS.instantMinScore,
       timezone: planner?.timezone ?? PLANNER_DEFAULTS.timezone,
     };
   }

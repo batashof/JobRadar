@@ -39,6 +39,8 @@ export interface HealthChecks {
   ingestionTokenConfigured: boolean;
   /** Whether all three TELEGRAM_* env vars are present (not their values). */
   telegramConfigured: boolean;
+  /** Whether ALERTS_IMAP_USER + ALERTS_IMAP_PASSWORD are set, i.e. LinkedIn job-alert emails are read (ADR-021). */
+  linkedinAlertsConfigured: boolean;
   /** Whether `TELEGRAM_BOT_TOKEN` is set, i.e. the bot channel can send. */
   botConfigured: boolean;
   /** Whether SENTRY_DSN is set, i.e. error reporting is active. */

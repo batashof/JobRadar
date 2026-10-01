@@ -175,6 +175,20 @@ export const SEED_SOURCES: SourceSeed[] = [
     isActive: true,
     config: { feedUrl: 'https://www.workingnomads.com/api/exposed_jobs/', linkBackRequired: true },
   },
+  {
+    // LinkedIn via the job-alert emails LinkedIn sends the user (ADR-021,
+    // amending ADR-003): the worker reads the user's own mailbox over IMAP and
+    // never requests linkedin.com. Needs ALERTS_IMAP_USER/ALERTS_IMAP_PASSWORD;
+    // skips quietly while they are missing.
+    slug: 'linkedin',
+    kind: 'email',
+    isActive: true,
+    config: {
+      senders: ['jobalerts-noreply@linkedin.com'],
+      lookbackDays: 3,
+      maxMessages: 50,
+    },
+  },
 ];
 
 /** Local-development-only fixtures (never seeded in production). */

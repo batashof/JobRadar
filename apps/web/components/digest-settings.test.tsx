@@ -1,57 +1,74 @@
-import type { DigestSettings as DigestSettingsValue } from '@jobradar/shared';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DigestSettings as DigestSettingsValue } from "@jobradar/shared";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { updateDigestSettings, runDigestNow } = vi.hoisted(() => ({
   updateDigestSettings: vi.fn(),
   runDigestNow: vi.fn(),
 }));
-vi.mock('@/lib/digest', () => ({ updateDigestSettings, runDigestNow }));
+vi.mock("@/lib/digest", () => ({ updateDigestSettings, runDigestNow }));
 
-import { DigestSettings } from './digest-settings';
+import { DigestSettings } from "./digest-settings";
 
-function settings(overrides: Partial<DigestSettingsValue> = {}): DigestSettingsValue {
+function settings(
+  overrides: Partial<DigestSettingsValue> = {},
+): DigestSettingsValue {
   return {
     enabled: true,
-    sendTimes: ['09:00'],
+    sendTimes: ["09:00"],
     maxItems: 10,
     minScore: 60,
-    timezone: 'Europe/Belgrade',
+    mode: "scheduled",
+    quietStart: "22:00",
+    quietEnd: "08:00",
+    instantMinScore: 75,
+    timezone: "Europe/Belgrade",
     ...overrides,
   };
 }
 
 /** The component saves the whole object, so assertions target the fields that changed. */
-const savedWith = (over: Partial<DigestSettingsValue>) => expect.objectContaining(over);
+const savedWith = (over: Partial<DigestSettingsValue>) =>
+  expect.objectContaining(over);
 
-describe('DigestSettings', () => {
+describe("DigestSettings", () => {
   afterEach(() => vi.clearAllMocks());
 
-  it('shows the schedule, how many sends a day it is, and the timezone it means', () => {
-    render(<DigestSettings initial={settings({ sendTimes: ['09:00', '19:00'] })} />);
+  it("shows the schedule, how many sends a day it is, and the timezone it means", () => {
+    render(
+      <DigestSettings initial={settings({ sendTimes: ["09:00", "19:00"] })} />,
+    );
 
     expect(screen.getByText(/Send times — 2 a day/)).toBeTruthy();
     expect(screen.getByText(/Europe\/Belgrade/)).toBeTruthy();
-    expect((screen.getByLabelText('Send time 1') as HTMLInputElement).value).toBe('09:00');
-    expect((screen.getByLabelText('Send time 2') as HTMLInputElement).value).toBe('19:00');
+    expect(
+      (screen.getByLabelText("Send time 1") as HTMLInputElement).value,
+    ).toBe("09:00");
+    expect(
+      (screen.getByLabelText("Send time 2") as HTMLInputElement).value,
+    ).toBe("19:00");
   });
 
-  it('saves the times in the timezone of the device they were entered on', async () => {
+  it("saves the times in the timezone of the device they were entered on", async () => {
     // jsdom resolves to UTC; the stored zone is deliberately something else.
     const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
     updateDigestSettings.mockResolvedValue(settings());
 
-    render(<DigestSettings initial={settings({ timezone: 'Europe/Belgrade' })} />);
+    render(
+      <DigestSettings initial={settings({ timezone: "Europe/Belgrade" })} />,
+    );
     expect(screen.getByText(new RegExp(`device is in ${device}`))).toBeTruthy();
 
-    fireEvent.click(screen.getByLabelText('Send the digest'));
+    fireEvent.click(screen.getByLabelText("Send the digest"));
 
     await waitFor(() =>
-      expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ timezone: device })),
+      expect(updateDigestSettings).toHaveBeenCalledWith(
+        savedWith({ timezone: device }),
+      ),
     );
   });
 
-  it('says nothing about the timezone when the device already agrees', () => {
+  it("says nothing about the timezone when the device already agrees", () => {
     const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     render(<DigestSettings initial={settings({ timezone: device })} />);
@@ -59,102 +76,210 @@ describe('DigestSettings', () => {
     expect(screen.queryByText(/device is in/)).toBeNull();
   });
 
-  it('adds a second send and stores the schedule sorted', async () => {
-    updateDigestSettings.mockResolvedValue(settings({ sendTimes: ['09:00', '19:00'] }));
+  it("adds a second send and stores the schedule sorted", async () => {
+    updateDigestSettings.mockResolvedValue(
+      settings({ sendTimes: ["09:00", "19:00"] }),
+    );
 
     render(<DigestSettings initial={settings()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add a time' }));
+    fireEvent.click(screen.getByRole("button", { name: "Add a time" }));
 
     await waitFor(() =>
       expect(updateDigestSettings).toHaveBeenCalledWith(
-        savedWith({ sendTimes: ['09:00', '19:00'] }),
+        savedWith({ sendTimes: ["09:00", "19:00"] }),
       ),
     );
   });
 
-  it('stops offering more sends at the daily cap', () => {
+  it("stops offering more sends at the daily cap", () => {
     render(
-      <DigestSettings initial={settings({ sendTimes: ['08:00', '12:00', '16:00', '20:00'] })} />,
+      <DigestSettings
+        initial={settings({ sendTimes: ["08:00", "12:00", "16:00", "20:00"] })}
+      />,
     );
-    expect(screen.queryByRole('button', { name: 'Add a time' })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add a time" })).toBeNull();
   });
 
-  it('removes a send time but never the last one', async () => {
+  it("removes a send time but never the last one", async () => {
     updateDigestSettings.mockResolvedValue(settings());
 
-    const { rerender } = render(<DigestSettings initial={settings({ sendTimes: ['09:00', '19:00'] })} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Remove this time' })[0]!);
+    const { rerender } = render(
+      <DigestSettings initial={settings({ sendTimes: ["09:00", "19:00"] })} />,
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Remove this time" })[0]!,
+    );
     await waitFor(() =>
-      expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ sendTimes: ['19:00'] })),
+      expect(updateDigestSettings).toHaveBeenCalledWith(
+        savedWith({ sendTimes: ["19:00"] }),
+      ),
     );
 
     rerender(<DigestSettings initial={settings()} />);
-    expect(screen.queryByRole('button', { name: 'Remove this time' })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Remove this time" }),
+    ).toBeNull();
   });
 
-  it('drops a duplicated time instead of sending it to be rejected', async () => {
+  it("drops a duplicated time instead of sending it to be rejected", async () => {
     updateDigestSettings.mockResolvedValue(settings());
 
-    render(<DigestSettings initial={settings({ sendTimes: ['09:00', '19:00'] })} />);
-    const second = screen.getByLabelText('Send time 2');
-    fireEvent.change(second, { target: { value: '09:00' } });
+    render(
+      <DigestSettings initial={settings({ sendTimes: ["09:00", "19:00"] })} />,
+    );
+    const second = screen.getByLabelText("Send time 2");
+    fireEvent.change(second, { target: { value: "09:00" } });
     fireEvent.blur(second);
 
     await waitFor(() =>
-      expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ sendTimes: ['09:00'] })),
+      expect(updateDigestSettings).toHaveBeenCalledWith(
+        savedWith({ sendTimes: ["09:00"] }),
+      ),
     );
   });
 
-  it('saves the per-send cap on blur', async () => {
+  it("saves the per-send cap on blur", async () => {
     updateDigestSettings.mockResolvedValue(settings({ maxItems: 5 }));
 
     render(<DigestSettings initial={settings()} />);
-    const input = screen.getByLabelText('Vacancies per send');
-    fireEvent.change(input, { target: { value: '5' } });
+    const input = screen.getByLabelText("Vacancies per send");
+    fireEvent.change(input, { target: { value: "5" } });
     fireEvent.blur(input);
 
     await waitFor(() =>
-      expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ maxItems: 5 })),
+      expect(updateDigestSettings).toHaveBeenCalledWith(
+        savedWith({ maxItems: 5 }),
+      ),
     );
   });
 
-  it('turns the digest off', async () => {
+  it("turns the digest off", async () => {
     updateDigestSettings.mockResolvedValue(settings({ enabled: false }));
 
     render(<DigestSettings initial={settings()} />);
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() =>
-      expect(updateDigestSettings).toHaveBeenCalledWith(savedWith({ enabled: false })),
+      expect(updateDigestSettings).toHaveBeenCalledWith(
+        savedWith({ enabled: false }),
+      ),
     );
   });
 
-  it('sends on demand and reports how many vacancies went out', async () => {
+  it("sends on demand and reports how many vacancies went out", async () => {
     runDigestNow.mockResolvedValue({ sent: 4 });
 
     render(<DigestSettings initial={settings()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Send it now' }));
+    fireEvent.click(screen.getByRole("button", { name: "Send it now" }));
 
-    await waitFor(() => expect(screen.getByText(/Sent 4 vacancies/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Sent 4 vacancies/)).toBeTruthy(),
+    );
   });
 
-  it('explains an empty on-demand send rather than looking broken', async () => {
+  it("explains an empty on-demand send rather than looking broken", async () => {
     runDigestNow.mockResolvedValue({ sent: 0 });
 
     render(<DigestSettings initial={settings()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Send it now' }));
+    fireEvent.click(screen.getByRole("button", { name: "Send it now" }));
 
-    await waitFor(() => expect(screen.getByText(/Nothing to send right now/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Nothing to send right now/)).toBeTruthy(),
+    );
   });
 
-  it('rolls back and explains itself when the save fails', async () => {
-    updateDigestSettings.mockRejectedValue(new Error('boom'));
+  it("rolls back and explains itself when the save fails", async () => {
+    updateDigestSettings.mockRejectedValue(new Error("boom"));
 
     render(<DigestSettings initial={settings()} />);
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole("checkbox"));
 
-    await waitFor(() => expect(screen.getByText(/Could not save/i)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Could not save/i)).toBeTruthy(),
+    );
     // The UI must not claim a schedule the server never accepted.
-    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(
+      true,
+    );
+  });
+
+  describe("instant delivery (ADR-020)", () => {
+    it("switches the mode and saves it", async () => {
+      updateDigestSettings.mockResolvedValue(settings({ mode: "instant" }));
+      render(<DigestSettings initial={settings()} />);
+
+      fireEvent.click(screen.getByLabelText("As soon as they appear"));
+
+      await waitFor(() =>
+        expect(updateDigestSettings).toHaveBeenCalledWith(
+          savedWith({ mode: "instant" }),
+        ),
+      );
+    });
+
+    it("shows quiet hours and the instant floor instead of the send times", () => {
+      render(<DigestSettings initial={settings({ mode: "instant" })} />);
+
+      expect(
+        (screen.getByLabelText("Quiet from") as HTMLInputElement).value,
+      ).toBe("22:00");
+      expect(
+        (screen.getByLabelText("Quiet until") as HTMLInputElement).value,
+      ).toBe("08:00");
+      expect(
+        (
+          screen.getByLabelText(
+            "Minimum fit to push at once, %",
+          ) as HTMLInputElement
+        ).value,
+      ).toBe("75");
+      expect(screen.queryByLabelText("Send time 1")).toBeNull();
+      expect(screen.queryByLabelText("Minimum fit, %")).toBeNull();
+      expect(screen.getByText(/within about four hours/)).toBeTruthy();
+    });
+
+    it("keeps the scheduled controls, and no quiet hours, in scheduled mode", () => {
+      render(<DigestSettings initial={settings()} />);
+
+      expect(screen.getByLabelText("Send time 1")).toBeTruthy();
+      expect(screen.queryByLabelText("Quiet from")).toBeNull();
+      expect(
+        (screen.getByLabelText("On a schedule") as HTMLInputElement).checked,
+      ).toBe(true);
+    });
+
+    it("saves the quiet hours on blur", async () => {
+      updateDigestSettings.mockResolvedValue(
+        settings({ mode: "instant", quietStart: "23:00" }),
+      );
+      render(<DigestSettings initial={settings({ mode: "instant" })} />);
+
+      const start = screen.getByLabelText("Quiet from");
+      fireEvent.change(start, { target: { value: "23:00" } });
+      fireEvent.blur(start);
+
+      await waitFor(() =>
+        expect(updateDigestSettings).toHaveBeenCalledWith(
+          savedWith({ quietStart: "23:00" }),
+        ),
+      );
+    });
+
+    it("saves the instant floor on blur", async () => {
+      updateDigestSettings.mockResolvedValue(
+        settings({ mode: "instant", instantMinScore: 85 }),
+      );
+      render(<DigestSettings initial={settings({ mode: "instant" })} />);
+
+      const floor = screen.getByLabelText("Minimum fit to push at once, %");
+      fireEvent.change(floor, { target: { value: "85" } });
+      fireEvent.blur(floor);
+
+      await waitFor(() =>
+        expect(updateDigestSettings).toHaveBeenCalledWith(
+          savedWith({ instantMinScore: 85 }),
+        ),
+      );
+    });
   });
 });
