@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-01 — Groq model, Telegram client leak, Temporal board (v1.23.1)
+
+- **Found in the first ingestion logs after the cutover:** LinkedIn alerts worked on real mail (11 emails → 88 jobs). Three faults turned up, none of them caused by the move.
+- **Groq:** `llama-3.3-70b-versatile` returned `404 model_not_found`. Groq's deprecations page lists its shutdown on 2026-08-16 with `openai/gpt-oss-*` as replacements. The default is now `openai/gpt-oss-120b`. It reasons out of the same token budget, and callers ask for 400–1600 tokens, so Groq `gpt-oss` requests get low reasoning effort, hidden reasoning and 1024 tokens of headroom (`reasoningParams`). Gemini never receives those fields. Not yet exercised against Groq itself, since no key is available in the session; `/health` → `llmStatus` will show the first real call.
+- **Telegram:** read GramJS 2.26.22 to confirm. `_updateLoop` runs `while (!client._destroyed)`, so after `disconnect()` it kept pinging, logged `Error: TIMEOUT` (three times within two minutes of the 20:26 run) and called `reconnect()`. The service now uses `destroy()`. New `telegram.service.spec.ts`: it fails on `disconnect()` and passes on `destroy()`, including when the run fails.
+- **ATS:** `greenhouse:temporaltechnologies` returns 404. Probed Greenhouse, Lever and Ashby, and the board is `ashby:temporal` (64 jobs). Seed list updated, and a seed test pins it. Production needs `DB (prod)` → `migrate` to upsert the new config.
+- **Next step:** after the deploy, check `llmStatus` for a successful Groq call and confirm the Telegram logs carry no `TIMEOUT` after a run.
+
 ## 2026-10-01 — Production runs on Supabase
 
 - **Copy:** `DB (prod)` → `copy-from-neon` succeeded at 02:40 UTC, after Neon's monthly quota reset (the run the evening before had failed with "exceeded the quota"). Neon's public tables were 252 MB with indexes. Rows came over for 25 tables (17,065 vacancies, 1,491 profile matches, 199 digest items, 3 users, …) and were verified against the dump. No writes reached Neon during the copy.

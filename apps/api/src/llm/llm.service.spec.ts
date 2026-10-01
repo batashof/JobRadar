@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
-import { LlmService } from './llm.service';
+import { LlmService, REASONING_HEADROOM_TOKENS, reasoningParams } from './llm.service';
 import { LlmUnavailableError } from './llm.types';
 
 function configWith(env: Record<string, string>): ConfigService {
@@ -52,7 +52,7 @@ describe('LlmService', () => {
 
     const result = await service.complete({ system: 'sys', user: 'hi' });
 
-    expect(result).toEqual({ text: 'hello', provider: 'groq', model: 'llama-3.3-70b-versatile' });
+    expect(result).toEqual({ text: 'hello', provider: 'groq', model: 'openai/gpt-oss-120b' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.groq.com/openai/v1/chat/completions');
@@ -118,7 +118,7 @@ describe('LlmService', () => {
       expect(service.providerStatus()).toEqual([
         {
           name: 'groq',
-          model: 'llama-3.3-70b-versatile',
+          model: 'openai/gpt-oss-120b',
           lastOutcome: null,
           lastError: null,
           lastAt: null,
@@ -191,5 +191,68 @@ describe('LlmService', () => {
       model: string;
     };
     expect(body.model).toBe('llama-4-scout');
+  });
+
+  describe('reasoning models', () => {
+    type Body = {
+      model: string;
+      max_tokens: number;
+      temperature: number;
+      reasoning_effort?: string;
+      include_reasoning?: boolean;
+    };
+    const sentBody = (call = 0): Body =>
+      JSON.parse((fetchMock.mock.calls[call][1] as RequestInit).body as string) as Body;
+
+    it('asks Groq gpt-oss for short, hidden reasoning plus headroom', async () => {
+      fetchMock.mockResolvedValueOnce(okResponse('answer'));
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'gk' }));
+
+      await service.complete({ user: 'hi', maxTokens: 500, temperature: 0.2 });
+
+      expect(sentBody()).toEqual({
+        model: 'openai/gpt-oss-120b',
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 500 + REASONING_HEADROOM_TOKENS,
+        temperature: 0.2,
+        reasoning_effort: 'low',
+        include_reasoning: false,
+      });
+    });
+
+    it('sends a non-reasoning Groq model the plain request', async () => {
+      fetchMock.mockResolvedValueOnce(okResponse('x'));
+      const service = new LlmService(
+        configWith({ GROQ_API_KEY: 'gk', GROQ_MODEL: 'llama-4-scout' }),
+      );
+
+      await service.complete({ user: 'hi', maxTokens: 500 });
+
+      const body = sentBody();
+      expect(body.max_tokens).toBe(500);
+      expect(body).not.toHaveProperty('reasoning_effort');
+      expect(body).not.toHaveProperty('include_reasoning');
+    });
+
+    it('never sends the reasoning fields to Gemini after a Groq failover', async () => {
+      fetchMock
+        .mockResolvedValueOnce(errorResponse(404, 'model_not_found'))
+        .mockResolvedValueOnce(okResponse('from gemini'));
+      const service = new LlmService(configWith({ GROQ_API_KEY: 'gk', GEMINI_API_KEY: 'mk' }));
+
+      const result = await service.complete({ user: 'hi', maxTokens: 700 });
+
+      expect(result.provider).toBe('gemini');
+      expect(sentBody(1)).not.toHaveProperty('reasoning_effort');
+      expect(sentBody(1).max_tokens).toBe(700);
+    });
+
+    it('recognises only Groq-served gpt-oss models', () => {
+      expect(reasoningParams('groq', 'openai/gpt-oss-120b')).not.toBeNull();
+      expect(reasoningParams('groq', 'openai/gpt-oss-20b')).not.toBeNull();
+      expect(reasoningParams('groq', 'llama-3.1-8b-instant')).toBeNull();
+      expect(reasoningParams('openrouter', 'openai/gpt-oss-120b')).toBeNull();
+      expect(reasoningParams('gemini', 'gemini-flash-latest')).toBeNull();
+    });
   });
 });

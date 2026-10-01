@@ -81,7 +81,11 @@ export class TelegramIngestService {
         this.logger.log(`telegram @${channel}: scanned ${messages.length} messages`);
       }
     } finally {
-      await client.disconnect().catch(() => undefined);
+      // destroy(), not disconnect(): GramJS's update loop runs until the
+      // client is destroyed. After a bare disconnect it keeps pinging, logs
+      // "Error: TIMEOUT" and reconnects, leaving one live connection behind
+      // per ingestion run.
+      await client.destroy().catch(() => undefined);
     }
 
     const upserted = rows.length > 0 ? await upsertVacancies(this.db, rows) : 0;
