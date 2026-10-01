@@ -8,6 +8,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Phase 4 remainder: browser extension, calendar sync.
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 
+## [1.23.1] — 2026-10-01
+
+### Fixed
+
+- **Groq had stopped answering.** Groq shut `llama-3.3-70b-versatile` down on 2026-08-16, and every call returned `404 model_not_found`. The LLM features were running on Gemini alone, and when Gemini was overloaded (`503`) résumé scoring stopped outright (`scored 0, remaining 60`). The Groq default is now `openai/gpt-oss-120b`, Groq's listed replacement. It is a reasoning model whose thinking comes out of the same completion budget, so requests to Groq's `gpt-oss` models carry `reasoning_effort: "low"`, `include_reasoning: false` and 1024 tokens of headroom over the caller's `max_tokens`. Other providers and models get the request unchanged. `GROQ_MODEL` still overrides.
+- **Telegram ingestion left a live connection behind after every run.** It closed the GramJS client with `disconnect()`, but GramJS's update loop runs until the client is *destroyed*. After a bare disconnect it kept pinging, logged `Error: TIMEOUT` and called `reconnect()`. The client is now closed with `destroy()`, also when the run fails. The service gets its first tests.
+- **Temporal's vacancies stopped coming in.** Its Greenhouse board (`temporaltechnologies`) answers 404 because the company moved to Ashby (`temporal`, 64 open roles). The ATS list now points there.
+
 ## [1.23.0] — 2026-09-30
 
 ### Added

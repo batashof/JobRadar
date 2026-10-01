@@ -129,7 +129,6 @@ export const SEED_SOURCES: SourceSeed[] = [
         { ats: 'greenhouse', token: 'pinterest', name: 'Pinterest' },
         { ats: 'greenhouse', token: 'instacart', name: 'Instacart' },
         { ats: 'greenhouse', token: 'databricks', name: 'Databricks' },
-        { ats: 'greenhouse', token: 'temporaltechnologies', name: 'Temporal' },
         { ats: 'greenhouse', token: 'tailscale', name: 'Tailscale' },
         { ats: 'greenhouse', token: 'cloudflare', name: 'Cloudflare' },
         { ats: 'greenhouse', token: 'fivetran', name: 'Fivetran' },
@@ -148,6 +147,8 @@ export const SEED_SOURCES: SourceSeed[] = [
         { ats: 'ashby', token: 'openai', name: 'OpenAI' },
         { ats: 'ashby', token: 'langchain', name: 'LangChain' },
         { ats: 'ashby', token: 'cursor', name: 'Cursor' },
+        // Moved off Greenhouse (temporaltechnologies → 404) to Ashby, 2026-10-01.
+        { ats: 'ashby', token: 'temporal', name: 'Temporal' },
         { ats: 'ashby', token: 'linear', name: 'Linear' },
         { ats: 'ashby', token: 'resend', name: 'Resend' },
         { ats: 'ashby', token: 'railway', name: 'Railway' },

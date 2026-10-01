@@ -41,7 +41,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.23.0** (LinkedIn vacancies from the job-alert emails LinkedIn sends the user, read over IMAP — no request to linkedin.com, ADR-021, 2026-09-30; keep this line in sync on every bump).
+- **Current version: 1.23.1** (Groq moves to `openai/gpt-oss-120b` after `llama-3.3-70b-versatile` was shut down; Telegram ingestion stops leaking a reconnecting client; Temporal's board moves to Ashby, 2026-10-01; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

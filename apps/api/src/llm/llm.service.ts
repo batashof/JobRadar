@@ -21,7 +21,9 @@ const PROVIDERS: ProviderDef[] = [
     baseUrl: 'https://api.groq.com/openai/v1',
     keyEnv: 'GROQ_API_KEY',
     modelEnv: 'GROQ_MODEL',
-    defaultModel: 'llama-3.3-70b-versatile',
+    // Groq shut llama-3.3-70b-versatile down on 2026-08-16 (model_not_found);
+    // gpt-oss-120b is its listed replacement. It reasons — see reasoningParams.
+    defaultModel: 'openai/gpt-oss-120b',
   },
   {
     name: 'openrouter',
@@ -42,6 +44,29 @@ const PROVIDERS: ProviderDef[] = [
 ];
 
 const REQUEST_TIMEOUT_MS = 60_000;
+
+/** Extra completion budget for a reasoning model's thinking, on top of the caller's. */
+export const REASONING_HEADROOM_TOKENS = 1024;
+
+/**
+ * Request fields for Groq's GPT-OSS models, which reason before answering.
+ *
+ * Their reasoning tokens come out of the same completion budget as the answer.
+ * Callers ask for 400–1600 tokens sized for the answer alone, so at the
+ * default effort the reasoning can eat the budget and leave the answer cut
+ * off or empty. Low effort keeps the reasoning short (these are extraction and
+ * writing tasks, not puzzles), the headroom keeps it off the answer's budget,
+ * and the reasoning text itself is not returned since nothing reads it. Other
+ * providers and models get nothing extra: Gemini's endpoint, for one, rejects
+ * fields it does not know.
+ */
+export function reasoningParams(
+  provider: string,
+  model: string,
+): { reasoning_effort: 'low'; include_reasoning: false } | null {
+  if (provider !== 'groq' || !model.startsWith('openai/gpt-oss-')) return null;
+  return { reasoning_effort: 'low', include_reasoning: false };
+}
 
 /** How much of a provider's error body is worth keeping for diagnostics. */
 const ERROR_DETAIL_LIMIT = 200;
@@ -151,6 +176,9 @@ export class LlmService {
     if (request.system) messages.push({ role: 'system', content: request.system });
     messages.push({ role: 'user', content: request.user });
 
+    const reasoning = reasoningParams(provider.name, model);
+    const maxTokens = (request.maxTokens ?? 1024) + (reasoning ? REASONING_HEADROOM_TOKENS : 0);
+
     const res = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -160,8 +188,9 @@ export class LlmService {
       body: JSON.stringify({
         model,
         messages,
-        max_tokens: request.maxTokens ?? 1024,
+        max_tokens: maxTokens,
         temperature: request.temperature ?? 0.4,
+        ...reasoning,
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

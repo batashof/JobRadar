@@ -55,6 +55,19 @@ describe('seed data', () => {
     expect(config?.feedUrl).toBeUndefined();
   });
 
+  it('lists each ATS board once, and Temporal on its current Ashby board', () => {
+    const ats = SEED_SOURCES.find((s) => s.slug === 'ats');
+    const companies =
+      (ats?.config as { companies?: { ats: string; token: string; name: string }[] })?.companies ??
+      [];
+    const boards = companies.map((c) => `${c.ats}:${c.token.toLowerCase()}`);
+    expect(new Set(boards).size).toBe(boards.length);
+    // greenhouse:temporaltechnologies answers 404 since Temporal moved to Ashby.
+    expect(companies.filter((c) => c.name === 'Temporal')).toEqual([
+      { ats: 'ashby', token: 'temporal', name: 'Temporal' },
+    ]);
+  });
+
   it('uses only valid source kinds', () => {
     for (const source of SEED_SOURCES) {
       expect(sourceKindEnum.enumValues).toContain(source.kind);
