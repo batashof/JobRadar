@@ -594,7 +594,9 @@ export const digestSettings = pgTable('digest_settings', {
   enabled: boolean('enabled').notNull().default(true),
   // `HH:MM` local times, sorted; one row per push, at most four a day.
   sendTimes: text('send_times').array().notNull().default(['09:00']),
-  maxItems: smallint('max_items').notNull().default(10),
+  // Optional cap per send; null (the default) sends every new vacancy above
+  // the floor (ADR-022).
+  maxItems: smallint('max_items'),
   // Resume-fit floor in percent; below it a vacancy is not worth a push.
   minScore: smallint('min_score').notNull().default(60),
   // 'scheduled' | 'instant' (ADR-020). Instant ignores send_times and pushes
@@ -605,10 +607,11 @@ export const digestSettings = pgTable('digest_settings', {
   quietEnd: text('quiet_end').notNull().default('08:00'),
   // Instant mode's floor — stricter, since every push interrupts.
   instantMinScore: smallint('instant_min_score').notNull().default(75),
-  // Delivery bookkeeping for instant mode: the latest `vacancies.ingested_at`
-  // already considered. Null = look back a day. String mode keeps Postgres'
+  // Delivery bookkeeping for both modes: the latest `vacancies.ingested_at`
+  // already judged, so each push covers only what arrived since the previous
+  // one (ADR-020, ADR-022). Null = look back a day. String mode keeps Postgres'
   // microseconds, which a JS Date would round away and re-read forever.
-  instantThrough: timestamp('instant_through', { withTimezone: true, mode: 'string' }),
+  judgedThrough: timestamp('judged_through', { withTimezone: true, mode: 'string' }),
   // Delivery bookkeeping, not configuration: `YYYY-MM-DD HH:MM` of the last
   // consumed slot. The scheduler compares the due slot against it, so a restart
   // (or a minute-granularity tick) can never send the same slot twice.

@@ -83,7 +83,10 @@ describe("updateDigestSettingsSchema", () => {
     }
   });
 
-  it("keeps the shortlist a shortlist", () => {
+  it("bounds an optional cap, and accepts null as 'every new vacancy'", () => {
+    expect(
+      updateDigestSettingsSchema.safeParse({ maxItems: null }).success,
+    ).toBe(true);
     expect(
       updateDigestSettingsSchema.safeParse({ maxItems: DIGEST_MAX_ITEMS_LIMIT })
         .success,

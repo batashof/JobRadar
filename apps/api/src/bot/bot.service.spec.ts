@@ -14,6 +14,18 @@ const fail = (errorCode: number, description: string) =>
     json: () => Promise.resolve({ ok: false, error_code: errorCode, description }),
   } as Response);
 
+const flood = (retryAfter: number) =>
+  Promise.resolve({
+    status: 429,
+    json: () =>
+      Promise.resolve({
+        ok: false,
+        error_code: 429,
+        description: `Too Many Requests: retry after ${retryAfter}`,
+        parameters: { retry_after: retryAfter },
+      }),
+  } as Response);
+
 const message = (id = 1) => ok({ message_id: id, chat: { id: 99 } });
 const getMe = () => ok({ id: 7, username: 'JobRadarBot' });
 
@@ -185,6 +197,45 @@ describe('BotService delivery', () => {
 
     await expect(bot.sendToUser('user-1', 'hi')).resolves.toBeNull();
     expect(writes[0]).toMatchObject({ table: telegramAccounts, values: { chatId: null } });
+  });
+
+  it('waits out a flood limit and retries once, so a long digest loses no card', async () => {
+    jest.useFakeTimers();
+    try {
+      const { db, queue } = makeDb();
+      queue(telegramAccounts, [{ chatId: '555' }]);
+      fetchMock
+        .mockReturnValueOnce(flood(3))
+        .mockReturnValueOnce(message(77));
+      const bot = new BotService(db, config('123:abc'));
+
+      const sent = bot.sendToUser('user-1', 'hi');
+      await jest.advanceTimersByTimeAsync(3000);
+
+      await expect(sent).resolves.toBe('77');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('gives up after one retry when the flood limit persists', async () => {
+    jest.useFakeTimers();
+    try {
+      const { db, writes, queue } = makeDb();
+      queue(telegramAccounts, [{ chatId: '555' }]);
+      fetchMock.mockReturnValue(flood(1));
+      const bot = new BotService(db, config('123:abc'));
+
+      const sent = bot.sendToUser('user-1', 'hi');
+      await jest.advanceTimersByTimeAsync(1000);
+
+      await expect(sent).resolves.toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(writes).toHaveLength(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('returns null on any other Telegram failure without unlinking', async () => {

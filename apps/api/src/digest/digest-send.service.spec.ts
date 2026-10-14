@@ -335,6 +335,47 @@ describe("DigestSendService.sendNow", () => {
     expect(writes.filter((w) => w.table === digestItems)).toHaveLength(2);
   });
 
+  it("sends every match above the floor when there is no cap (ADR-022)", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow({ maxItems: null, minScore: 0 })]);
+    const ids = Array.from({ length: 14 }, (_, i) => `v${i}`);
+    queue(vacancies, ids.map((id) => vacancyRow({ id })));
+    queue(profileMatches, ids.map((id) => ruleRow(id, 0.8)));
+    queue(resumes, []);
+    const bot = makeBot();
+
+    await expect(service(db, bot, makeLlm()).sendNow("user-1")).resolves.toBe(
+      14,
+    );
+    expect(writes.filter((w) => w.table === digestItems)).toHaveLength(14);
+  });
+
+  it("scores a window larger than one batch with one LLM call per thirty", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow({ maxItems: null, minScore: 60 })]);
+    const ids = Array.from({ length: 45 }, (_, i) => `v${i}`);
+    queue(vacancies, ids.map((id) => vacancyRow({ id })));
+    queue(profileMatches, []);
+    queue(resumes, [{ id: "r1", text: "Senior frontend React TypeScript" }]);
+    // Every vacancy the model sees gets 80; indexes restart in each batch.
+    const verdicts = (count: number) =>
+      JSON.stringify(
+        Array.from({ length: count }, (_, i) => ({ i, score: 80, note: "ok" })),
+      );
+    const llm = makeLlm("");
+    llm.complete
+      .mockResolvedValueOnce({ text: verdicts(30), provider: "groq", model: "m" })
+      .mockResolvedValueOnce({ text: verdicts(15), provider: "groq", model: "m" });
+    const bot = makeBot();
+
+    await expect(service(db, bot, llm).sendNow("user-1")).resolves.toBe(45);
+    expect(llm.complete).toHaveBeenCalledTimes(2);
+    const sent = writes
+      .filter((w) => w.table === digestItems)
+      .map((w) => (w.values as { vacancyId: string }).vacancyId);
+    expect(new Set(sent)).toEqual(new Set(ids));
+  });
+
   it("does nothing for a user with no settings row", async () => {
     const { db, queue } = makeDb();
     queue(digestSettings, []);
@@ -388,6 +429,49 @@ describe("DigestSendService.run", () => {
     ).toMatchObject({
       lastSentKey: "2026-08-11 09:00",
     });
+  });
+
+  it("reports only what arrived since the previous send and moves the watermark (ADR-022)", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [scheduled({ maxItems: null, minScore: 0 })]);
+    const window = {
+      after: "2026-08-10 09:00:00.100001+00",
+      until: "2026-08-11 08:50:00.200002+00",
+    };
+    queue(
+      vacancies,
+      [window],
+      ["a", "b", "c"].map((id) => vacancyRow({ id })),
+    );
+    queue(profileMatches, [ruleRow("a", 0.9), ruleRow("b", 0.8), ruleRow("c", 0.7)]);
+    const bot = makeBot();
+
+    const result = await service(db, bot, makeLlm()).run(
+      new Date("2026-08-11T09:01:00Z"),
+    );
+
+    expect(result).toMatchObject({ sent: 1, vacancies: 3 });
+    expect(bot.sendToUser.mock.calls[0][1]).toContain("3");
+    const slot = writes.find((w) => w.table === digestSettings)?.values;
+    expect(slot).toMatchObject({ lastSentKey: "2026-08-11 09:00" });
+    expect(slot).toHaveProperty("judgedThrough");
+  });
+
+  it("says nothing is new when no vacancy arrived since the previous send", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [scheduled({ judgedThrough: "2026-08-11 08:00:00+00" })]);
+    queue(vacancies, [{ after: "2026-08-11 08:00:00+00", until: null }]);
+    const bot = makeBot();
+
+    const result = await service(db, bot, makeLlm()).run(
+      new Date("2026-08-11T09:01:00Z"),
+    );
+
+    expect(result).toMatchObject({ sent: 1, vacancies: 0 });
+    expect(bot.sendToUser).toHaveBeenCalledTimes(1);
+    const slot = writes.find((w) => w.table === digestSettings)?.values;
+    expect(slot).toMatchObject({ lastSentKey: "2026-08-11 09:00" });
+    expect(slot).not.toHaveProperty("judgedThrough");
   });
 
   it("consumes a long-elapsed slot without sending a morning digest at night", async () => {
@@ -444,7 +528,7 @@ describe("DigestSendService.run — instant mode (ADR-020)", () => {
     quietStart: "22:00",
     quietEnd: "08:00",
     instantMinScore: 75,
-    instantThrough: WINDOW.after,
+    judgedThrough: WINDOW.after,
     timezone: "UTC",
     language: "ru",
     ...over,
@@ -496,7 +580,7 @@ describe("DigestSendService.run — instant mode (ADR-020)", () => {
       slotKey: `instant ${WINDOW.until}`,
     });
     const watermark = writes.find((w) => w.table === digestSettings);
-    expect(watermark?.values).toHaveProperty("instantThrough");
+    expect(watermark?.values).toHaveProperty("judgedThrough");
   });
 
   it("judges by the stricter instant floor, not the scheduled one", async () => {

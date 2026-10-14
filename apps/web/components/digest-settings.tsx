@@ -248,16 +248,19 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
               type="number"
               min={1}
               max={DIGEST_MAX_ITEMS_LIMIT}
-              value={settings.maxItems}
+              // Empty means no cap — every new vacancy above the floor goes
+              // out, however many arrived (ADR-022). That is the default.
+              placeholder={t("digest.maxItemsAll")}
+              value={settings.maxItems ?? ""}
               disabled={busy}
               onChange={(event) =>
                 setSettings({
                   ...settings,
-                  maxItems: Number(event.target.value),
+                  maxItems: parseCap(event.target.value),
                 })
               }
               onBlur={() => void save({ maxItems: settings.maxItems })}
-              className="w-24"
+              className="w-32"
             />
           </div>
           {settings.mode === "instant" ? (
@@ -333,4 +336,10 @@ export function DigestSettings({ initial }: { initial: DigestSettingsValue }) {
       </CardContent>
     </Card>
   );
+}
+
+/** The cap field: blank (or anything not a positive number) means "no cap". */
+function parseCap(value: string): number | null {
+  const cap = Math.floor(Number(value));
+  return value.trim() === "" || !Number.isFinite(cap) || cap < 1 ? null : cap;
 }

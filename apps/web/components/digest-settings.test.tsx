@@ -16,7 +16,7 @@ function settings(
   return {
     enabled: true,
     sendTimes: ["09:00"],
-    maxItems: 10,
+    maxItems: null,
     minScore: 60,
     mode: "scheduled",
     quietStart: "22:00",
@@ -149,6 +149,22 @@ describe("DigestSettings", () => {
     await waitFor(() =>
       expect(updateDigestSettings).toHaveBeenCalledWith(
         savedWith({ maxItems: 5 }),
+      ),
+    );
+  });
+
+  it("shows an empty cap as 'all new' and saves clearing it as no cap", async () => {
+    updateDigestSettings.mockResolvedValue(settings({ maxItems: null }));
+
+    render(<DigestSettings initial={settings({ maxItems: 5 })} />);
+    const input = screen.getByLabelText("Vacancies per send");
+    expect(input.getAttribute("placeholder")).toBe("All new");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+
+    await waitFor(() =>
+      expect(updateDigestSettings).toHaveBeenCalledWith(
+        savedWith({ maxItems: null }),
       ),
     );
   });

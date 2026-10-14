@@ -58,7 +58,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   userId: "user-1",
   enabled: true,
   sendTimes: ["09:00"],
-  maxItems: 10,
+  maxItems: null,
   minScore: 60,
   ...over,
 });
@@ -172,7 +172,7 @@ describe("DigestService.updateSettings", () => {
     await new DigestService(db).updateSettings("user-1", { mode: "instant" });
 
     // Otherwise a stint in instant mode weeks ago would push weeks of postings.
-    expect(updates[0]).toMatchObject({ mode: "instant", instantThrough: null });
+    expect(updates[0]).toMatchObject({ mode: "instant", judgedThrough: null });
   });
 
   it("keeps the watermark when instant mode is merely re-saved", async () => {
@@ -189,7 +189,7 @@ describe("DigestService.updateSettings", () => {
       instantMinScore: 80,
     });
 
-    expect(updates[0]).not.toHaveProperty("instantThrough");
+    expect(updates[0]).not.toHaveProperty("judgedThrough");
     expect(updates[0]).toMatchObject({ instantMinScore: 80 });
   });
 

@@ -25,8 +25,9 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [017](017-resume-lexical-prerank.md) | Résumé-lexical pre-ranking as the always-present relevance signal | Accepted |
 | [018](018-vacancy-seniority-from-title.md) | A vacancy's seniority comes from its title, not from its prose (amends ADR-012 §3) | Accepted |
 | [019](019-postgres-on-supabase.md) | Production Postgres moves from Neon to Supabase (compute-hour quota exhausted by the always-on API) | Accepted |
-| [020](020-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted |
+| [020](020-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted (amended by ADR-022) |
 | [021](021-linkedin-job-alert-emails.md) | LinkedIn vacancies from job-alert emails read over IMAP — no request to linkedin.com (amends ADR-003) | Accepted |
+| [022](022-digest-sends-every-new-vacancy.md) | The digest sends every new vacancy since the previous send, not a top ten (amends ADR-020) | Accepted |
 
 ## Template
 
