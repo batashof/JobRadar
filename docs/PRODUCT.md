@@ -10,7 +10,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 ## Target user
 
 - **Primary (v1.x): the author.** Frontend developer (React, 8 years) searching for remote/on-site, full-time/part-time/freelance roles in CIS and international markets. The project doubles as a full-stack learning vehicle.
-- **Hypothetical (v2+): other job seekers**, via a $5–10/mo subscription. Explicitly deprioritized — see [ROADMAP.md](ROADMAP.md) phase 5. No multi-tenancy work happens before there is a real second user.
+- **v2.0.0: other job seekers, in Telegram** (ADR-024). First segment: Russian-speaking middle/senior developers (frontend, backend, fullstack) from Belarus, Russia, Kazakhstan and relocants looking for remote work. The whole product is the Telegram bot: `/start`, send a resume PDF, get its evaluation and then only the vacancies that fit, with a match percentage and an explanation. Free; monetization is deferred until about 100 active users ([ROADMAP.md](ROADMAP.md) phase 5).
 
 ## Core concepts
 
@@ -33,6 +33,18 @@ JobRadar is a personal job-search service that removes the two most tedious part
 | **Block** | One timebox in a day plan: title, category, estimate in minutes, tracked actual time, and an outcome (`done` / `partial` / `skipped` + reason). |
 | **Debt** | Blocks left unfinished at day close. They roll into the next plan first, count up (`carry_count`), and can only be cleared by doing or explicitly dropping them (ADR-015). |
 | **Estimation factor** | The user's personal `actual / estimate` median, shown plainly and applied to generated estimates so the plan fits the day (ADR-015). |
+
+## v2.0.0 scope (phase 5, ADR-024, ADR-025)
+
+1. Registration by `/start` in the bot; no email, no password.
+2. Resume PDF sent to the chat → one free-LLM analysis → resume evaluation + a candidate profile the user confirms with buttons.
+3. Vacancies scored by a deterministic formula (no LLM per vacancy), delivered instantly or on a schedule, with Apply / Details / Hide / 👍👎.
+4. Every setting in the bot (`/settings`); `/privacy`, `/delete`.
+5. More sources for the CIS audience: DOU, Djinni, SmartRecruiters, Recruitee, Personio.
+6. Applications list in the bot.
+7. The web app is removed; a static landing page with the privacy policy stays.
+
+The author (`owner` role) keeps the LLM-per-vacancy features: brief, cover letter, LLM digest verdict, Gmail apply, LinkedIn alerts, interview prep, planner.
 
 ## v1.0 scope (minimum shipped to production)
 
@@ -57,7 +69,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 - **Interview-prep module (ADR-013)**: resume-driven prep plan with progress tracking, generated theory/behavioural/coding questions with on-demand model answers, LLM-reviewed live-coding (no code execution), and a text-chat mock interview with a feedback report (phase 4).
 - **Day planner (ADR-015)**: LLM-composed queue of timeboxes built from app state, morning accept / evening close ritual, focus timer with estimation calibration, rolling debt, and Telegram-bot nudges with escalation (phase 4).
 - Google Calendar interview sync (phase 4).
-- Multi-tenancy, billing (Stripe test mode), landing page (phase 5).
+- ~~Multi-tenancy, billing (Stripe test mode), landing page (phase 5)~~ — replaced by the Telegram-only product (phase 5, ADR-024). Billing, if ever, would be Telegram Stars, not Stripe.
 
 ## Explicitly rejected
 

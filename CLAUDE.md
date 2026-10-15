@@ -28,7 +28,7 @@ The docs are the source of truth. Open the one that matches the task instead of 
 ## Code map and commands
 
 - `apps/api` — NestJS backend, one folder per module in `src/` (`ingestion`, `vacancies`, `matching`, `digest`, `bot`, `llm`, `resumes`, `outreach`, `interview`, `planner`, …); Drizzle schema and prod DB scripts in `src/db/`. Tests: Jest, `*.spec.ts` next to the code. Deployed to Render (`render.yaml`, auto-deploys `main`).
-- `apps/web` — Next.js App Router frontend (`app/`, `components/`, `lib/`). Tests: Vitest + React Testing Library. Deployed to Vercel.
+- `apps/web` — Next.js App Router frontend (`app/`, `components/`, `lib/`). Tests: Vitest + React Testing Library. Deployed to Vercel. Frozen for new features during phase 5 and reduced to a static landing page in 2.0.0 (ADR-024).
 - `packages/shared` — types and schemas shared by both apps.
 - `.github/workflows/` — `ci.yml` (build, lint, typecheck, test), `ingestion-cron.yml` (every 4 h), `keep-alive.yml`, `db-prod.yml` (manual: `check`, `migrate`, maintenance tasks).
 - Local: `docker compose up -d` (Postgres + Redis), `pnpm install`, then `pnpm build && pnpm lint && pnpm typecheck && pnpm test`, the same checks CI runs. No secrets are needed for them.
@@ -39,6 +39,7 @@ The docs are the source of truth. Open the one that matches the task instead of 
 - **No LinkedIn scraping** in any form (ADR-003) — no requests to linkedin.com, no secondary accounts. LinkedIn vacancies arrive only via the job-alert emails LinkedIn sends the user (ADR-021).
 - **Scraping politeness**: API/RSS-first, min 4-hour intervals, caching, backoff, no proxies (see docs/DATA_SOURCES.md).
 - **Backend is a separate service** — do not move backend logic into Next.js API routes (ADR-002).
+- **Product direction (ADR-024, ADR-025)**: JobRadar is becoming a Telegram-bot product for other job seekers (phase 5, release 2.0.0). New user-facing features go into the bot (`apps/api/src/bot` + feature modules), not into `apps/web`, which is reduced to a static landing page in 2.0.0. For non-owners the LLM is called only once per resume upload; vacancy scoring is a formula. LLM-per-action features stay behind the `owner` role.
 - **Scope discipline**: do not start phase N+1 features while the current phase is not deployed (see docs/ROADMAP.md).
 
 ## Worklog — mandatory

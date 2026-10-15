@@ -106,11 +106,20 @@
 | Alerts | Emails in the window but zero jobs parsed → `empty` (the layout changed). No alert emails in the window → `notModified` (normal: alerts are daily). An IMAP failure → `error` |
 | Setup | 1. On the LinkedIn account: Jobs → create 3–5 **Job Alerts** (keywords, location, Remote, experience level), email notifications on. 2. Recommended: a **dedicated Gmail** for JobRadar (the app password opens the whole mailbox); on the main Gmail, a filter `from:jobalerts-noreply@linkedin.com` → *Forward to* that address. 3. On the dedicated account: 2-step verification → App passwords → create one. 4. `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD` in `.env` and in Render. 5. Check the parse: `pnpm --filter @jobradar/api linkedin:alerts:preview` (live mailbox, read-only) or `… --file alert.eml` (a saved email) — prints the jobs, writes nothing. 6. Production: GitHub Actions → `DB (prod)` → `migrate` (migration `0017` + the `linkedin` source row); `GET /health` → `checks.linkedinAlertsConfigured: true` |
 
-## Later sources (phase 4)
+## Planned sources (phase 5.4, ADR-024)
 
-### Djinni
+Probed live on 2026-10-15; implemented in roadmap step 5.4. Each one's terms are re-read for redistribution to other users before it is enabled for them.
 
-- No public API → HTML parsing, gently and later. Low priority; also covered by the manual browser-extension flow.
+| Source | How | Probe result |
+|---|---|---|
+| DOU.ua | RSS per category, `https://jobs.dou.ua/vacancies/feeds/?category=Front%20End` | RSS, 25 Front End vacancies |
+| Djinni | RSS per keyword, `https://djinni.co/jobs/rss/?primary_keyword=JavaScript` | RSS works (the older note "no public API, HTML parsing" was wrong) |
+| SmartRecruiters | `https://api.smartrecruiters.com/v1/companies/<id>/postings` | No key; Bosch returned 5054 postings |
+| Recruitee | `https://<company>.recruitee.com/api/offers/` | No key |
+| Personio | `https://<company>.jobs.personio.de/xml` | No key |
+| Adzuna, Jooble, Findwork.dev | Free key after signup | Not probed; check limits and attribution first |
+
+Not available: Habr Career (the site's internal API answers, but it is not public; not used without Habr's permission), Workable (no public list, the API needs a company token: 401), Workday, Indeed, Glassdoor, Wellfound (no public API).
 
 ## Explicitly excluded
 
@@ -141,7 +150,7 @@ Was the intended primary v1.0 source but never went live: the API geo-403s anony
 
 ### LinkedIn — no automated access to linkedin.com, ever (ADR-003, amended by ADR-021)
 
-Aggressive anti-bot systems, no public API for vacancies, account-ban risk. No crawler, no guest endpoints, no logged-in automation, no secondary accounts. LinkedIn vacancies arrive only through the **job-alert emails** LinkedIn sends the user (source 9 above, ADR-021) and, later, the **browser extension** (phase 4) — a one-click "Save to JobRadar" button that sends the currently open vacancy page (any site, including LinkedIn and Djinni) to the API as a `manual`-source vacancy.
+Aggressive anti-bot systems, no public API for vacancies, account-ban risk. No crawler, no guest endpoints, no logged-in automation, no secondary accounts. LinkedIn vacancies arrive only through the **job-alert emails** LinkedIn sends the user (source 9 above, ADR-021) and, for other users in phase 5.4, through a personal forwarding address for their own alerts. The browser extension was dropped with the web app (ADR-024).
 
 ## Normalization contract
 
