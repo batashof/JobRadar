@@ -11,7 +11,7 @@
 - `settings/` module: `/settings` via the new `BotService.registerCommand`; pure `settings-logic.ts` (decide / parseTyped / renderScreen) and a thin service.
 - `SendLimiter` in front of every push; 403 also records `bot_blocked`. Sign-up creates `digest_settings` (instant) and `planner_settings` (timezone by language).
 - **Developer's request mid-step:** the digest card keeps only an "Apply" button to the original posting. Feedback buttons are gone from new cards, so the feedback weights only move from cards sent before this release.
-- Merged ([batashof/JobRadar#13](https://github.com/batashof/JobRadar/pull/13)); `migrate` applied `0021`. The first `formula:check` run failed before reaching the DB: the step did not build `@jobradar/shared`, whose `dist/` the script imports. Fixed in the workflow.
+- Merged ([batashof/JobRadar#13](https://github.com/batashof/JobRadar/pull/13)); `migrate` applied `0021`. The first `formula:check` run failed before reaching the DB: the step did not build `@jobradar/shared`, whose `dist/` the script imports. Fixed in the workflow. The second run reached prod and stopped at "the owner has no active resume": every pre-bot account became `owner` in `0019`, and the script took the first one. It now takes the owner resume with the most `resume_matches`.
 - **Next step:** `DB (prod)` → `formula:check` to see whether the formula passes the 70% gate on the author's resume; then 5.4 (new sources).
 
 ## 2026-10-15 — Resume upload and evaluation in the bot (v1.27.0, roadmap 5.2)

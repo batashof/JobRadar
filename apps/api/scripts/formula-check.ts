@@ -12,7 +12,7 @@
  */
 import { type SeniorityLevel } from '@jobradar/shared';
 import { config } from 'dotenv';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { fallbackProfile } from '../src/candidate/analysis';
 import { openScriptDb } from '../src/db/prod-db';
@@ -26,16 +26,25 @@ async function main(): Promise<void> {
   const prod = process.argv.includes('--prod');
   const { db, close } = openScriptDb(prod);
   try {
-    const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.role, 'owner')).limit(1);
-    if (!owner) throw new Error('no owner account');
-
+    // Every account older than the bot became an owner (migration 0019), test
+    // accounts included; the author is the owner whose active resume carries
+    // the most LLM scores.
     const [resume] = await db
-      .select({ id: resumes.id, text: resumes.extractedText })
+      .select({
+        id: resumes.id,
+        userId: resumes.userId,
+        text: resumes.extractedText,
+        scored: sql<number>`count(${resumeMatches.vacancyId})::int`,
+      })
       .from(resumes)
-      .where(and(eq(resumes.userId, owner.id), eq(resumes.isActive, true)))
-      .orderBy(desc(resumes.uploadedAt))
+      .innerJoin(users, eq(users.id, resumes.userId))
+      .leftJoin(resumeMatches, eq(resumeMatches.resumeId, resumes.id))
+      .where(and(eq(users.role, 'owner'), eq(resumes.isActive, true)))
+      .groupBy(resumes.id)
+      .orderBy(desc(sql`count(${resumeMatches.vacancyId})`))
       .limit(1);
-    if (!resume) throw new Error('the owner has no active resume');
+    if (!resume) throw new Error('no owner has an active resume');
+    const owner = { id: resume.userId };
 
     const [stored] = await db
       .select({ role: candidateProfiles.role, grade: candidateProfiles.grade, skills: candidateProfiles.skills })
