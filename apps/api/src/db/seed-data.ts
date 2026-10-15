@@ -1,20 +1,23 @@
 import {
   DEFAULT_DJINNI_KEYWORDS,
   DEFAULT_DOU_CATEGORIES,
-} from '../ingestion/ua-boards/ua-boards-normalize';
-import type { searchProfiles, sources, users } from './schema';
+} from "../ingestion/ua-boards/ua-boards-normalize";
+import type { searchProfiles, sources, users } from "./schema";
 
-type SourceSeed = Pick<typeof sources.$inferInsert, 'slug' | 'kind' | 'isActive' | 'config'>;
+type SourceSeed = Pick<
+  typeof sources.$inferInsert,
+  "slug" | "kind" | "isActive" | "config"
+>;
 
 /** Source registry per docs/DATA_SOURCES.md. Config shapes are consumed by ingestion workers. */
 export const SEED_SOURCES: SourceSeed[] = [
   {
     // Inactive until HH_API_TOKEN is available: hh geo-403s anonymous requests
     // from non-CIS IPs, and dev.hh.ru registration needs a Russian phone number.
-    slug: 'hh',
-    kind: 'api',
+    slug: "hh",
+    kind: "api",
     isActive: false,
-    config: { baseUrl: 'https://api.hh.ru', endpoint: '/vacancies' },
+    config: { baseUrl: "https://api.hh.ru", endpoint: "/vacancies" },
   },
   {
     // Primary source (ADR-009). Needs TELEGRAM_API_ID/TELEGRAM_API_HASH +
@@ -27,18 +30,36 @@ export const SEED_SOURCES: SourceSeed[] = [
     // and QA (qa_jobs). 2026-07-24: FreeVacanciesIT (IT freelance/contract) —
     // the one clean IT board out of the freelance candidates probed; the rest
     // were dead archives, marketing/content boards or spam.
-    slug: 'telegram',
-    kind: 'telegram',
+    // 2026-10-15 (roadmap 5.4): remote_it_jobs dropped (silent since May).
+    // Added the "Job for …" channels (forfrontend, forpython, fordevops,
+    // foranalysts: about two short vacancy posts a day each, checked on the
+    // web preview) and the public vacancy groups for other stacks, siblings
+    // of golang_jobs/qa_jobs (fordev, python_jobs, nodejs_jobs, devops_jobs,
+    // php_jobs, android_jobs, java_jobs). Groups have no web preview, so
+    // their yield is watched with the `check` task of the DB (prod) workflow;
+    // resume posts in them are dropped by isResumePost.
+    slug: "telegram",
+    kind: "telegram",
     isActive: true,
     config: {
       channels: [
-        'job_react',
-        'geekjobs',
-        'remote_it_jobs',
-        'rabotafrontend',
-        'golang_jobs',
-        'qa_jobs',
-        'FreeVacanciesIT',
+        "job_react",
+        "geekjobs",
+        "rabotafrontend",
+        "forfrontend",
+        "fordev",
+        "golang_jobs",
+        "qa_jobs",
+        "FreeVacanciesIT",
+        "forpython",
+        "python_jobs",
+        "nodejs_jobs",
+        "java_jobs",
+        "php_jobs",
+        "android_jobs",
+        "fordevops",
+        "devops_jobs",
+        "foranalysts",
       ],
       messagesPerChannel: 50,
     },
@@ -47,26 +68,26 @@ export const SEED_SOURCES: SourceSeed[] = [
     // Deactivated 2026-07-28 (ADR-016): their free API degraded into a scraped
     // web index — 0 of 100 items in a live sample were IT vacancies, and every
     // item carries an anti-spam footer as its whole "description".
-    slug: 'remoteok',
-    kind: 'api',
+    slug: "remoteok",
+    kind: "api",
     isActive: false,
     // API terms require linking back to the original posting.
-    config: { feedUrl: 'https://remoteok.com/api', linkBackRequired: true },
+    config: { feedUrl: "https://remoteok.com/api", linkBackRequired: true },
   },
   {
     // The general programming feed is the smallest one WWR publishes; the
     // per-speciality feeds carry an order of magnitude more postings and
     // overlap, so the worker fetches all of them and dedupes by guid.
-    slug: 'weworkremotely',
-    kind: 'rss',
+    slug: "weworkremotely",
+    kind: "rss",
     isActive: true,
     config: {
       feedUrls: [
-        'https://weworkremotely.com/categories/remote-programming-jobs.rss',
-        'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
-        'https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss',
-        'https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss',
-        'https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss',
+        "https://weworkremotely.com/categories/remote-programming-jobs.rss",
+        "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
+        "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss",
+        "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
+        "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss",
       ],
     },
   },
@@ -74,28 +95,28 @@ export const SEED_SOURCES: SourceSeed[] = [
     // Free public JSON feed, no auth. Server-side category filter is unreliable,
     // so the worker also keeps only tech categories client-side. API terms ask
     // for a link back to the original posting — the vacancy URL provides it.
-    slug: 'remotive',
-    kind: 'api',
+    slug: "remotive",
+    kind: "api",
     isActive: true,
     config: {
-      feedUrl: 'https://remotive.com/api/remote-jobs?category=software-dev',
+      feedUrl: "https://remotive.com/api/remote-jobs?category=software-dev",
       linkBackRequired: true,
     },
   },
   {
     // Free public JSON feed, no auth (industry=dev). Terms ask for a credited
     // link back and apply buttons pointing at the original posting.
-    slug: 'jobicy',
-    kind: 'api',
+    slug: "jobicy",
+    kind: "api",
     isActive: true,
     config: {
       // `dev` and `engineering` are aliases of the same slice, so the extra
       // feeds are the industries the dev feed genuinely misses.
       feedUrls: [
-        'https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50',
-        'https://jobicy.com/api/v2/remote-jobs?industry=data-science&count=50',
-        'https://jobicy.com/api/v2/remote-jobs?industry=cybersecurity&count=50',
-        'https://jobicy.com/api/v2/remote-jobs?industry=qa-testing&count=50',
+        "https://jobicy.com/api/v2/remote-jobs?industry=dev&count=50",
+        "https://jobicy.com/api/v2/remote-jobs?industry=data-science&count=50",
+        "https://jobicy.com/api/v2/remote-jobs?industry=cybersecurity&count=50",
+        "https://jobicy.com/api/v2/remote-jobs?industry=qa-testing&count=50",
       ],
       linkBackRequired: true,
     },
@@ -105,10 +126,10 @@ export const SEED_SOURCES: SourceSeed[] = [
     // HN search API (bulk comment fetch; the Firebase API would need one
     // request per comment). Two threads back, so the feed does not empty out on
     // the 1st of the month. Onsite-only posts are dropped by the worker.
-    slug: 'hn',
-    kind: 'api',
+    slug: "hn",
+    kind: "api",
     isActive: true,
-    config: { apiBaseUrl: 'https://hn.algolia.com/api/v1', threads: 2 },
+    config: { apiBaseUrl: "https://hn.algolia.com/api/v1", threads: 2 },
   },
   {
     // Company career pages read straight from their ATS — the highest-quality
@@ -117,56 +138,56 @@ export const SEED_SOURCES: SourceSeed[] = [
     // discovered: each token was probed live on 2026-07-28 and kept only when
     // it yielded 6+ remote engineering roles. Adding a company is a one-line
     // config change — find the token in its careers-page URL.
-    slug: 'ats',
-    kind: 'api',
+    slug: "ats",
+    kind: "api",
     isActive: true,
     config: {
       companies: [
-        { ats: 'greenhouse', token: 'gitlab', name: 'GitLab' },
-        { ats: 'greenhouse', token: 'grafanalabs', name: 'Grafana Labs' },
-        { ats: 'greenhouse', token: 'mozilla', name: 'Mozilla' },
-        { ats: 'greenhouse', token: 'twilio', name: 'Twilio' },
-        { ats: 'greenhouse', token: 'reddit', name: 'Reddit' },
-        { ats: 'greenhouse', token: 'affirm', name: 'Affirm' },
-        { ats: 'greenhouse', token: 'samsara', name: 'Samsara' },
-        { ats: 'greenhouse', token: 'coinbase', name: 'Coinbase' },
-        { ats: 'greenhouse', token: 'pinterest', name: 'Pinterest' },
-        { ats: 'greenhouse', token: 'instacart', name: 'Instacart' },
-        { ats: 'greenhouse', token: 'databricks', name: 'Databricks' },
-        { ats: 'greenhouse', token: 'tailscale', name: 'Tailscale' },
-        { ats: 'greenhouse', token: 'cloudflare', name: 'Cloudflare' },
-        { ats: 'greenhouse', token: 'fivetran', name: 'Fivetran' },
-        { ats: 'greenhouse', token: 'stripe', name: 'Stripe' },
-        { ats: 'greenhouse', token: 'datadog', name: 'Datadog' },
-        { ats: 'greenhouse', token: 'webflow', name: 'Webflow' },
-        { ats: 'greenhouse', token: 'dropbox', name: 'Dropbox' },
-        { ats: 'greenhouse', token: 'remotecom', name: 'Remote.com' },
-        { ats: 'greenhouse', token: 'airtable', name: 'Airtable' },
-        { ats: 'greenhouse', token: 'vercel', name: 'Vercel' },
-        { ats: 'greenhouse', token: 'algolia', name: 'Algolia' },
-        { ats: 'ashby', token: 'Supabase', name: 'Supabase' },
-        { ats: 'ashby', token: 'vanta', name: 'Vanta' },
-        { ats: 'ashby', token: 'elevenlabs', name: 'ElevenLabs' },
-        { ats: 'ashby', token: 'render', name: 'Render' },
-        { ats: 'ashby', token: 'openai', name: 'OpenAI' },
-        { ats: 'ashby', token: 'langchain', name: 'LangChain' },
-        { ats: 'ashby', token: 'cursor', name: 'Cursor' },
+        { ats: "greenhouse", token: "gitlab", name: "GitLab" },
+        { ats: "greenhouse", token: "grafanalabs", name: "Grafana Labs" },
+        { ats: "greenhouse", token: "mozilla", name: "Mozilla" },
+        { ats: "greenhouse", token: "twilio", name: "Twilio" },
+        { ats: "greenhouse", token: "reddit", name: "Reddit" },
+        { ats: "greenhouse", token: "affirm", name: "Affirm" },
+        { ats: "greenhouse", token: "samsara", name: "Samsara" },
+        { ats: "greenhouse", token: "coinbase", name: "Coinbase" },
+        { ats: "greenhouse", token: "pinterest", name: "Pinterest" },
+        { ats: "greenhouse", token: "instacart", name: "Instacart" },
+        { ats: "greenhouse", token: "databricks", name: "Databricks" },
+        { ats: "greenhouse", token: "tailscale", name: "Tailscale" },
+        { ats: "greenhouse", token: "cloudflare", name: "Cloudflare" },
+        { ats: "greenhouse", token: "fivetran", name: "Fivetran" },
+        { ats: "greenhouse", token: "stripe", name: "Stripe" },
+        { ats: "greenhouse", token: "datadog", name: "Datadog" },
+        { ats: "greenhouse", token: "webflow", name: "Webflow" },
+        { ats: "greenhouse", token: "dropbox", name: "Dropbox" },
+        { ats: "greenhouse", token: "remotecom", name: "Remote.com" },
+        { ats: "greenhouse", token: "airtable", name: "Airtable" },
+        { ats: "greenhouse", token: "vercel", name: "Vercel" },
+        { ats: "greenhouse", token: "algolia", name: "Algolia" },
+        { ats: "ashby", token: "Supabase", name: "Supabase" },
+        { ats: "ashby", token: "vanta", name: "Vanta" },
+        { ats: "ashby", token: "elevenlabs", name: "ElevenLabs" },
+        { ats: "ashby", token: "render", name: "Render" },
+        { ats: "ashby", token: "openai", name: "OpenAI" },
+        { ats: "ashby", token: "langchain", name: "LangChain" },
+        { ats: "ashby", token: "cursor", name: "Cursor" },
         // Moved off Greenhouse (temporaltechnologies → 404) to Ashby, 2026-10-01.
-        { ats: 'ashby', token: 'temporal', name: 'Temporal' },
-        { ats: 'ashby', token: 'linear', name: 'Linear' },
-        { ats: 'ashby', token: 'resend', name: 'Resend' },
-        { ats: 'ashby', token: 'railway', name: 'Railway' },
-        { ats: 'ashby', token: 'harvey', name: 'Harvey' },
-        { ats: 'lever', token: 'veeva', name: 'Veeva Systems' },
-        { ats: 'lever', token: 'spotify', name: 'Spotify' },
+        { ats: "ashby", token: "temporal", name: "Temporal" },
+        { ats: "ashby", token: "linear", name: "Linear" },
+        { ats: "ashby", token: "resend", name: "Resend" },
+        { ats: "ashby", token: "railway", name: "Railway" },
+        { ats: "ashby", token: "harvey", name: "Harvey" },
+        { ats: "lever", token: "veeva", name: "Veeva Systems" },
+        { ats: "lever", token: "spotify", name: "Spotify" },
         // SmartRecruiters (roadmap 5.4), probed 2026-10-15: remote engineering
         // roles among the company's postings — ServiceNow 26, Experian 16,
         // Freshworks 8, Canva 7. Bosch (5000 postings, none remote and
         // technical) and others with fewer than 5 were left out.
-        { ats: 'smartrecruiters', token: 'ServiceNow', name: 'ServiceNow' },
-        { ats: 'smartrecruiters', token: 'Experian', name: 'Experian' },
-        { ats: 'smartrecruiters', token: 'Freshworks', name: 'Freshworks' },
-        { ats: 'smartrecruiters', token: 'Canva', name: 'Canva' },
+        { ats: "smartrecruiters", token: "ServiceNow", name: "ServiceNow" },
+        { ats: "smartrecruiters", token: "Experian", name: "Experian" },
+        { ats: "smartrecruiters", token: "Freshworks", name: "Freshworks" },
+        { ats: "smartrecruiters", token: "Canva", name: "Canva" },
       ],
     },
   },
@@ -175,29 +196,36 @@ export const SEED_SOURCES: SourceSeed[] = [
     // (annual salary, seniority, employment type, location restrictions). The
     // API has no server-side category filter and clamps a page to 20 items, so
     // the worker pages through the newest postings and keeps tech roles only.
-    slug: 'himalayas',
-    kind: 'api',
+    slug: "himalayas",
+    kind: "api",
     isActive: true,
-    config: { feedUrl: 'https://himalayas.app/jobs/api', pages: 10, linkBackRequired: true },
+    config: {
+      feedUrl: "https://himalayas.app/jobs/api",
+      pages: 10,
+      linkBackRequired: true,
+    },
   },
   {
     // Free public JSON feed, no auth. Aggregates remote/contract roles
     // (freelance-leaning, e.g. Lemon.io); the worker keeps only dev categories.
-    slug: 'workingnomads',
-    kind: 'api',
+    slug: "workingnomads",
+    kind: "api",
     isActive: true,
-    config: { feedUrl: 'https://www.workingnomads.com/api/exposed_jobs/', linkBackRequired: true },
+    config: {
+      feedUrl: "https://www.workingnomads.com/api/exposed_jobs/",
+      linkBackRequired: true,
+    },
   },
   {
     // LinkedIn via the job-alert emails LinkedIn sends the user (ADR-021,
     // amending ADR-003): the worker reads the user's own mailbox over IMAP and
     // never requests linkedin.com. Needs ALERTS_IMAP_USER/ALERTS_IMAP_PASSWORD;
     // skips quietly while they are missing.
-    slug: 'linkedin',
-    kind: 'email',
+    slug: "linkedin",
+    kind: "email",
     isActive: true,
     config: {
-      senders: ['jobalerts-noreply@linkedin.com'],
+      senders: ["jobalerts-noreply@linkedin.com"],
       lookbackDays: 3,
       maxMessages: 50,
       // The owner's own alerts: never delivered to other bot users (roadmap 5.4).
@@ -208,8 +236,8 @@ export const SEED_SOURCES: SourceSeed[] = [
     // DOU.ua public RSS, one feed per category (roadmap 5.4). Ukrainian IT
     // market; content is CC BY-NC-SA on DOU's terms — the card links back to
     // the posting and names the source, and JobRadar is free.
-    slug: 'dou',
-    kind: 'rss',
+    slug: "dou",
+    kind: "rss",
     isActive: true,
     config: {
       categories: [...DEFAULT_DOU_CATEGORIES],
@@ -219,8 +247,8 @@ export const SEED_SOURCES: SourceSeed[] = [
   {
     // Djinni public RSS, one feed per primary keyword (roadmap 5.4). The feed
     // does not name employers (Djinni lets them stay anonymous).
-    slug: 'djinni',
-    kind: 'rss',
+    slug: "djinni",
+    kind: "rss",
     isActive: true,
     config: {
       keywords: [...DEFAULT_DJINNI_KEYWORDS],
@@ -230,15 +258,15 @@ export const SEED_SOURCES: SourceSeed[] = [
 ];
 
 /** Local-development-only fixtures (never seeded in production). */
-export const DEV_USER: Pick<typeof users.$inferInsert, 'email'> = {
-  email: 'dev@jobradar.local',
+export const DEV_USER: Pick<typeof users.$inferInsert, "email"> = {
+  email: "dev@jobradar.local",
 };
 
-export const DEV_PROFILE: Omit<typeof searchProfiles.$inferInsert, 'userId'> = {
-  name: 'Senior React remote',
-  keywords: ['react', 'frontend', 'typescript'],
-  stack: ['react', 'typescript', 'next.js'],
-  workFormat: ['remote'],
-  employmentType: ['full_time'],
-  salaryCurrency: 'USD',
+export const DEV_PROFILE: Omit<typeof searchProfiles.$inferInsert, "userId"> = {
+  name: "Senior React remote",
+  keywords: ["react", "frontend", "typescript"],
+  stack: ["react", "typescript", "next.js"],
+  workFormat: ["remote"],
+  employmentType: ["full_time"],
+  salaryCurrency: "USD",
 };
