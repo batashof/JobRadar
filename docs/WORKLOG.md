@@ -7,7 +7,8 @@
 - `formula:check` on prod after [batashof/JobRadar#16](https://github.com/batashof/JobRadar/pull/16): precision 85% (17/20 of the formula's top rated ≥80 by the LLM), overlap still 15%.
 - The developer chose precision as the gate: ADR-026 amends ADR-025 §9 (≥70%). Roadmap 5.3 is complete.
 - Formula fixes for the three misses: title naming only frameworks outside the profile keeps half its title credit (`TITLE_STACK_MISMATCH`), "pleno" → middle and "sênior" → senior in the shared seniority terms, AEM in the skill dictionary.
-- **Next step:** rerun `formula:check` after the merge; then phase 5.4 (new sources).
+- Merged ([batashof/JobRadar#17](https://github.com/batashof/JobRadar/pull/17)); `formula:check` on prod: precision 90% → PASS. The "Pleno" and AEM roles left the formula's top; the Vue.js role stayed because the "js" of "Vue.js" matched JavaScript, which the profile has. v1.28.2: a dot before a phrase breaks the match.
+- **Next step:** phase 5.4 (new sources).
 
 ## 2026-10-15 — Formula matching and /settings in the bot (v1.28.0, roadmap 5.3)
 
