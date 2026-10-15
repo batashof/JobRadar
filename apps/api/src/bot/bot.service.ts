@@ -22,6 +22,13 @@ import {
   TelegramApiError,
 } from './telegram-api';
 
+/**
+ * Longest wait honoured on a 429 before the one retry. Telegram's private-chat
+ * flood waits are seconds; anything longer means the chat is being throttled
+ * hard, and the run moves on rather than holding every other user.
+ */
+const FLOOD_RETRY_MAX_SECONDS = 30;
+
 /** What a feature's button handler receives when its callback fires. */
 export interface BotCallbackContext {
   userId: string;
@@ -178,7 +185,7 @@ export class BotService {
     if (!row?.chatId) return null;
 
     try {
-      const message = await this.api.sendMessage(row.chatId, text, options);
+      const message = await this.sendWithFloodRetry(this.api, row.chatId, text, options);
       return String(message.message_id);
     } catch (err) {
       // 403 means the user blocked the bot or deleted the chat: drop the link
@@ -192,6 +199,30 @@ export class BotService {
         `send to user ${userId} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * One send, retried once when Telegram answers 429. A digest with every new
+   * vacancy (ADR-022) is dozens of messages in a row, past the ~1 message per
+   * second a chat is allowed, and the caller records a vacancy as delivered
+   * whether or not the send landed — so a flood-limited card would be lost for
+   * good. The wait is Telegram's own `retry_after`, bounded so one chat can
+   * never stall the whole run.
+   */
+  private async sendWithFloodRetry(
+    api: TelegramApi,
+    chatId: string,
+    text: string,
+    options: SendMessageOptions,
+  ): Promise<{ message_id: number }> {
+    try {
+      return await api.sendMessage(chatId, text, options);
+    } catch (err) {
+      if (!(err instanceof TelegramApiError) || err.errorCode !== 429) throw err;
+      const seconds = Math.min(err.retryAfter ?? 1, FLOOD_RETRY_MAX_SECONDS);
+      await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+      return api.sendMessage(chatId, text, options);
     }
   }
 

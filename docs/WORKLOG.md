@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-14 — The digest sends every new vacancy (v1.24.0)
+
+- **Request:** pushes always held 10 vacancies; the user wants every new one since the previous notification.
+- **Cause, found in code:** two limits. `digest_settings.max_items` defaulted to 10, which was also the ceiling (`DIGEST_MAX_ITEMS_LIMIT`). Only the top 30 candidates (`BATCH_LIMIT`) were scored; the rest were dropped, and in instant mode the watermark moved past them for good. LinkedIn alert emails do not cap anything here: one run already parsed 88 jobs from 11 emails.
+- **Decision (ADR-022):** no cap by default (`max_items` null = all above the floor, an optional cap up to 200). Candidates are scored in batches of 30, one call after another. The watermark (`instant_through` → `judged_through`) now serves the scheduled digest too, so a slot reports only new arrivals and stops re-scoring the same rejected postings. At most 200 vacancies are judged per send. `BotService.sendToUser` waits out a Telegram `429` once (≤ 30 s), since a long digest exceeds the per-chat rate.
+- **Migration `0018`:** `max_items` nullable without default, values cleared, column renamed. Settings UI: empty cap field = "All new".
+- **Tests:** API (shortlist without cap, 45 candidates → 2 LLM calls → 45 cards, scheduled window + watermark, empty window, 429 retry, schema accepts null) and web (empty cap saves `null`).
+- **Next step:** apply `0018` with `DB (prod)` → `migrate` at the same time as the deploy, then watch the next push and `llmStatus` for rate-limit errors on busy runs.
+
 ## 2026-10-01 — Groq model, Telegram client leak, Temporal board (v1.23.1)
 
 - **Found in the first ingestion logs after the cutover:** LinkedIn alerts worked on real mail (11 emails → 88 jobs). Three faults turned up, none of them caused by the move.

@@ -3,18 +3,23 @@ import { z } from 'zod';
 /**
  * Daily vacancy digest — the resume-matched shortlist pushed to Telegram.
  *
- * This file is the configuration half: when to send, how many times a day, how
- * many vacancies per send, and how good a match has to be to make the cut. The
- * sending itself (candidate funnel, LLM scoring, message rendering) lands next
- * and reads exactly these settings.
+ * This file is the configuration half: when to send, how many times a day, an
+ * optional cap per send, and how good a match has to be to make the cut. The
+ * sending itself (candidate funnel, LLM scoring, message rendering) reads
+ * exactly these settings.
  *
  * Times are wall-clock in the user's timezone, which is per-user state that
  * currently lives in `planner_settings.timezone` (ADR-015 §7 made it real).
  * The digest reads it rather than keeping a second copy that could drift.
  */
 
-/** A digest is a shortlist, not a feed dump — ten is the hard ceiling. */
-export const DIGEST_MAX_ITEMS_LIMIT = 10;
+/**
+ * Upper bound of the optional per-send cap. The default is no cap at all
+ * (ADR-022): every new vacancy above the floor goes out, however many arrived.
+ * This bound only keeps a typed-in number sane — it matches the candidate pool
+ * the API judges per send, so a larger cap could never take effect anyway.
+ */
+export const DIGEST_MAX_ITEMS_LIMIT = 200;
 
 /** More than a handful of pushes a day stops being a digest and becomes noise. */
 export const DIGEST_MAX_SENDS_PER_DAY = 4;
@@ -31,7 +36,7 @@ export const DIGEST_DEFAULTS = {
   enabled: true,
   mode: 'scheduled' as DigestMode,
   sendTimes: ['09:00'],
-  maxItems: DIGEST_MAX_ITEMS_LIMIT,
+  maxItems: null as number | null,
   minScore: 60,
   quietStart: '22:00',
   quietEnd: '08:00',
@@ -43,8 +48,11 @@ export interface DigestSettings {
   enabled: boolean;
   /** `HH:MM` local to `timezone`, sorted and unique, 1..DIGEST_MAX_SENDS_PER_DAY. */
   sendTimes: string[];
-  /** Cap per send, 1..DIGEST_MAX_ITEMS_LIMIT. Fewer is fine; padding is not. */
-  maxItems: number;
+  /**
+   * Optional cap per send, 1..DIGEST_MAX_ITEMS_LIMIT; null (the default) sends
+   * every new vacancy that clears the floor (ADR-022). Padding never happens.
+   */
+  maxItems: number | null;
   /** Resume-fit floor in percent — below it a vacancy is not worth a push. */
   minScore: number;
   /** `scheduled` = at the send times; `instant` = as new matches arrive (ADR-020). */
@@ -76,7 +84,7 @@ export const updateDigestSettingsSchema = z
       .max(DIGEST_MAX_SENDS_PER_DAY)
       // Two pushes at the same minute would race for the same vacancies.
       .refine((times) => new Set(times).size === times.length, 'Send times must be unique'),
-    maxItems: z.number().int().min(1).max(DIGEST_MAX_ITEMS_LIMIT),
+    maxItems: z.number().int().min(1).max(DIGEST_MAX_ITEMS_LIMIT).nullable(),
     minScore: z.number().int().min(0).max(100),
     mode: z.enum(DIGEST_MODES),
     quietStart: timeOfDay,

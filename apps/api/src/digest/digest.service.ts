@@ -45,7 +45,7 @@ export class DigestService {
         ...schedule,
         // Stored sorted so "the next send" is a scan from the front.
         ...(schedule.sendTimes ? { sendTimes: sortSendTimes(schedule.sendTimes) } : {}),
-        ...(enteringInstant ? { instantThrough: null } : {}),
+        ...(enteringInstant ? { judgedThrough: null } : {}),
         updatedAt: new Date(),
       })
       .where(eq(digestSettings.userId, userId))

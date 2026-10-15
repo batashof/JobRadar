@@ -8,6 +8,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Phase 4 remainder: browser extension, calendar sync.
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 
+## [1.24.0] — 2026-10-14
+
+### Changed
+
+- **The digest sends every new vacancy, not ten** (ADR-022). Every push held exactly ten vacancies however many had arrived: the per-send cap defaulted to 10 and could not go higher, and only the 30 best-ranked candidates were ever scored, so the rest were dropped unjudged. Now every new vacancy that clears the minimum fit goes out. The cap is optional and empty by default ("All new" in the settings); a number up to 200 still limits a send.
+- **Each send covers only what arrived since the previous one**, in both modes. The scheduled digest used to re-rank the whole 14-day pool at every slot; it now uses the watermark instant mode already had, renamed `judged_through`. A slot with nothing new still says so. "Send it now" keeps weighing the whole unsent fortnight.
+- **Every candidate is scored by the LLM**, 30 per call, one call after another. A send judges at most 200 vacancies, so a long outage costs at most 7 calls.
+
+### Fixed
+
+- **Cards lost to Telegram's flood limit.** A chat accepts about one message per second. On a `429` the bot now waits Telegram's `retry_after` (at most 30 s) and retries once, instead of dropping the card while recording it as delivered.
+
+### Migration
+
+- `0018` makes `digest_settings.max_items` nullable with no default, clears the stored values, and renames `instant_through` to `judged_through`. Apply it together with the deploy: the 1.23.x API reads the old column name.
+
 ## [1.23.1] — 2026-10-01
 
 ### Fixed

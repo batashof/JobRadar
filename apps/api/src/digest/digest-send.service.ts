@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   BOT_CALLBACK_NAMESPACES,
   detectSeniority,
+  DIGEST_MAX_ITEMS_LIMIT,
   type Language,
   levelsBelowResume,
   PLANNER_DEFAULTS,
@@ -52,7 +53,10 @@ import {
   shortlist,
 } from './select';
 
-/** How many candidates the LLM ranks in one call. Above this the prompt bloats. */
+/**
+ * How many candidates the LLM ranks in one call. Above this the prompt bloats,
+ * so a larger window is scored as several calls of this size (ADR-022).
+ */
 const BATCH_LIMIT = 30;
 
 /**
@@ -64,11 +68,13 @@ const BATCH_LIMIT = 30;
 const SCORING_MAX_TOKENS = 3000;
 
 /**
- * How many fresh vacancies the ranking stage weighs before slicing to
- * BATCH_LIMIT. Comfortably more than a day of intake, so the cached signals get
- * a real chance to pull an older-but-better posting into the batch.
+ * How many vacancies one send judges at most, best-ranked first. Comfortably
+ * more than a day of intake; it exists so a window left open by a long outage
+ * costs a bounded number of LLM calls (CANDIDATE_POOL / BATCH_LIMIT) rather
+ * than one per thirty postings on the board. Kept equal to the shared
+ * DIGEST_MAX_ITEMS_LIMIT, so a typed-in cap can never exceed what is judged.
  */
-const CANDIDATE_POOL = 200;
+const CANDIDATE_POOL = DIGEST_MAX_ITEMS_LIMIT;
 
 /** How far back to look for unsent vacancies — older ones are not news. */
 const CANDIDATE_WINDOW_DAYS = 14;
@@ -80,14 +86,15 @@ const CANDIDATE_WINDOW_DAYS = 14;
  */
 const INSTANT_SETTLE_MINUTES = 10;
 
-/** Where a fresh instant-mode watermark starts: the last day, not the board. */
-const INSTANT_FIRST_LOOKBACK_HOURS = 24;
+/** Where a fresh watermark starts: the last day, not the board. */
+const FIRST_LOOKBACK_HOURS = 24;
 
 /**
- * An instant-mode window over `vacancies.ingested_at`, both ends as Postgres
- * text so the microseconds survive the round trip into `instant_through`.
+ * A delivery window over `vacancies.ingested_at` — what arrived since the last
+ * send (ADR-020, ADR-022). Both ends are Postgres text so the microseconds
+ * survive the round trip into `judged_through`.
  */
-interface InstantWindow {
+interface IngestWindow {
   after: string;
   until: string;
 }
@@ -114,8 +121,8 @@ export interface DigestRunResult {
  * `digest_items` so a vacancy is never pushed twice.
  *
  * Cost discipline (ADR-005): SQL narrows to vacancies that already pass
- * rules-based profile matching and were never sent, then **one** LLM call ranks
- * up to 30 of them. With no LLM key the run still happens, ordered by the
+ * rules-based profile matching and were never sent, then one LLM call per 30
+ * of them ranks the window — all of it, since v1.24 (ADR-022). With no LLM key the run still happens, ordered by the
  * rules score — the same llm/fallback shape the planner uses.
  */
 @Injectable()
@@ -150,7 +157,7 @@ export class DigestSendService implements OnModuleInit {
         quietStart: digestSettings.quietStart,
         quietEnd: digestSettings.quietEnd,
         instantMinScore: digestSettings.instantMinScore,
-        instantThrough: digestSettings.instantThrough,
+        judgedThrough: digestSettings.judgedThrough,
         timezone: plannerSettings.timezone,
         language: users.language,
       })
@@ -197,12 +204,19 @@ export class DigestSendService implements OnModuleInit {
           continue;
         }
 
-        const count = await this.sendFor(
-          { ...row, timezone: row.timezone ?? PLANNER_DEFAULTS.timezone },
-          due.key,
-          now,
-        );
-        await this.markSent(row.userId, due.key);
+        // Only what arrived since the previous send (ADR-022): the slot is a
+        // report of the news, not a re-ranking of the fortnight. No window
+        // means nothing new, which the user still hears about at this hour.
+        const window = await this.ingestWindow(row.judgedThrough);
+        const count = window
+          ? await this.sendFor(
+              { ...row, timezone: row.timezone ?? PLANNER_DEFAULTS.timezone },
+              due.key,
+              now,
+              { kind: 'digest', window },
+            )
+          : await this.sendEmpty(row.userId, row.language);
+        await this.markSent(row.userId, due.key, window?.until);
         result.sent += 1;
         result.vacancies += count;
       } catch (err) {
@@ -226,7 +240,8 @@ export class DigestSendService implements OnModuleInit {
   /**
    * Instant delivery for one user (ADR-020): if vacancies arrived since the
    * watermark and it is not quiet time, run the funnel over exactly those and
-   * move the watermark past them. Returns how many were pushed, or null when
+   * move the watermark past them — all of them that clear the floor go out
+   * (ADR-022). Returns how many were pushed, or null when
    * there was nothing to consider (quiet hours, or no new vacancies).
    *
    * Quiet hours leave the watermark where it is, so the night's arrivals go
@@ -237,11 +252,11 @@ export class DigestSendService implements OnModuleInit {
   private async runInstant(
     user: {
       userId: string;
-      maxItems: number;
+      maxItems: number | null;
       instantMinScore: number;
       quietStart: string;
       quietEnd: string;
-      instantThrough: string | null;
+      judgedThrough: string | null;
       timezone: string;
       language: string;
     },
@@ -249,18 +264,18 @@ export class DigestSendService implements OnModuleInit {
   ): Promise<number | null> {
     if (isQuietTime({ now, ...user })) return null;
 
-    const window = await this.instantWindow(user.instantThrough);
+    const window = await this.ingestWindow(user.judgedThrough);
     if (!window) return null;
 
     const count = await this.sendFor(
       { ...user, minScore: user.instantMinScore },
       `instant ${window.until}`,
       now,
-      window,
+      { kind: 'instant', window },
     );
     await this.db
       .update(digestSettings)
-      .set({ instantThrough: sql`${window.until}::timestamptz`, updatedAt: new Date() })
+      .set({ judgedThrough: sql`${window.until}::timestamptz`, updatedAt: new Date() })
       .where(eq(digestSettings.userId, user.userId));
     return count;
   }
@@ -268,12 +283,14 @@ export class DigestSendService implements OnModuleInit {
   /**
    * The next window for a watermark, or null when nothing settled has been
    * ingested past it. One aggregate row — this runs every tick for every
-   * instant user, so it must never pull vacancy text over the wire.
+   * instant user, so it must never pull vacancy text over the wire. The
+   * settle delay applies to both modes: a scheduled send that judged a
+   * posting before dedup ran would push a duplicate just the same.
    */
-  private async instantWindow(after: string | null): Promise<InstantWindow | null> {
+  private async ingestWindow(after: string | null): Promise<IngestWindow | null> {
     const from = after
       ? sql`${after}::timestamptz`
-      : sql`now() - make_interval(hours => ${INSTANT_FIRST_LOOKBACK_HOURS})`;
+      : sql`now() - make_interval(hours => ${FIRST_LOOKBACK_HOURS})`;
     const [row] = await this.db
       .select({
         after: sql<string>`(${from})::text`,
@@ -306,10 +323,14 @@ export class DigestSendService implements OnModuleInit {
       .where(eq(digestSettings.userId, userId));
     if (!row) return 0;
 
+    // No window and no watermark move: a manual send is "show me what you
+    // have", over every unsent vacancy of the fortnight, and must not make the
+    // next scheduled slot skip the news it was going to report.
     return this.sendFor(
       { ...row, timezone: row.timezone ?? PLANNER_DEFAULTS.timezone },
       `manual ${now.toISOString()}`,
       now,
+      { kind: 'manual' },
     );
   }
 
@@ -320,21 +341,26 @@ export class DigestSendService implements OnModuleInit {
   private async sendFor(
     user: {
       userId: string;
-      maxItems: number;
+      maxItems: number | null;
       minScore: number;
       timezone: string;
       language: string;
     },
     slotKey: string,
     now: Date,
-    /** Instant mode: only this window, and silence instead of "nothing today". */
-    instant?: InstantWindow,
+    /**
+     * Which push this is, and the ingestion window it covers. A manual send has
+     * no window and weighs the whole unsent fortnight; instant mode answers an
+     * empty result with silence instead of "nothing today".
+     */
+    run: { kind: 'digest' | 'instant' | 'manual'; window?: IngestWindow },
   ): Promise<number> {
+    const instant = run.kind === 'instant';
     const language: Language = user.language === 'en' ? 'en' : 'ru';
     const resume = await this.activeResume(user.userId);
-    const candidates = await this.collectCandidates(user.userId, now, resume, instant);
+    const candidates = await this.collectCandidates(user.userId, now, resume, run.window);
     if (candidates.length === 0) {
-      if (!instant) await this.bot.sendToUser(user.userId, digestText(language, 'empty'));
+      if (!instant) await this.sendEmpty(user.userId, language);
       return 0;
     }
 
@@ -352,7 +378,7 @@ export class DigestSendService implements OnModuleInit {
       );
       // Several empty pushes a day would be pure noise; a scheduled digest
       // says so once, because the user is waiting for it at that hour.
-      if (!instant) await this.bot.sendToUser(user.userId, digestText(language, 'empty'));
+      if (!instant) await this.sendEmpty(user.userId, language);
       return 0;
     }
 
@@ -419,19 +445,19 @@ export class DigestSendService implements OnModuleInit {
     userId: string,
     now: Date,
     resume: { id: string; text: string } | null,
-    instant?: InstantWindow,
+    window?: IngestWindow,
   ): Promise<DigestCandidate[]> {
     const since = new Date(now.getTime() - CANDIDATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
     const conditions: SQL[] = [
       isNull(vacancies.canonicalVacancyId),
       gte(vacancies.ingestedAt, since),
-      // Instant mode narrows to what arrived since the last push; the 14-day
+      // Both modes narrow to what arrived since the last push; the 14-day
       // bound above still caps a window left open by a long sleep.
-      ...(instant
+      ...(window
         ? [
-            sql`${vacancies.ingestedAt} > ${instant.after}::timestamptz`,
-            sql`${vacancies.ingestedAt} <= ${instant.until}::timestamptz`,
+            sql`${vacancies.ingestedAt} > ${window.after}::timestamptz`,
+            sql`${vacancies.ingestedAt} <= ${window.until}::timestamptz`,
           ]
         : []),
       notExists(
@@ -519,8 +545,7 @@ export class DigestSendService implements OnModuleInit {
         (a, b) =>
           rankScore(b) - rankScore(a) ||
           (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
-      )
-      .slice(0, BATCH_LIMIT);
+      );
   }
 
   /**
@@ -560,8 +585,30 @@ export class DigestSendService implements OnModuleInit {
     return resume ?? null;
   }
 
-  /** One LLM call for the whole batch; deterministic ordering when it cannot run. */
+  /**
+   * Scores every candidate, BATCH_LIMIT per LLM call (ADR-022). Until v1.24
+   * only the best-ranked thirty were ever scored and everything past them was
+   * silently dropped, which — with the cap of ten on top — was why every push
+   * held exactly ten vacancies however many had arrived. The calls run one
+   * after another: free tiers limit tokens per minute, and a parallel burst
+   * would trip that on exactly the busy days that need several calls.
+   */
   private async score(
+    userId: string,
+    candidates: DigestCandidate[],
+    resumeText: string | null,
+    language: Language,
+  ): Promise<ScoredCandidate[]> {
+    const scored: ScoredCandidate[] = [];
+    for (let start = 0; start < candidates.length; start += BATCH_LIMIT) {
+      const batch = candidates.slice(start, start + BATCH_LIMIT);
+      scored.push(...(await this.scoreBatch(userId, batch, resumeText, language)));
+    }
+    return scored;
+  }
+
+  /** One LLM call for one batch; deterministic ordering when it cannot run. */
+  private async scoreBatch(
     userId: string,
     candidates: DigestCandidate[],
     resumeText: string | null,
@@ -591,10 +638,25 @@ export class DigestSendService implements OnModuleInit {
     }
   }
 
-  private async markSent(userId: string, key: string): Promise<void> {
+  /** The scheduled digest's "nothing worth your attention" — the user is waiting for it. */
+  private async sendEmpty(userId: string, language: string): Promise<number> {
+    await this.bot.sendToUser(userId, digestText(language === 'en' ? 'en' : 'ru', 'empty'));
+    return 0;
+  }
+
+  /**
+   * Consumes a slot and, when the send covered a window, moves the watermark
+   * past it — those vacancies were judged, and the next slot reports only
+   * what arrives after them (ADR-022).
+   */
+  private async markSent(userId: string, key: string, judgedThrough?: string): Promise<void> {
     await this.db
       .update(digestSettings)
-      .set({ lastSentKey: key, updatedAt: new Date() })
+      .set({
+        lastSentKey: key,
+        ...(judgedThrough ? { judgedThrough: sql`${judgedThrough}::timestamptz` } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(digestSettings.userId, userId));
   }
 

@@ -409,11 +409,12 @@ export const en = {
   "digest.addTime": "Add a time",
   "digest.removeTime": "Remove this time",
   "digest.maxItems": "Vacancies per send",
+  "digest.maxItemsAll": "All new",
   "digest.minScore": "Minimum fit, %",
   "digest.timezoneAdopt":
     "Your device is in {device} — the next save switches the times to it.",
   "digest.hint":
-    "A digest is a shortlist: fewer good matches beat a padded ten.",
+    "Each send carries every new vacancy since the previous one that clears the minimum fit. Leave the cap empty to get all of them; weak matches are never added to fill it.",
   "digest.saved": "Saved.",
   "digest.error": "Could not save. Try again.",
   "digest.runNow": "Send it now",
@@ -883,11 +884,12 @@ export const ru: Record<TranslationKey, string> = {
   "digest.addTime": "Добавить время",
   "digest.removeTime": "Убрать это время",
   "digest.maxItems": "Вакансий за раз",
+  "digest.maxItemsAll": "Все новые",
   "digest.minScore": "Минимальное соответствие, %",
   "digest.timezoneAdopt":
     "Устройство в зоне {device} — при следующем сохранении время переедет в неё.",
   "digest.hint":
-    "Выжимка — это шорт-лист: три подходящие лучше, чем десять «добитых».",
+    "Каждая отправка приносит все новые вакансии с прошлой, которые проходят минимальное соответствие. Оставьте лимит пустым, чтобы получать их все; слабые совпадения для количества не добавляются.",
   "digest.saved": "Сохранено.",
   "digest.error": "Не удалось сохранить. Попробуйте ещё раз.",
   "digest.runNow": "Прислать сейчас",

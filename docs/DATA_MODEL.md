@@ -324,13 +324,13 @@ One row per user, created when a link is started. `chat_id` stays null until the
 | user_id | uuid PK FK → users | cascade on user delete |
 | enabled | boolean not null default true | off = nothing is sent, settings are kept |
 | send_times | text[] not null default `{09:00}` | `HH:MM` wall-clock, stored sorted; 1–4 entries, and their count *is* "how many times a day" |
-| max_items | smallint not null default 10 | cap per send; 10 is the hard ceiling |
+| max_items | smallint nullable | optional cap per send, 1–200; null (the default since migration `0018`) sends every new vacancy that clears the floor (ADR-022) |
 | min_score | smallint not null default 60 | resume-fit floor in percent — below it a vacancy is not worth a push |
 | last_sent_key | text | `YYYY-MM-DD HH:MM` of the last consumed slot — delivery bookkeeping, not configuration; how a slot fires exactly once across restarts (migration `0013`) |
 | mode | text not null default `'scheduled'` | `scheduled` \| `instant` (ADR-020, migration `0016`); instant ignores `send_times` |
 | quiet_start / quiet_end | text not null default `22:00` / `08:00` | instant mode's quiet hours, local `HH:MM`; may wrap midnight, equal = never quiet |
 | instant_min_score | smallint not null default 75 | instant mode's floor — stricter than `min_score`, since every push interrupts |
-| instant_through | timestamptz nullable | instant-mode watermark: the latest `vacancies.ingested_at` already considered; null = look back 24 h. Reset when switching to instant. Read/written as text to keep microseconds |
+| judged_through | timestamptz nullable | watermark for both modes: the latest `vacancies.ingested_at` already judged, so each push covers only what arrived since the previous one (ADR-020, ADR-022); null = look back 24 h. Reset when switching to instant. Read/written as text to keep microseconds. Named `instant_through` until migration `0018` |
 | created_at / updated_at | timestamptz | |
 
 The timezone these times are resolved in is **not** stored here: per-user timezone already exists as `planner_settings.timezone` (ADR-015 §7) and a second copy would drift. `GET /digest/settings` echoes it read-only.

@@ -70,6 +70,13 @@ describe('shortlist', () => {
     expect(shortlist([scored({ score: 50 })], 10, 60)).toEqual([]);
   });
 
+  it('keeps every match above the floor when there is no cap (ADR-022)', () => {
+    const many = Array.from({ length: 25 }, (_, i) => scored({ id: `v${i}`, score: 61 + (i % 30) }));
+    const picked = shortlist([...many, scored({ id: 'weak', score: 40 })], null, 60);
+    expect(picked).toHaveLength(25);
+    expect(picked.map((item) => item.id)).not.toContain('weak');
+  });
+
   it('does not mutate the input', () => {
     const input = [scored({ id: 'a', score: 10 }), scored({ id: 'b', score: 90 })];
     shortlist(input, 2, 0);

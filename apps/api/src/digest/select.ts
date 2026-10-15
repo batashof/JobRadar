@@ -10,10 +10,11 @@ import {
  * Ranking and prompt handling for the digest funnel, kept pure.
  *
  * The funnel is three stages, cheapest first: SQL narrows to vacancies that
- * already pass rules-based profile matching and were never sent; a single LLM
- * call scores that shortlist against the resume; the top N above the floor go
- * out. One LLM call per digest is the whole point — per-vacancy scoring would
- * be ~30 calls a day against a free tier (ADR-005).
+ * already pass rules-based profile matching and were never sent; the LLM
+ * scores that shortlist against the resume, thirty vacancies per call; every
+ * one above the floor goes out, or the best N when the user set a cap
+ * (ADR-022). Batching is the whole point — per-vacancy scoring would be one
+ * call per posting against a free tier (ADR-005).
  */
 
 /**
@@ -91,19 +92,20 @@ export interface ScoredCandidate extends DigestCandidate {
 }
 
 /**
- * Final cut: above the floor, best first, capped. Ties break towards the
- * fresher posting — an equally good vacancy posted today is worth more than
- * one from last week.
+ * Final cut: above the floor, best first. Ties break towards the fresher
+ * posting — an equally good vacancy posted today is worth more than one from
+ * last week. A null cap (the default, ADR-022) keeps every one: the user asked
+ * for all the news, and a fixed ten silently threw the rest away.
  */
 export function shortlist(
   scored: ScoredCandidate[],
-  maxItems: number,
+  maxItems: number | null,
   minScore: number,
 ): ScoredCandidate[] {
-  return [...scored]
+  const ranked = [...scored]
     .filter((item) => item.score >= minScore)
-    .sort((a, b) => b.score - a.score || freshness(b) - freshness(a))
-    .slice(0, maxItems);
+    .sort((a, b) => b.score - a.score || freshness(b) - freshness(a));
+  return maxItems === null ? ranked : ranked.slice(0, maxItems);
 }
 
 function freshness(item: ScoredCandidate): number {
