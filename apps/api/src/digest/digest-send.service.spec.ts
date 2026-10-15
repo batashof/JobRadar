@@ -1,7 +1,6 @@
-import type { ConfigService } from "@nestjs/config";
-
 import type { BotCallbackContext } from "../bot/bot.service";
 import {
+  candidateProfiles,
   digestItems,
   digestSettings,
   hiddenVacancies,
@@ -9,7 +8,11 @@ import {
   resumes,
   vacancies,
 } from "../db/schema";
-import { DigestSendService, INSTANT_SETTLE_MINUTES } from "./digest-send.service";
+import {
+  DigestSendService,
+  INSTANT_SETTLE_MINUTES,
+  profileTerms,
+} from "./digest-send.service";
 
 /**
  * Fake drizzle: a query is keyed by the table its `from()` names, so the join
@@ -51,7 +54,10 @@ function makeDb() {
       values: (values: unknown) => ({
         onConflictDoNothing: () => {
           writes.push({ kind: "insert", table, values });
-          return Promise.resolve();
+          const done = Promise.resolve();
+          return Object.assign(done, {
+            returning: () => Promise.resolve([values]),
+          });
         },
       }),
     }),
@@ -86,8 +92,14 @@ const makeLlm = (reply?: string) => ({
     .mockResolvedValue({ text: reply ?? "", provider: "groq", model: "m" }),
 });
 
-const config = (webOrigin = "https://web.test") =>
-  ({ get: () => webOrigin }) as unknown as ConfigService;
+/** The owner, with no /settings preferences — the path every pre-5.3 test is about. */
+const ownerDefaults = {
+  role: "owner",
+  workFormats: [],
+  employmentTypes: [],
+  minSalaryUsd: null,
+  mutedSources: [],
+};
 
 const settingsRow = (over: Record<string, unknown> = {}) => ({
   userId: "user-1",
@@ -95,6 +107,7 @@ const settingsRow = (over: Record<string, unknown> = {}) => ({
   minScore: 60,
   timezone: "UTC",
   language: "ru",
+  ...ownerDefaults,
   ...over,
 });
 
@@ -125,8 +138,7 @@ const service = (
   db: never,
   bot: ReturnType<typeof makeBot>,
   llm: ReturnType<typeof makeLlm>,
-  webOrigin?: string,
-) => new DigestSendService(db, bot as never, llm as never, config(webOrigin));
+) => new DigestSendService(db, bot as never, llm as never);
 
 describe("DigestSendService.sendNow", () => {
   it("says so plainly when there is nothing to send", async () => {
@@ -398,6 +410,7 @@ describe("DigestSendService.run", () => {
     lastSentKey: null,
     timezone: "UTC",
     language: "ru",
+    ...ownerDefaults,
     ...over,
   });
 
@@ -531,6 +544,7 @@ describe("DigestSendService.run — instant mode (ADR-020)", () => {
     judgedThrough: WINDOW.after,
     timezone: "UTC",
     language: "ru",
+    ...ownerDefaults,
     ...over,
   });
 
@@ -707,5 +721,162 @@ describe("DigestSendService buttons", () => {
 describe("instant settle delay (ADR-023)", () => {
   it("waits five minutes, half the 10-minute ingestion tick", () => {
     expect(INSTANT_SETTLE_MINUTES).toBe(5);
+  });
+});
+
+describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
+  const profileRow = (over: Record<string, unknown> = {}) => ({
+    role: "Frontend Developer",
+    grade: "senior",
+    skills: [
+      { name: "React", weight: "core" },
+      { name: "TypeScript", weight: "core" },
+    ],
+    weights: { skills: {}, companies: {} },
+    confirmedAt: new Date("2026-10-01T00:00:00Z"),
+    ...over,
+  });
+  const userRow = (over: Record<string, unknown> = {}) =>
+    settingsRow({ role: "user", maxItems: null, minScore: 60, ...over });
+  const NOW = new Date("2026-08-10T12:00:00Z");
+
+  it("scores by the formula with a template note and never calls the LLM", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [userRow({ language: "en" })]);
+    queue(candidateProfiles, [profileRow()]);
+    queue(vacancies, [
+      vacancyRow({ id: "fit", description: "React, TypeScript, GraphQL" }),
+      vacancyRow({ id: "backend", title: "Senior Backend Engineer", description: "Go, Kafka" }),
+    ]);
+    const bot = makeBot();
+    const llm = makeLlm('[{"i":0,"score":99}]');
+
+    await expect(service(db, bot, llm).sendNow("user-1", NOW)).resolves.toBe(1);
+
+    expect(llm.complete).not.toHaveBeenCalled();
+    const sent = writes.filter((w) => w.table === digestItems);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.values).toMatchObject({ vacancyId: "fit" });
+    const card = bot.sendToUser.mock.calls[1][1] as string;
+    expect(card).toContain("Matched: React, TypeScript; missing: GraphQL; grade: Senior ✓");
+  });
+
+  it("sends nothing until the profile is confirmed", async () => {
+    const { db, queue } = makeDb();
+    queue(digestSettings, [userRow()]);
+    queue(candidateProfiles, [profileRow({ confirmedAt: null })]);
+    queue(vacancies, [vacancyRow()]);
+    const bot = makeBot();
+
+    await expect(service(db, bot, makeLlm()).sendNow("user-1", NOW)).resolves.toBe(0);
+    expect(bot.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("drops postings that break a hard preference before scoring", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [userRow({ workFormats: ["remote"] })]);
+    queue(candidateProfiles, [profileRow()]);
+    queue(vacancies, [
+      vacancyRow({ id: "office", workFormat: "onsite" }),
+      vacancyRow({ id: "remote", workFormat: "remote" }),
+    ]);
+    const bot = makeBot();
+
+    await expect(service(db, bot, makeLlm()).sendNow("user-1", NOW)).resolves.toBe(1);
+    expect(writes.find((w) => w.table === digestItems)?.values).toMatchObject({
+      vacancyId: "remote",
+    });
+  });
+
+  it("applies the same preferences to the owner", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [settingsRow({ workFormats: ["remote"], minScore: 0 })]);
+    queue(vacancies, [vacancyRow({ id: "office", workFormat: "onsite" })]);
+    queue(resumes, []);
+    const bot = makeBot();
+
+    await expect(service(db, bot, makeLlm()).sendNow("user-1", NOW)).resolves.toBe(0);
+    expect(writes.filter((w) => w.table === digestItems)).toHaveLength(0);
+  });
+
+  it("builds pre-rank terms from the profile: family words and skill spellings, core first", () => {
+    const terms = profileTerms({
+      role: "Frontend Developer",
+      grade: null,
+      skills: [
+        { name: "Jest", weight: "familiar" },
+        { name: "ReactJS", weight: "core" },
+      ],
+    });
+    expect(terms.roles).toContain("front-end");
+    expect(terms.stack.slice(0, 3)).toEqual(["react", "react.js", "reactjs"]);
+    expect(terms.stack).toContain("jest");
+  });
+});
+
+describe("DigestSendService — feedback weights (ADR-025 §7)", () => {
+  const ctx = (parts: string[], role: "owner" | "user" = "user"): BotCallbackContext => ({
+    userId: "user-1",
+    chatId: "555",
+    messageId: 77,
+    parts,
+    role,
+    language: "ru",
+  });
+  const learnRow = {
+    weights: { skills: {}, companies: {} },
+    skills: [{ name: "React", weight: "core" }],
+    company: "Acme",
+    title: "Senior Angular Developer",
+    description: "Angular, RxJS, React",
+  };
+  const handlerFor = (db: never) => {
+    const bot = makeBot();
+    service(db, bot, makeLlm()).onModuleInit();
+    return bot.registerCallback.mock.calls[0][1] as (c: BotCallbackContext) => Promise<unknown>;
+  };
+
+  it("moves company and non-core skill weights on a dislike", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestItems, [{ feedback: null }]);
+    queue(candidateProfiles, [learnRow]);
+
+    await handlerFor(db)(ctx(["d", "w", "vac-1"]));
+
+    const update = writes.find((w) => w.table === candidateProfiles);
+    expect(update?.values).toMatchObject({
+      feedbackWeights: { companies: { acme: -0.2 }, skills: { angular: -0.1, rxjs: -0.1 } },
+    });
+  });
+
+  it("ignores a repeated press of the same button", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestItems, [{ feedback: 1 }]);
+    queue(candidateProfiles, [learnRow]);
+
+    await handlerFor(db)(ctx(["d", "u", "vac-1"]));
+
+    expect(writes.find((w) => w.table === candidateProfiles)).toBeUndefined();
+  });
+
+  it("lowers the company on hide", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(candidateProfiles, [learnRow]);
+
+    await handlerFor(db)(ctx(["d", "h", "vac-1"]));
+
+    expect(writes.find((w) => w.table === candidateProfiles)?.values).toMatchObject({
+      feedbackWeights: { companies: { acme: -0.3 }, skills: {} },
+    });
+  });
+
+  it("keeps no weights for the owner, who is judged by the LLM", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestItems, [{ feedback: null }]);
+    queue(candidateProfiles, [learnRow]);
+
+    await handlerFor(db)(ctx(["d", "u", "vac-1"], "owner"));
+
+    expect(writes.find((w) => w.table === candidateProfiles)).toBeUndefined();
   });
 });

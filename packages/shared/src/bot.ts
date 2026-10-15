@@ -56,6 +56,8 @@ export const BOT_CALLBACK_NAMESPACES = {
   account: 'u',
   /** The candidate profile built from the resume: confirm and edit (ADR-025 §2). */
   profile: 'p',
+  /** /settings: delivery, filters, timezone, language, pause (roadmap 5.3). */
+  settings: 's',
 } as const;
 
 /**

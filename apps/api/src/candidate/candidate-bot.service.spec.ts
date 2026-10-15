@@ -29,6 +29,7 @@ const storedProfile: CandidateProfileRow = {
   location: null,
   salaryUsd: null,
   evaluation: null,
+  feedbackWeights: { skills: {}, companies: {} },
   confirmedAt: null,
   analyzedAt: new Date(),
   createdAt: new Date(),

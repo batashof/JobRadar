@@ -2,6 +2,17 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — Formula matching and /settings in the bot (v1.28.0, roadmap 5.3)
+
+- Merged 5.2 ([batashof/JobRadar#12](https://github.com/batashof/JobRadar/pull/12)); `DB (prod)` → `migrate` applied `0020`.
+- `packages/shared/src/skills.ts`: technology dictionary (canonical key, label, aliases, text patterns for ambiguous names like Go/Express/Spring, symmetric "related" links).
+- `matching/score.ts`: `scoreVacancy` (skills 55 / title 20 / grade 15 / freshness 10; caps 40 for another job family or a two-grade gap; feedback ±15), `explainScore`, `applyFeedback`, `passesPreferences`.
+- Digest: `run()` now takes every enabled linked account that is the owner or has a confirmed profile; owner → LLM, others → formula; `/settings` filters for both. Muted sources filtered in SQL.
+- `settings/` module: `/settings` via the new `BotService.registerCommand`; pure `settings-logic.ts` (decide / parseTyped / renderScreen) and a thin service.
+- `SendLimiter` in front of every push; 403 also records `bot_blocked`. Sign-up creates `digest_settings` (instant) and `planner_settings` (timezone by language).
+- **Developer's request mid-step:** the digest card keeps only an "Apply" button to the original posting. Feedback buttons are gone from new cards, so the feedback weights only move from cards sent before this release.
+- **Next step:** `DB (prod)` → `migrate` for `0021`; `DB (prod)` → `formula:check` to see whether the formula passes the 70% gate on the author's resume; then 5.4 (new sources).
+
 ## 2026-10-15 — Resume upload and evaluation in the bot (v1.27.0, roadmap 5.2)
 
 - Merged 5.1 ([batashof/JobRadar#11](https://github.com/batashof/JobRadar/pull/11)); `DB (prod)` → `migrate` applied `0019`.

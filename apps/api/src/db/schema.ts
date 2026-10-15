@@ -22,6 +22,8 @@ import type {
   CandidateProfileSource,
   CandidateSkill,
   DayPlanReview,
+  EmploymentType,
+  FeedbackWeights,
   InterviewFeedback,
   InterviewPlanStructure,
   InterviewReview,
@@ -30,6 +32,7 @@ import type {
   PlanBlockSourceRef,
   ResumeEvaluation,
   ResumeMatchDimension,
+  WorkFormat,
 } from '@jobradar/shared';
 
 // ---------------------------------------------------------------------------
@@ -644,6 +647,12 @@ export const candidateProfiles = pgTable('candidate_profiles', {
   salaryUsd: integer('salary_usd'),
   // Null for a fallback profile: only the LLM can judge the resume itself.
   evaluation: jsonb('evaluation').$type<ResumeEvaluation>(),
+  // Feedback weights (ADR-025 §7): 👍 / 👎 / Hide shift these within bounds,
+  // and the scoring formula adds them as at most ±15 points.
+  feedbackWeights: jsonb('feedback_weights')
+    .$type<FeedbackWeights>()
+    .notNull()
+    .default({ skills: {}, companies: {} }),
   // Null until the user presses "All correct"; matching waits for it.
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
   analyzedAt: timestamp('analyzed_at', { withTimezone: true }).notNull(),
@@ -678,6 +687,18 @@ export const digestSettings = pgTable('digest_settings', {
   quietEnd: text('quiet_end').notNull().default('08:00'),
   // Instant mode's floor — stricter, since every push interrupts.
   instantMinScore: smallint('instant_min_score').notNull().default(75),
+  // Hard preferences from /settings (roadmap 5.3). Empty = no filter; a
+  // posting that does not state the value always passes.
+  workFormats: text('work_formats').array().$type<WorkFormat[]>().notNull().default(sql`'{}'::text[]`),
+  employmentTypes: text('employment_types')
+    .array()
+    .$type<EmploymentType[]>()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  // Monthly floor in USD; only USD-salaried postings are compared.
+  minSalaryUsd: integer('min_salary_usd'),
+  // Source slugs the user switched off.
+  mutedSources: text('muted_sources').array().notNull().default(sql`'{}'::text[]`),
   // Delivery bookkeeping for both modes: the latest `vacancies.ingested_at`
   // already judged, so each push covers only what arrived since the previous
   // one (ADR-020, ADR-022). Null = look back a day. String mode keeps Postgres'

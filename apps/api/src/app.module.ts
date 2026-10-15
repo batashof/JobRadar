@@ -9,6 +9,7 @@ import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { BotModule } from './bot/bot.module';
 import { CandidateModule } from './candidate/candidate.module';
+import { SettingsModule } from './settings/settings.module';
 import { DbModule } from './db/db.module';
 import { DigestModule } from './digest/digest.module';
 import { HealthModule } from './health/health.module';
@@ -52,6 +53,7 @@ import { redisConnectionFromUrl } from './redis';
     AuthModule,
     BotModule,
     CandidateModule,
+    SettingsModule,
     DigestModule,
     LlmModule,
     MatchingModule,

@@ -17,6 +17,7 @@ on:
         options:
           - check
           - migrate
+          - formula:check
           - copy-from-neon
           - backfill:seniority
           - backfill:contacts
@@ -78,6 +79,11 @@ jobs:
           TASK: ${{ inputs.task }}
           INGESTION_TOKEN: ${{ secrets.INGESTION_TOKEN }}
         run: pnpm --filter @jobradar/api db:schedule:prod "${TASK#schedule:}"
+
+      # ADR-025 §9: the formula's top 20 against the LLM's on the author's resume. Read-only.
+      - name: Formula vs LLM check
+        if: inputs.task == 'formula:check'
+        run: pnpm --filter @jobradar/api formula:check --prod
 
       - name: Migrate + seed sources
         if: inputs.task == 'migrate'

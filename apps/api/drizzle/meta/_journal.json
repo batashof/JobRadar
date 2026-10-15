@@ -148,6 +148,13 @@
       "when": 1792100517107,
       "tag": "0020_candidate_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792101609082,
+      "tag": "0021_delivery_preferences",
+      "breakpoints": true
     }
   ]
 }

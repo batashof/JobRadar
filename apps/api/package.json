@@ -1,6 +1,6 @@
 {
   "name": "@jobradar/api",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -20,6 +20,7 @@
     "backfill:contacts": "tsx scripts/backfill-apply-contacts.ts",
     "backfill:seniority": "tsx scripts/backfill-seniority.ts",
     "cleanup:junk": "tsx scripts/cleanup-junk-vacancies.ts",
+    "formula:check": "tsx scripts/formula-check.ts",
     "linkedin:alerts:preview": "tsx scripts/linkedin-alerts-preview.ts"
   },
   "dependencies": {

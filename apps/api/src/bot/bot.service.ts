@@ -14,7 +14,7 @@ import { and, eq, isNotNull } from 'drizzle-orm';
 
 import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
-import { telegramAccounts, users } from '../db/schema';
+import { digestSettings, plannerSettings, telegramAccounts, users } from '../db/schema';
 import { BotDialogs, type OpenDialog } from './bot-dialogs';
 import {
   type ParsedCommand,
@@ -24,6 +24,7 @@ import {
   type TelegramUpdate,
 } from './bot-update';
 import { languageFromTelegram, resolveLink } from './link-logic';
+import { SendLimiter } from './send-limiter';
 import { botMessage, DEFAULT_BOT_LANGUAGE } from './messages';
 import {
   escapeHtml,
@@ -39,6 +40,15 @@ import {
  * hard, and the run moves on rather than holding every other user.
  */
 const FLOOD_RETRY_MAX_SECONDS = 30;
+
+/**
+ * A starting timezone for a new account; Telegram does not tell the bot the
+ * user's. The Russian-speaking audience is mostly UTC+3 (Minsk, Moscow), and
+ * /settings changes it in two taps.
+ */
+export function defaultTimezone(language: Language): string {
+  return language === 'ru' ? 'Europe/Moscow' : 'UTC';
+}
 
 /** What a feature's button handler receives when its callback fires. */
 export interface BotCallbackContext {
@@ -85,6 +95,9 @@ export type BotDialogHandler = (
   dialog: OpenDialog,
 ) => Promise<void>;
 
+/** A slash command owned by a feature module, for an account that exists. */
+export type BotCommandHandler = (ctx: BotMessageContext, argument: string) => Promise<void>;
+
 /**
  * The shared Telegram bot channel (ADR-015 §6): account linking, outbound
  * messages and button routing, used by the day planner today and by the daily
@@ -102,8 +115,11 @@ export class BotService {
   private readonly logger = new Logger(BotService.name);
   private readonly handlers = new Map<string, BotCallbackHandler>();
   private readonly dialogHandlers = new Map<string, BotDialogHandler>();
+  private readonly commandHandlers = new Map<string, BotCommandHandler>();
   private documentHandler: BotDocumentHandler | null = null;
   private readonly api: TelegramApi | null;
+  /** Paces pushes to Telegram's broadcast limits (roadmap 5.3). */
+  private readonly limiter = new SendLimiter();
   /** Resolved lazily from `getMe`, then cached — it never changes for a token. */
   private botUsername: string | null = null;
 
@@ -138,6 +154,14 @@ export class BotService {
   }
 
   /** Registers the one handler for files sent to the bot (the resume flow). */
+  /** A feature's own slash command, e.g. `/settings`. The bot's own commands win. */
+  registerCommand(command: string, handler: BotCommandHandler): void {
+    if (this.commandHandlers.has(command)) {
+      throw new Error(`bot command /${command} is already registered`);
+    }
+    this.commandHandlers.set(command, handler);
+  }
+
   registerDocumentHandler(handler: BotDocumentHandler): void {
     if (this.documentHandler) throw new Error('A bot document handler is already registered');
     this.documentHandler = handler;
@@ -250,8 +274,11 @@ export class BotService {
       // 403 means the user blocked the bot or deleted the chat: drop the link
       // rather than retrying it on every tick from now on.
       if (err instanceof TelegramApiError && err.errorCode === 403) {
+        // Unlinking is what turns the digest off: every run joins on a linked
+        // chat, and a later /start relinks and resumes it with settings intact.
         this.logger.warn(`chat ${row.chatId} rejected the bot — unlinking user ${userId}`);
         await this.unlink(userId);
+        await recordEvent(this.db, userId, 'bot_blocked');
         return null;
       }
       this.logger.warn(
@@ -275,6 +302,7 @@ export class BotService {
     text: string,
     options: SendMessageOptions,
   ): Promise<{ message_id: number }> {
+    await this.limiter.acquire(chatId);
     try {
       return await api.sendMessage(chatId, text, options);
     } catch (err) {
@@ -348,6 +376,16 @@ export class BotService {
       case 'help':
       case 'privacy':
       default: {
+        const feature = this.commandHandlers.get(cmd.command);
+        if (feature) {
+          const ctx = await this.messageContext(chatId);
+          if (ctx) {
+            await feature(ctx, cmd.argument);
+            return;
+          }
+          await this.replyToChat(chatId, 'text.noAccount', languageFromTelegram(cmd.languageCode));
+          return;
+        }
         const account = await this.accountByChat(chatId);
         const language = account
           ? await this.languageOf(account.userId)
@@ -446,6 +484,18 @@ export class BotService {
     if (!created) return;
 
     await this.attachChat(created.id, cmd.chatId, cmd.username, now);
+    // Delivery settings exist from the first minute, so /settings always has a
+    // row to change. Nothing is sent before the profile is confirmed (ADR-025
+    // §2). Instant by default: the point of the bot is a vacancy within
+    // minutes of posting (ADR-023), and quiet hours keep the nights silent.
+    await this.db
+      .insert(digestSettings)
+      .values({ userId: created.id, mode: 'instant' })
+      .onConflictDoNothing();
+    await this.db
+      .insert(plannerSettings)
+      .values({ userId: created.id, timezone: defaultTimezone(language) })
+      .onConflictDoNothing();
     await recordEvent(this.db, created.id, 'start', { language });
     await this.replyToChat(cmd.chatId, 'start.welcome', language);
   }

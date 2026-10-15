@@ -209,56 +209,16 @@ describe("renderCardParts", () => {
 });
 
 describe("renderKeyboard", () => {
-  it("makes Apply a callback — the point is not leaving the chat", () => {
-    const keyboard = renderKeyboard(item(), "ru", "https://web.test");
-    expect(keyboard[0]).toEqual([
-      // Namespaced to outreach: this module renders the button without knowing
-      // how applying works.
-      { text: "Откликнуться", callbackData: `a:d:${item().id}` },
-      { text: "Подробнее", url: `https://web.test/app/vacancies/${item().id}` },
-      { text: "Первоисточник", url: "https://acme.test/jobs/1" },
+  it("offers one button, Apply, linking the original posting", () => {
+    expect(renderKeyboard(item(), "ru")).toEqual([
+      [{ text: "Откликнуться", url: "https://acme.test/jobs/1" }],
+    ]);
+    expect(renderKeyboard(item(), "en")).toEqual([
+      [{ text: "Apply", url: "https://acme.test/jobs/1" }],
     ]);
   });
 
-  it("links the original posting alongside the app, in both languages", () => {
-    // The app's copy is sanitized, collapsed and capped at three messages; the
-    // board's own page is where an application form actually lives.
-    expect(renderKeyboard(item(), "en", "https://web.test")[0]?.[2]).toEqual({
-      text: "Original",
-      url: "https://acme.test/jobs/1",
-    });
-  });
-
-  it("does not repeat the same link twice when there is no web origin", () => {
-    const top = renderKeyboard(item(), "ru", "")[0];
-    expect(top).toHaveLength(2);
-    expect(top?.[1]?.url).toBe("https://acme.test/jobs/1");
-  });
-
-  it("falls back to the original posting when no web origin is configured", () => {
-    expect(renderKeyboard(item(), "ru", "")[0]?.[1]?.url).toBe(
-      "https://acme.test/jobs/1",
-    );
-  });
-
-  it("keeps callback data inside the 64-byte Telegram limit", () => {
-    for (const button of renderKeyboard(
-      item(),
-      "ru",
-      "https://web.test",
-    ).flat()) {
-      if (button.callbackData) {
-        expect(Buffer.byteLength(button.callbackData)).toBeLessThanOrEqual(64);
-      }
-    }
-  });
-
-  it("offers both thumbs and hide, namespaced to the digest", () => {
-    const actions = renderKeyboard(item(), "ru", "https://web.test")[1] ?? [];
-    expect(actions.map((button) => button.callbackData)).toEqual([
-      `d:u:${item().id}`,
-      `d:w:${item().id}`,
-      `d:h:${item().id}`,
-    ]);
+  it("has no button when the posting has no link", () => {
+    expect(renderKeyboard(item({ url: "" }), "ru")).toEqual([]);
   });
 });

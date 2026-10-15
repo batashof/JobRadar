@@ -333,6 +333,10 @@ One row per user, created when a link is started. `chat_id` stays null until the
 | quiet_start / quiet_end | text not null default `22:00` / `08:00` | instant mode's quiet hours, local `HH:MM`; may wrap midnight, equal = never quiet |
 | instant_min_score | smallint not null default 75 | instant mode's floor — stricter than `min_score`, since every push interrupts |
 | judged_through | timestamptz nullable | watermark for both modes: the latest `vacancies.ingested_at` already judged, so each push covers only what arrived since the previous one (ADR-020, ADR-022); null = look back 24 h. Reset when switching to instant. Read/written as text to keep microseconds. Named `instant_through` until migration `0018` |
+| work_formats | text[] not null default `{}` | migration `0021`, `/settings`: formats to receive; empty = any. A posting that states no format passes |
+| employment_types | text[] not null default `{}` | same, for employment |
+| min_salary_usd | integer nullable | monthly floor in USD; only USD-salaried postings are compared, values above 20 000 read as annual |
+| muted_sources | text[] not null default `{}` | source slugs switched off in `/settings` |
 | created_at / updated_at | timestamptz | |
 
 The timezone these times are resolved in is **not** stored here: per-user timezone already exists as `planner_settings.timezone` (ADR-015 §7) and a second copy would drift. `GET /digest/settings` echoes it read-only.
@@ -416,7 +420,8 @@ The profile one resume analysis produces (ADR-025); one row per user, replaced b
 | location | text nullable | |
 | salary_usd | integer nullable | desired monthly salary, when the resume states it |
 | evaluation | jsonb nullable | `{ strengths[], gaps[], suggestions[] }`; null for a fallback profile |
-| confirmed_at | timestamptz nullable | set by "All correct"; a new analysis clears it |
+| confirmed_at | timestamptz nullable | set by "All correct"; a new analysis clears it. The formula digest waits for it (ADR-025 §2) |
+| feedback_weights | jsonb not null default `{"skills":{},"companies":{}}` | migration `0021`. Lower-case skill key / company → weight, moved by 👍 / 👎 / Hide within bounds (skills ±0.5, companies −1..+0.5); the formula turns them into at most ±15 points (ADR-025 §7). Kept across re-analyses |
 | analyzed_at | timestamptz | |
 | created_at / updated_at | timestamptz | |
 

@@ -12,7 +12,9 @@ export type EventName =
   | 'account_deleted'
   | 'resume_uploaded'
   | 'resume_analyzed'
-  | 'profile_confirmed';
+  | 'profile_confirmed'
+  | 'bot_blocked'
+  | 'settings_changed';
 
 const logger = new Logger('Events');
 

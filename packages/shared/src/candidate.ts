@@ -26,6 +26,16 @@ export interface ResumeEvaluation {
   suggestions: string[];
 }
 
+/**
+ * Per-user feedback weights (ADR-025 §7): lower-case company name or skill key
+ * → weight. 👍 / 👎 / Hide move them within fixed bounds; the scoring formula
+ * turns them into a bounded score adjustment.
+ */
+export interface FeedbackWeights {
+  skills: Record<string, number>;
+  companies: Record<string, number>;
+}
+
 /** Where a profile came from: the LLM, or the term fallback when every provider failed. */
 export type CandidateProfileSource = 'llm' | 'fallback';
 
