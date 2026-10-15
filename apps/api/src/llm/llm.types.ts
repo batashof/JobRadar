@@ -8,6 +8,12 @@ export interface LlmRequest {
   maxTokens?: number;
   /** 0..1; defaults to 0.4 — assistant features want mostly-deterministic output. */
   temperature?: number;
+  /**
+   * Restricts the failover chain to these provider names, in the usual order.
+   * Used where the data must not reach a free tier that trains on submitted
+   * content, e.g. a stranger's resume (ADR-025 §4). Omitted = every provider.
+   */
+  providers?: string[];
 }
 
 export interface LlmResult {

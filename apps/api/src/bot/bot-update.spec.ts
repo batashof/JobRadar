@@ -40,9 +40,36 @@ describe('parseUpdate', () => {
     expect(parsed).toMatchObject({ command: 'start', argument: 'tok' });
   });
 
-  it('ignores group chats, plain text and non-command messages', () => {
+  it('parses plain text as an answer to a possible dialog', () => {
+    expect(
+      parseUpdate({ message: { text: '  React, TypeScript ', chat: privateChat, from: { id: 9 } } }),
+    ).toEqual({ type: 'text', chatId: '12345', fromId: '9', languageCode: null, text: 'React, TypeScript' });
+  });
+
+  it('parses a document with its file id, name, type and size', () => {
+    expect(
+      parseUpdate({
+        message: {
+          chat: privateChat,
+          from: { id: 9, language_code: 'ru' },
+          document: { file_id: 'F1', file_name: 'cv.pdf', mime_type: 'application/pdf', file_size: 1234 },
+        },
+      }),
+    ).toEqual({
+      type: 'document',
+      chatId: '12345',
+      fromId: '9',
+      languageCode: 'ru',
+      fileId: 'F1',
+      fileName: 'cv.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 1234,
+    });
+  });
+
+  it('ignores group chats and empty messages', () => {
     expect(parseUpdate({ message: { text: '/start', chat: { id: 1, type: 'group' } } })).toBeNull();
-    expect(parseUpdate({ message: { text: 'hello there', chat: privateChat } })).toBeNull();
+    expect(parseUpdate({ message: { text: 'hello', chat: { id: 1, type: 'group' } } })).toBeNull();
     expect(parseUpdate({ message: { chat: privateChat } })).toBeNull();
     expect(parseUpdate({})).toBeNull();
     // A lone slash is not a command.

@@ -141,7 +141,10 @@ export class LlmService {
    * next on any error (rate limit, quota, network, malformed response).
    */
   async complete(request: LlmRequest): Promise<LlmResult> {
-    const providers = this.configuredProviders();
+    const allowed = request.providers;
+    const providers = this.configuredProviders().filter(
+      (p) => !allowed || allowed.includes(p.name),
+    );
     if (providers.length === 0) {
       throw new LlmUnavailableError(
         'No LLM provider configured — set GROQ_API_KEY, OPENROUTER_API_KEY or GEMINI_API_KEY',

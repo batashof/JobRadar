@@ -19,6 +19,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import type {
+  CandidateProfileSource,
+  CandidateSkill,
   DayPlanReview,
   InterviewFeedback,
   InterviewPlanStructure,
@@ -26,6 +28,7 @@ import type {
   InterviewTurn,
   PlanBlockCategory,
   PlanBlockSourceRef,
+  ResumeEvaluation,
   ResumeMatchDimension,
 } from '@jobradar/shared';
 
@@ -603,6 +606,50 @@ export const events = pgTable(
   },
   (t) => [index('events_name_created_at_idx').on(t.name, t.createdAt)],
 );
+
+// One open dialog per chat (ADR-024 §4): what the bot is waiting for when the
+// user next types plain text, e.g. a skills list. In Postgres, not in memory,
+// because Render restarts the process. `flow` names the feature that owns it.
+export const botDialogs = pgTable('bot_dialogs', {
+  chatId: text('chat_id').primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  flow: text('flow').notNull(),
+  step: text('step').notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  updatedAt: updatedAt(),
+});
+
+// The structured profile one resume analysis produces (ADR-025): the input of
+// rule-based matching for non-owners. One per user; re-uploading replaces it.
+export const candidateProfiles = pgTable('candidate_profiles', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  resumeId: uuid('resume_id').references(() => resumes.id, { onDelete: 'set null' }),
+  // 'llm' | 'fallback' (every provider failed; built from resume terms, ADR-017).
+  source: text('source').$type<CandidateProfileSource>().notNull(),
+  // Bumped when the analysis prompt changes, so old profiles can be told apart.
+  promptVersion: smallint('prompt_version').notNull(),
+  role: text('role'),
+  // One of SENIORITY_LEVELS; null = unknown.
+  grade: text('grade'),
+  years: smallint('years'),
+  skills: jsonb('skills').$type<CandidateSkill[]>().notNull(),
+  // CEFR A1..C2; null = unknown.
+  english: text('english'),
+  location: text('location'),
+  salaryUsd: integer('salary_usd'),
+  // Null for a fallback profile: only the LLM can judge the resume itself.
+  evaluation: jsonb('evaluation').$type<ResumeEvaluation>(),
+  // Null until the user presses "All correct"; matching waits for it.
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  analyzedAt: timestamp('analyzed_at', { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
 
 // ---------------------------------------------------------------------------
 // Daily vacancy digest (delivered over the bot channel above)

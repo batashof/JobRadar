@@ -1,8 +1,8 @@
 /**
- * Pure parsing of an incoming Telegram update into the two shapes the bot
- * actually reacts to: a slash command and a button press. Everything else
- * (edited messages, channel posts, stickers) is deliberately ignored — the
- * bot is a delivery channel, not a chat partner.
+ * Pure parsing of an incoming Telegram update into the shapes the bot reacts
+ * to: a slash command, a button press, plain text (an answer to an open
+ * dialog) and a document (a resume). Everything else (edited messages, channel
+ * posts, stickers) is deliberately ignored.
  *
  * Kept free of IO so the routing rules are unit-testable without a token.
  */
@@ -13,6 +13,7 @@ export interface TelegramUpdate {
   message?: {
     message_id?: number;
     text?: string;
+    document?: { file_id?: string; file_name?: string; mime_type?: string; file_size?: number };
     chat?: { id?: number | string; type?: string };
     from?: { id?: number | string; username?: string; is_bot?: boolean; language_code?: string };
   };
@@ -49,7 +50,29 @@ export interface ParsedCallback {
   parts: string[];
 }
 
-export type ParsedUpdate = ParsedCommand | ParsedCallback | null;
+/** Plain text that is not a command: an answer to an open dialog, if any. */
+export interface ParsedText {
+  type: 'text';
+  chatId: string;
+  fromId: string | null;
+  languageCode: string | null;
+  text: string;
+}
+
+/** A file sent to the bot, e.g. a resume PDF (ADR-025). */
+export interface ParsedDocument {
+  type: 'document';
+  chatId: string;
+  fromId: string | null;
+  languageCode: string | null;
+  fileId: string;
+  fileName: string;
+  mimeType: string | null;
+  /** Bytes as Telegram reports them; null when omitted. */
+  fileSize: number | null;
+}
+
+export type ParsedUpdate = ParsedCommand | ParsedCallback | ParsedText | ParsedDocument | null;
 
 export function parseUpdate(update: TelegramUpdate): ParsedUpdate {
   const callback = update.callback_query;
@@ -72,8 +95,27 @@ export function parseUpdate(update: TelegramUpdate): ParsedUpdate {
   const text = message?.text?.trim();
   const chatId = message?.chat?.id;
   // Only private chats: a link is per-account, and group delivery is not a goal.
-  if (!text || chatId === undefined || message?.chat?.type !== 'private') return null;
-  if (!text.startsWith('/')) return null;
+  if (chatId === undefined || message?.chat?.type !== 'private') return null;
+  const sender = {
+    chatId: String(chatId),
+    fromId: message.from?.id !== undefined ? String(message.from.id) : null,
+    languageCode: message.from?.language_code ?? null,
+  };
+
+  const document = message.document;
+  if (document?.file_id) {
+    return {
+      type: 'document',
+      ...sender,
+      fileId: document.file_id,
+      fileName: document.file_name ?? 'resume.pdf',
+      mimeType: document.mime_type ?? null,
+      fileSize: document.file_size ?? null,
+    };
+  }
+
+  if (!text) return null;
+  if (!text.startsWith('/')) return { type: 'text', ...sender, text };
 
   const [head = '', ...rest] = text.split(/\s+/);
   // Telegram appends `@botname` when a command is typed in a chat with several bots.
@@ -82,10 +124,8 @@ export function parseUpdate(update: TelegramUpdate): ParsedUpdate {
 
   return {
     type: 'command',
-    chatId: String(chatId),
+    ...sender,
     username: message.from?.username ?? null,
-    fromId: message.from?.id !== undefined ? String(message.from.id) : null,
-    languageCode: message.from?.language_code ?? null,
     command,
     argument: rest.join(' ').trim(),
   };

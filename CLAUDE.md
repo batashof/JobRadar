@@ -27,7 +27,7 @@ The docs are the source of truth. Open the one that matches the task instead of 
 
 ## Code map and commands
 
-- `apps/api` — NestJS backend, one folder per module in `src/` (`ingestion`, `vacancies`, `matching`, `digest`, `bot`, `llm`, `resumes`, `outreach`, `interview`, `planner`, …); Drizzle schema and prod DB scripts in `src/db/`. Tests: Jest, `*.spec.ts` next to the code. Deployed to Render (`render.yaml`, auto-deploys `main`).
+- `apps/api` — NestJS backend, one folder per module in `src/` (`ingestion`, `vacancies`, `matching`, `digest`, `bot`, `llm`, `resumes`, `candidate`, `outreach`, `interview`, `planner`, …); Drizzle schema and prod DB scripts in `src/db/`. Tests: Jest, `*.spec.ts` next to the code. Deployed to Render (`render.yaml`, auto-deploys `main`).
 - `apps/web` — Next.js App Router frontend (`app/`, `components/`, `lib/`). Tests: Vitest + React Testing Library. Deployed to Vercel. Frozen for new features during phase 5 and reduced to a static landing page in 2.0.0 (ADR-024).
 - `packages/shared` — types and schemas shared by both apps.
 - `.github/workflows/` — `ci.yml` (build, lint, typecheck, test), `ingestion-cron.yml` (every 4 h), `keep-alive.yml`, `db-prod.yml` (manual: `check`, `migrate`, maintenance tasks).
@@ -58,7 +58,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.26.0** (phase 5.1: accounts are created in the Telegram bot by `/start`, with owner/user roles, `/privacy` and `/delete`; keep this line in sync on every bump).
+- **Current version: 1.27.0** (phase 5.2: a resume PDF sent to the bot is evaluated by one free-LLM call and turned into a candidate profile the user confirms with buttons; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

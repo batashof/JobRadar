@@ -11,6 +11,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.27.0] — 2026-10-15
+
+### Added
+
+- **Resume in the chat** (ADR-025, roadmap 5.2). Send a PDF to the bot and it answers with a review of the resume (what works, what is missing, what to add) and a profile built from it: role, grade, years, main and secondary skills, English, location, desired salary. One LLM call per upload; a non-PDF, a file over 5 MB or a scan without a text layer gets a plain explanation instead.
+- **Profile confirmation with buttons.** "All correct" saves the profile; role, grade and English are picked from lists; skills are typed as a comma-separated list. "Analyse again" re-reads the current resume.
+- **Strangers' resumes stay away from training free tiers.** For non-owners the analysis uses only `LLM_RESUME_PROVIDERS` (default Groq); Gemini is never used for them. At most 3 analyses per 30 days per user; the owner is exempt.
+- **Registration never breaks on the LLM.** When every provider fails, the profile is built from the resume's words (role family, stack, highest grade it claims) and marked as such.
+
+### Migration
+
+- `0020` creates `bot_dialogs` and `candidate_profiles`. Additive.
+
 ## [1.26.0] — 2026-10-15
 
 ### Added

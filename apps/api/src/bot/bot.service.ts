@@ -15,7 +15,14 @@ import { and, eq, isNotNull } from 'drizzle-orm';
 import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
 import { telegramAccounts, users } from '../db/schema';
-import { type ParsedCommand, parseUpdate, type TelegramUpdate } from './bot-update';
+import { BotDialogs, type OpenDialog } from './bot-dialogs';
+import {
+  type ParsedCommand,
+  type ParsedDocument,
+  type ParsedText,
+  parseUpdate,
+  type TelegramUpdate,
+} from './bot-update';
 import { languageFromTelegram, resolveLink } from './link-logic';
 import { botMessage, DEFAULT_BOT_LANGUAGE } from './messages';
 import {
@@ -57,6 +64,27 @@ export interface BotCallbackResult {
 
 export type BotCallbackHandler = (ctx: BotCallbackContext) => Promise<BotCallbackResult | void>;
 
+/** The account behind an incoming message. */
+export interface BotMessageContext {
+  userId: string;
+  chatId: string;
+  language: Language;
+  role: UserRole;
+}
+
+/** A file the user sent; the handler downloads it with `BotService.downloadFile`. */
+export type BotDocumentHandler = (
+  ctx: BotMessageContext,
+  document: Pick<ParsedDocument, 'fileId' | 'fileName' | 'mimeType' | 'fileSize'>,
+) => Promise<void>;
+
+/** Typed text that answers the open dialog of the handler's flow. */
+export type BotDialogHandler = (
+  ctx: BotMessageContext,
+  text: string,
+  dialog: OpenDialog,
+) => Promise<void>;
+
 /**
  * The shared Telegram bot channel (ADR-015 §6): account linking, outbound
  * messages and button routing, used by the day planner today and by the daily
@@ -73,6 +101,8 @@ export type BotCallbackHandler = (ctx: BotCallbackContext) => Promise<BotCallbac
 export class BotService {
   private readonly logger = new Logger(BotService.name);
   private readonly handlers = new Map<string, BotCallbackHandler>();
+  private readonly dialogHandlers = new Map<string, BotDialogHandler>();
+  private documentHandler: BotDocumentHandler | null = null;
   private readonly api: TelegramApi | null;
   /** Resolved lazily from `getMe`, then cached — it never changes for a token. */
   private botUsername: string | null = null;
@@ -80,6 +110,7 @@ export class BotService {
   constructor(
     @Inject(DB) private readonly db: Database,
     config: ConfigService,
+    private readonly dialogs: BotDialogs,
   ) {
     const token = config.get<string>('TELEGRAM_BOT_TOKEN')?.trim();
     this.api = token ? new TelegramApi(token) : null;
@@ -104,6 +135,26 @@ export class BotService {
       throw new Error(`Bot callback namespace "${namespace}" is already registered`);
     }
     this.handlers.set(namespace, handler);
+  }
+
+  /** Registers the one handler for files sent to the bot (the resume flow). */
+  registerDocumentHandler(handler: BotDocumentHandler): void {
+    if (this.documentHandler) throw new Error('A bot document handler is already registered');
+    this.documentHandler = handler;
+  }
+
+  /** Registers the handler that receives typed answers to dialogs of `flow`. */
+  registerDialog(flow: string, handler: BotDialogHandler): void {
+    if (this.dialogHandlers.has(flow)) {
+      throw new Error(`Bot dialog flow "${flow}" is already registered`);
+    }
+    this.dialogHandlers.set(flow, handler);
+  }
+
+  /** Bytes of a file a user sent. Throws when the bot is off or the file is too big. */
+  async downloadFile(fileId: string, maxBytes: number): Promise<Buffer> {
+    if (!this.api) throw new Error('Telegram bot is not configured');
+    return this.api.downloadFile(fileId, maxBytes);
   }
 
   // -------------------------------------------------------------------------
@@ -268,8 +319,12 @@ export class BotService {
     try {
       if (parsed.type === 'command') {
         await this.handleCommand(parsed);
-      } else {
+      } else if (parsed.type === 'callback') {
         await this.handleCallback(parsed);
+      } else if (parsed.type === 'text') {
+        await this.handleText(parsed);
+      } else {
+        await this.handleDocument(parsed);
       }
     } catch (err) {
       this.logger.error(
@@ -408,6 +463,39 @@ export class BotService {
         target: telegramAccounts.userId,
         set: { chatId, username, linkedAt: now, updatedAt: now },
       });
+  }
+
+  /** Plain text goes to the open dialog's flow; without one the bot says what it expects. */
+  private async handleText(parsed: ParsedText): Promise<void> {
+    const ctx = await this.messageContext(parsed.chatId);
+    if (!ctx) {
+      await this.replyToChat(parsed.chatId, 'text.noAccount', languageFromTelegram(parsed.languageCode));
+      return;
+    }
+    const dialog = await this.dialogs.current(parsed.chatId);
+    const handler = dialog && dialog.userId === ctx.userId ? this.dialogHandlers.get(dialog.flow) : undefined;
+    if (!dialog || !handler) {
+      await this.replyToChat(parsed.chatId, 'text.noDialog', ctx.language);
+      return;
+    }
+    await handler(ctx, parsed.text, dialog);
+  }
+
+  private async handleDocument(parsed: ParsedDocument): Promise<void> {
+    const ctx = await this.messageContext(parsed.chatId);
+    if (!ctx) {
+      await this.replyToChat(parsed.chatId, 'text.noAccount', languageFromTelegram(parsed.languageCode));
+      return;
+    }
+    if (!this.documentHandler) return;
+    await this.documentHandler(ctx, parsed);
+  }
+
+  private async messageContext(chatId: string): Promise<BotMessageContext | null> {
+    const account = await this.accountByChat(chatId);
+    if (!account) return null;
+    const profile = await this.profileOf(account.userId);
+    return { userId: account.userId, chatId, ...profile };
   }
 
   // -------------------------------------------------------------------------

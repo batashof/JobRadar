@@ -378,11 +378,49 @@ Activation-funnel analytics. No message text, no resume content: event names and
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid FK → users, nullable | **set null** on user delete, so the funnel keeps its counts after `/delete` |
-| name | text not null | `start`, `account_deleted` (5.1); later `resume_uploaded`, `profile_confirmed`, `card_opened`, `feedback` |
+| name | text not null | `start`, `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (5.2); later `card_opened`, `feedback` |
 | props | jsonb nullable | small flat map, e.g. `{ "language": "en" }` |
 | created_at | timestamptz | index `(name, created_at)` |
 
 Account deletion (`/delete`) is one `DELETE FROM users`: every other user-keyed table cascades.
+
+### bot_dialogs (migration `0020`)
+
+What the bot waits for when the user next types plain text (ADR-024 §4). One row per chat; opening a dialog replaces the previous one.
+
+| Column | Type | Notes |
+|---|---|---|
+| chat_id | text PK | |
+| user_id | uuid FK → users (cascade) | the answer is ignored if the chat now drives another account |
+| flow | text | owning feature, e.g. `profile` |
+| step | text | e.g. `skills` |
+| payload | jsonb nullable | |
+| expires_at | timestamptz | 30 minutes after opening; an expired dialog is ignored |
+| updated_at | timestamptz | |
+
+### candidate_profiles (migration `0020`)
+
+The profile one resume analysis produces (ADR-025); one row per user, replaced by the next analysis.
+
+| Column | Type | Notes |
+|---|---|---|
+| user_id | uuid PK, FK → users (cascade) | |
+| resume_id | uuid FK → resumes, nullable | set null if that resume is deleted |
+| source | text | `llm` \| `fallback` (every provider failed; built from resume terms, ADR-017) |
+| prompt_version | smallint | `ANALYSIS_PROMPT_VERSION` at analysis time |
+| role | text nullable | e.g. `Frontend Developer` |
+| grade | text nullable | one of `SENIORITY_LEVELS` |
+| years | smallint nullable | |
+| skills | jsonb not null | `[{ name, weight: 'core' \| 'familiar' }]`, ≤ 20 |
+| english | text nullable | CEFR `A1`..`C2` |
+| location | text nullable | |
+| salary_usd | integer nullable | desired monthly salary, when the resume states it |
+| evaluation | jsonb nullable | `{ strengths[], gaps[], suggestions[] }`; null for a fallback profile |
+| confirmed_at | timestamptz nullable | set by "All correct"; a new analysis clears it |
+| analyzed_at | timestamptz | |
+| created_at / updated_at | timestamptz | |
+
+The analysis limit (3 per 30 days, owner exempt) is counted from `events` (`resume_analyzed` with `props.source = 'llm'`), which survive a re-upload.
 
 ## Phase 4 additions (ADR-015 — day planner)
 

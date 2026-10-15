@@ -9,6 +9,7 @@ import { Logger } from '@nestjs/common';
 
 const API_BASE = 'https://api.telegram.org';
 const REQUEST_TIMEOUT_MS = 10_000;
+const DOWNLOAD_TIMEOUT_MS = 30_000;
 
 /** One row of an inline keyboard; a keyboard is rows of buttons. */
 export interface InlineButton {
@@ -104,6 +105,33 @@ export class TelegramApi {
       link_preview_options: options.disablePreview ? { is_disabled: true } : undefined,
       reply_markup: options.keyboard ? { inline_keyboard: toWire(options.keyboard) } : undefined,
     });
+  }
+
+  /**
+   * Downloads a file a user sent (a resume PDF). Two steps, as the Bot API
+   * requires: `getFile` resolves the id to a path, then the bytes come from the
+   * file endpoint. Bots can download files up to 20 MB; `maxBytes` refuses
+   * anything larger than the caller wants before reading the body.
+   */
+  async downloadFile(fileId: string, maxBytes: number): Promise<Buffer> {
+    const file = await this.call<{ file_path?: string; file_size?: number }>('getFile', {
+      file_id: fileId,
+    });
+    if (!file.file_path) throw new TelegramApiError('getFile', undefined, 'no file_path');
+    if (file.file_size !== undefined && file.file_size > maxBytes) {
+      throw new TelegramApiError('getFile', undefined, `file is ${file.file_size} bytes`);
+    }
+    const response = await fetch(`${API_BASE}/file/bot${this.token}/${file.file_path}`, {
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      throw new TelegramApiError('downloadFile', response.status, `HTTP ${response.status}`);
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > maxBytes) {
+      throw new TelegramApiError('downloadFile', undefined, `file is ${bytes.length} bytes`);
+    }
+    return bytes;
   }
 
   async getMe(): Promise<{ id: number; username?: string }> {

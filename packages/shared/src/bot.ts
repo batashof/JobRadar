@@ -54,6 +54,8 @@ export const BOT_CALLBACK_NAMESPACES = {
   apply: 'a',
   /** The account itself: deletion confirmation (ADR-024). Owned by the bot module. */
   account: 'u',
+  /** The candidate profile built from the resume: confirm and edit (ADR-025 §2). */
+  profile: 'p',
 } as const;
 
 /**
