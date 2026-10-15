@@ -11,6 +11,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.28.0] — 2026-10-15
+
+### Added
+
+- **Vacancies for every bot user** (ADR-025, roadmap 5.3). Once the profile is confirmed, new vacancies are scored by a formula instead of the LLM: skills the posting asks for against the profile (adjacent technologies such as Vue for React count half), the job family in the title, the grade, freshness. Each card says why: "Matched: React, TypeScript; missing: GraphQL; grade: Senior ✓". The owner keeps the LLM verdict.
+- **`/settings` in the bot**: delivery mode, send times, quiet hours, timezone, minimum fit, cap per send, work format, employment, minimum salary (USD per month), sources on/off, language, pause. One message, edited in place by buttons; times, quiet hours, timezone and salary can also be typed.
+- New accounts start in instant mode with quiet hours 22:00–08:00, in UTC+3 for Russian speakers and UTC otherwise.
+- Format, employment, salary and source filters from `/settings` apply to the owner's digest too.
+- `formula:check` (script and `DB (prod)` task): the formula's top 20 against the LLM's on the author's resume (ADR-025 §9).
+
+### Changed
+
+- **A digest card has one button, "Apply"**, linking the original posting. The in-chat apply, "Details" (web) and 👍 / 👎 / Hide buttons are gone from new cards; buttons on cards already sent still work.
+- Bot pushes are paced: about 30 messages a second overall and one a second per chat.
+
+### Migration
+
+- `0021` adds `digest_settings.work_formats`, `employment_types`, `min_salary_usd`, `muted_sources` and `candidate_profiles.feedback_weights`, and creates digest settings for accounts that had none. Additive.
+
 ## [1.27.0] — 2026-10-15
 
 ### Added

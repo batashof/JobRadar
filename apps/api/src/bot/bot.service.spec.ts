@@ -1,8 +1,15 @@
 import type { ConfigService } from '@nestjs/config';
 
 import { BotDialogs } from './bot-dialogs';
-import { BotService } from './bot.service';
-import { botDialogs, events, telegramAccounts, users } from '../db/schema';
+import { BotService, defaultTimezone } from './bot.service';
+import {
+  botDialogs,
+  digestSettings,
+  events,
+  plannerSettings,
+  telegramAccounts,
+  users,
+} from '../db/schema';
 
 const fetchMock = jest.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
@@ -73,6 +80,10 @@ function makeDb() {
             returning: () => {
               record();
               return Promise.resolve(returning.get(table)?.shift() ?? []);
+            },
+            then: (resolve: (v: unknown) => unknown) => {
+              record();
+              return Promise.resolve(undefined).then(resolve);
             },
           }),
           // A plain `await db.insert(t).values(v)`.
@@ -365,6 +376,11 @@ describe('BotService registration in the bot (ADR-024)', () => {
 
   beforeEach(() => fetchMock.mockReset());
 
+  it('starts Russian speakers on UTC+3 and everyone else on UTC', () => {
+    expect(defaultTimezone('ru')).toBe('Europe/Moscow');
+    expect(defaultTimezone('en')).toBe('UTC');
+  });
+
   it('creates an account on a plain /start from a stranger, in the client language', async () => {
     const { db, writes, queue, inserted } = makeDb();
     queue(telegramAccounts, []); // chat not linked
@@ -389,7 +405,16 @@ describe('BotService registration in the bot (ADR-024)', () => {
       table: telegramAccounts,
       values: { userId: 'new-user', chatId: '555', username: 'anna' },
     });
-    expect(writes[2]).toMatchObject({ table: events, values: { userId: 'new-user', name: 'start' } });
+    // Delivery settings from the first minute, instant by default (roadmap 5.3).
+    expect(writes[2]).toMatchObject({
+      table: digestSettings,
+      values: { userId: 'new-user', mode: 'instant' },
+    });
+    expect(writes[3]).toMatchObject({
+      table: plannerSettings,
+      values: { userId: 'new-user', timezone: 'UTC' },
+    });
+    expect(writes[4]).toMatchObject({ table: events, values: { userId: 'new-user', name: 'start' } });
     expect(sentText()).toContain('Welcome to JobRadar');
   });
 

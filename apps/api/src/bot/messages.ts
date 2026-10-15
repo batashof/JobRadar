@@ -22,6 +22,7 @@ const STRINGS = {
     'help':
       'JobRadar finds remote IT vacancies that fit your resume and sends them here.\n\n' +
       '/start — create your account or reconnect this chat\n' +
+      '/settings — delivery, filters, timezone, language, pause\n' +
       '/privacy — what is stored and who sees it\n' +
       '/delete — delete your account and everything in it\n' +
       '/stop — stop messages without deleting anything\n' +
@@ -59,6 +60,7 @@ const STRINGS = {
     'help':
       'JobRadar находит удалённые IT-вакансии под твоё резюме и присылает их сюда.\n\n' +
       '/start — создать аккаунт или снова подключить этот чат\n' +
+      '/settings — доставка, фильтры, часовой пояс, язык, пауза\n' +
       '/privacy — что хранится и кто это видит\n' +
       '/delete — удалить аккаунт и всё, что в нём\n' +
       '/stop — остановить сообщения, ничего не удаляя\n' +

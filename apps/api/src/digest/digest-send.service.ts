@@ -1,12 +1,19 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   BOT_CALLBACK_NAMESPACES,
+  type CandidateSkill,
+  canonicalSkill,
   detectSeniority,
   DIGEST_MAX_ITEMS_LIMIT,
+  type FeedbackWeights,
+  isOwnerRole,
   type Language,
   levelsBelowResume,
   PLANNER_DEFAULTS,
+  type SeniorityLevel,
+  SENIORITY_LEVELS,
+  skillTextPatterns,
+  type UserRole,
 } from '@jobradar/shared';
 import {
   and,
@@ -14,6 +21,7 @@ import {
   eq,
   gte,
   inArray,
+  isNotNull,
   isNull,
   notExists,
   notInArray,
@@ -25,6 +33,7 @@ import {
 import { type BotCallbackContext, type BotCallbackResult, BotService } from '../bot/bot.service';
 import { DB, type Database } from '../db/db.module';
 import {
+  candidateProfiles,
   digestItems,
   digestSettings,
   hiddenVacancies,
@@ -39,7 +48,25 @@ import {
   vacancies,
 } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
-import { extractResumeTerms, lexicalRelevanceSql, normalizeLexScore } from '../matching/resume-terms';
+import {
+  extractResumeTerms,
+  lexicalRelevanceSql,
+  normalizeLexScore,
+  RESUME_STACK_LIMIT,
+  ROLE_FAMILIES,
+  type ResumeTerms,
+} from '../matching/resume-terms';
+import {
+  applyFeedback,
+  type DeliveryPreferences,
+  detectVacancySkills,
+  explainScore,
+  type FeedbackKind,
+  passesPreferences,
+  roleFamily,
+  type ScoringProfile,
+  scoreVacancy,
+} from '../matching/score';
 import { isQuietTime, resolveDue } from './due';
 import { DIGEST_ACTION, digestText, renderCardParts, renderHeader, renderKeyboard } from './render';
 import {
@@ -108,6 +135,32 @@ interface IngestWindow {
  */
 const NO_RESUME = '00000000-0000-0000-0000-000000000000';
 
+/** Who a send is for: the account, its language and role, and its hard preferences. */
+interface DigestUser extends DeliveryPreferences {
+  userId: string;
+  maxItems: number | null;
+  minScore: number;
+  timezone: string;
+  language: string;
+  role: string;
+  mutedSources: string[];
+}
+
+/**
+ * What a send ranks against. The owner's comes from the resume text and is
+ * judged by the LLM; everyone else's comes from the confirmed candidate
+ * profile and is judged by the formula (ADR-025 §8).
+ */
+type MatchBasis =
+  | { kind: 'llm'; terms: ResumeTerms; level: SeniorityLevel | null; resume: { id: string; text: string } | null }
+  | {
+      kind: 'formula';
+      terms: ResumeTerms;
+      level: SeniorityLevel | null;
+      profile: ScoringProfile;
+      weights: FeedbackWeights;
+    };
+
 export interface DigestRunResult {
   users: number;
   sent: number;
@@ -130,16 +183,12 @@ export interface DigestRunResult {
 @Injectable()
 export class DigestSendService implements OnModuleInit {
   private readonly logger = new Logger(DigestSendService.name);
-  private readonly webOrigin: string;
 
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly bot: BotService,
     private readonly llm: LlmService,
-    config: ConfigService,
-  ) {
-    this.webOrigin = (config.get<string>('WEB_ORIGIN') ?? '').replace(/\/$/, '');
-  }
+  ) {}
 
   onModuleInit(): void {
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.digest, (ctx) => this.handleCallback(ctx));
@@ -160,20 +209,24 @@ export class DigestSendService implements OnModuleInit {
         quietEnd: digestSettings.quietEnd,
         instantMinScore: digestSettings.instantMinScore,
         judgedThrough: digestSettings.judgedThrough,
+        ...preferenceColumns,
         timezone: plannerSettings.timezone,
         language: users.language,
+        role: users.role,
       })
       .from(digestSettings)
       .innerJoin(users, eq(users.id, digestSettings.userId))
       .leftJoin(plannerSettings, eq(plannerSettings.userId, digestSettings.userId))
+      .leftJoin(candidateProfiles, eq(candidateProfiles.userId, digestSettings.userId))
       .innerJoin(telegramAccounts, eq(telegramAccounts.userId, digestSettings.userId))
-      // The LLM-verdict digest is owner-only (ADR-024 §3); other users get the
-      // formula-scored digest of ADR-025 once it lands (roadmap 5.3).
+      // The owner is judged by the LLM against the resume (ADR-024 §3); anyone
+      // else by the formula against the candidate profile, which waits for the
+      // user to confirm it (ADR-025 §2, §8).
       .where(
         and(
           eq(digestSettings.enabled, true),
-          eq(users.role, 'owner'),
           sql`${telegramAccounts.chatId} is not null`,
+          or(eq(users.role, 'owner'), isNotNull(candidateProfiles.confirmedAt)),
         ),
       );
 
@@ -260,15 +313,11 @@ export class DigestSendService implements OnModuleInit {
    * every five minutes would spend an LLM call per tick on the same answer.
    */
   private async runInstant(
-    user: {
-      userId: string;
-      maxItems: number | null;
+    user: Omit<DigestUser, 'minScore'> & {
       instantMinScore: number;
       quietStart: string;
       quietEnd: string;
       judgedThrough: string | null;
-      timezone: string;
-      language: string;
     },
     now: Date,
   ): Promise<number | null> {
@@ -324,8 +373,10 @@ export class DigestSendService implements OnModuleInit {
         userId: digestSettings.userId,
         maxItems: digestSettings.maxItems,
         minScore: digestSettings.minScore,
+        ...preferenceColumns,
         timezone: plannerSettings.timezone,
         language: users.language,
+        role: users.role,
       })
       .from(digestSettings)
       .innerJoin(users, eq(users.id, digestSettings.userId))
@@ -349,13 +400,7 @@ export class DigestSendService implements OnModuleInit {
   // -------------------------------------------------------------------------
 
   private async sendFor(
-    user: {
-      userId: string;
-      maxItems: number | null;
-      minScore: number;
-      timezone: string;
-      language: string;
-    },
+    user: DigestUser,
     slotKey: string,
     now: Date,
     /**
@@ -367,14 +412,21 @@ export class DigestSendService implements OnModuleInit {
   ): Promise<number> {
     const instant = run.kind === 'instant';
     const language: Language = user.language === 'en' ? 'en' : 'ru';
-    const resume = await this.activeResume(user.userId);
-    const candidates = await this.collectCandidates(user.userId, now, resume, run.window);
+    const basis = await this.matchBasis(user.userId, user.role);
+    // A non-owner whose profile is not confirmed yet has nothing to match on.
+    if (!basis) return 0;
+    const candidates = (
+      await this.collectCandidates(user.userId, now, basis, user.mutedSources, run.window)
+    ).filter((candidate) => passesPreferences(user, candidate));
     if (candidates.length === 0) {
       if (!instant) await this.sendEmpty(user.userId, language);
       return 0;
     }
 
-    const scored = await this.score(user.userId, candidates, resume?.text ?? null, language);
+    const scored =
+      basis.kind === 'llm'
+        ? await this.score(user.userId, candidates, basis.resume?.text ?? null, language)
+        : this.scoreByFormula(candidates, basis, language, now);
     const picked = shortlist(scored, user.maxItems, user.minScore);
     if (picked.length === 0) {
       // An empty digest is a legitimate outcome and a plausible symptom of a
@@ -410,7 +462,7 @@ export class DigestSendService implements OnModuleInit {
         messageId = await this.bot.sendToUser(user.userId, part, {
           parseMode: 'HTML',
           disablePreview: true,
-          keyboard: isLast ? renderKeyboard(item, language, this.webOrigin) : undefined,
+          keyboard: isLast ? renderKeyboard(item, language) : undefined,
         });
       }
       // Recorded even when the send failed: a vacancy the user already saw
@@ -454,7 +506,8 @@ export class DigestSendService implements OnModuleInit {
   private async collectCandidates(
     userId: string,
     now: Date,
-    resume: { id: string; text: string } | null,
+    basis: MatchBasis,
+    mutedSources: string[],
     window?: IngestWindow,
   ): Promise<DigestCandidate[]> {
     const since = new Date(now.getTime() - CANDIDATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
@@ -489,18 +542,21 @@ export class DigestSendService implements OnModuleInit {
     // Level gate before any token is spent (ADR-012): a push has no room for
     // roles the user has clearly outgrown. Rows ingestion never levelled pass
     // here and are caught by title below, so the pool never over-empties.
-    const resumeLevel = resume ? detectSeniority(resume.text) : null;
+    const resumeLevel = basis.level;
     const tooJunior = resumeLevel ? levelsBelowResume(resumeLevel) : [];
     if (tooJunior.length > 0) {
       const clause = or(isNull(vacancies.seniority), notInArray(vacancies.seniority, tooJunior));
       if (clause) conditions.push(clause);
     }
 
-    const relevance = lexicalRelevanceSql(
-      extractResumeTerms(resume?.text ?? ''),
-      vacancies.title,
-      vacancies.description,
-    );
+    // Sources switched off in /settings. Rows without a source pass.
+    if (mutedSources.length > 0) {
+      const clause = or(isNull(sources.slug), notInArray(sources.slug, mutedSources));
+      if (clause) conditions.push(clause);
+    }
+
+    const relevance = lexicalRelevanceSql(basis.terms, vacancies.title, vacancies.description);
+    const resumeId = basis.kind === 'llm' ? basis.resume?.id : undefined;
 
     const rows = await this.db
       .select({
@@ -528,7 +584,7 @@ export class DigestSendService implements OnModuleInit {
         resumeMatches,
         and(
           eq(resumeMatches.vacancyId, vacancies.id),
-          eq(resumeMatches.resumeId, resume?.id ?? NO_RESUME),
+          eq(resumeMatches.resumeId, resumeId ?? NO_RESUME),
         ),
       )
       .where(and(...conditions))
@@ -583,6 +639,56 @@ export class DigestSendService implements OnModuleInit {
       .groupBy(profileMatches.vacancyId);
 
     return new Map(rows.map((row) => [row.vacancyId, row.score]));
+  }
+
+  /** What this user's send ranks against, or null when there is nothing yet. */
+  private async matchBasis(userId: string, role: string): Promise<MatchBasis | null> {
+    if (isOwnerRole(role as UserRole)) {
+      const resume = await this.activeResume(userId);
+      return {
+        kind: 'llm',
+        resume,
+        terms: extractResumeTerms(resume?.text ?? ''),
+        level: resume ? detectSeniority(resume.text) : null,
+      };
+    }
+
+    const [profile] = await this.db
+      .select({
+        role: candidateProfiles.role,
+        grade: candidateProfiles.grade,
+        skills: candidateProfiles.skills,
+        weights: candidateProfiles.feedbackWeights,
+        confirmedAt: candidateProfiles.confirmedAt,
+      })
+      .from(candidateProfiles)
+      .where(eq(candidateProfiles.userId, userId));
+    if (!profile?.confirmedAt) return null;
+
+    const grade = (SENIORITY_LEVELS as readonly string[]).includes(profile.grade ?? '')
+      ? (profile.grade as SeniorityLevel)
+      : null;
+    const scoring: ScoringProfile = { role: profile.role, grade, skills: profile.skills };
+    return {
+      kind: 'formula',
+      profile: scoring,
+      weights: profile.weights,
+      terms: profileTerms(scoring),
+      level: grade,
+    };
+  }
+
+  /** ADR-025 §5: the formula for every candidate, with its template explanation. */
+  private scoreByFormula(
+    candidates: DigestCandidate[],
+    basis: Extract<MatchBasis, { kind: 'formula' }>,
+    language: Language,
+    now: Date,
+  ): ScoredCandidate[] {
+    return candidates.map((candidate) => {
+      const result = scoreVacancy(basis.profile, candidate, { now, weights: basis.weights });
+      return { ...candidate, score: result.score, note: explainScore(result, language) };
+    });
   }
 
   private async activeResume(userId: string): Promise<{ id: string; text: string } | null> {
@@ -679,29 +785,108 @@ export class DigestSendService implements OnModuleInit {
     if (!action || !vacancyId) return {};
 
     switch (action) {
-      case DIGEST_ACTION.hide:
-        await this.db
+      case DIGEST_ACTION.hide: {
+        const inserted = await this.db
           .insert(hiddenVacancies)
           .values({ userId: ctx.userId, vacancyId })
-          .onConflictDoNothing();
+          .onConflictDoNothing()
+          .returning({ vacancyId: hiddenVacancies.vacancyId });
+        if (inserted.length > 0) await this.learn(ctx, vacancyId, 'hide');
         return {
           alert: digestText(ctx.language, 'hidden'),
           editText: digestText(ctx.language, 'hidden'),
           editKeyboard: null,
         };
+      }
       case DIGEST_ACTION.up:
       case DIGEST_ACTION.down: {
         const feedback = action === DIGEST_ACTION.up ? 1 : -1;
-        await this.db
-          .update(digestItems)
-          .set({ feedback })
-          .where(
-            and(eq(digestItems.userId, ctx.userId), eq(digestItems.vacancyId, vacancyId)),
-          );
+        const where = and(eq(digestItems.userId, ctx.userId), eq(digestItems.vacancyId, vacancyId));
+        const [previous] = await this.db
+          .select({ feedback: digestItems.feedback })
+          .from(digestItems)
+          .where(where);
+        await this.db.update(digestItems).set({ feedback }).where(where);
+        // A second press of the same button is not a second vote.
+        if (previous?.feedback !== feedback) {
+          await this.learn(ctx, vacancyId, feedback > 0 ? 'up' : 'down');
+        }
         return { alert: digestText(ctx.language, feedback > 0 ? 'liked' : 'disliked') };
       }
       default:
         return {};
     }
   }
+
+  /**
+   * Moves the formula's feedback weights for one press (ADR-025 §7). The owner
+   * is judged by the LLM and has no weights; a failure here never fails the
+   * press, which has already been recorded.
+   */
+  private async learn(ctx: BotCallbackContext, vacancyId: string, kind: FeedbackKind): Promise<void> {
+    if (isOwnerRole(ctx.role)) return;
+    try {
+      const [row] = await this.db
+        .select({
+          weights: candidateProfiles.feedbackWeights,
+          skills: candidateProfiles.skills,
+          company: vacancies.companyRaw,
+          title: vacancies.title,
+          description: vacancies.description,
+        })
+        .from(candidateProfiles)
+        .innerJoin(vacancies, eq(vacancies.id, vacancyId))
+        .where(eq(candidateProfiles.userId, ctx.userId));
+      if (!row) return;
+
+      const weights = applyFeedback(row.weights, {
+        kind,
+        company: row.company,
+        vacancySkills: detectVacancySkills(row.title, row.description),
+        coreSkills: coreSkillNames(row.skills),
+      });
+      await this.db
+        .update(candidateProfiles)
+        .set({ feedbackWeights: weights, updatedAt: new Date() })
+        .where(eq(candidateProfiles.userId, ctx.userId));
+    } catch (err) {
+      this.logger.warn(
+        `feedback weights not updated for user ${ctx.userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+}
+
+/** The columns of the /settings hard preferences, shared by every settings read. */
+const preferenceColumns = {
+  workFormats: digestSettings.workFormats,
+  employmentTypes: digestSettings.employmentTypes,
+  minSalaryUsd: digestSettings.minSalaryUsd,
+  mutedSources: digestSettings.mutedSources,
+};
+
+function coreSkillNames(skills: CandidateSkill[]): string[] {
+  return skills.filter((skill) => skill.weight === 'core').map((skill) => skill.name);
+}
+
+/**
+ * The SQL pre-rank's terms for a profile: the job family's title words and the
+ * spellings of the strongest skills, core first. Same shape the owner's resume
+ * text produces, so one ordering query serves both.
+ */
+export function profileTerms(profile: ScoringProfile): ResumeTerms {
+  const family = roleFamily(profile.role);
+  const roles = ROLE_FAMILIES.find((entry) => entry.family === family)?.terms ?? [];
+  const ordered = [
+    ...profile.skills.filter((skill) => skill.weight === 'core'),
+    ...profile.skills.filter((skill) => skill.weight !== 'core'),
+  ];
+  const keys = [...new Set(ordered.map((skill) => canonicalSkill(skill.name)))].slice(
+    0,
+    RESUME_STACK_LIMIT,
+  );
+  const stack = [...new Set(keys.flatMap((key) => skillTextPatterns(key)))];
+  return { roles, stack };
 }

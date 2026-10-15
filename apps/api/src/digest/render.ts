@@ -1,11 +1,9 @@
-import { BOT_CALLBACK_NAMESPACES, type Language } from '@jobradar/shared';
+import { type Language } from '@jobradar/shared';
 
 import { escapeHtml, type InlineKeyboard } from '../bot/telegram-api';
 import type { ScoredCandidate } from './select';
 
 /** Message text and keyboards for the digest, kept pure and testable. */
-
-const NS = BOT_CALLBACK_NAMESPACES.digest;
 
 /** Telegram refuses anything longer, so a long card is split across messages. */
 const MESSAGE_LIMIT = 4096;
@@ -159,45 +157,15 @@ export function renderCardParts(
 }
 
 /**
- * Apply is a callback, not a link: the whole point is not having to leave the
- * chat. It is namespaced to `a:` (outreach), so this module renders the button
- * without knowing anything about how applying works. Details stays a link — it
- * is now the way to the rest of a description too long for the chat.
- *
- * "Original" is the posting where it was published. Everything else the digest
- * offers is JobRadar's rendering of a vacancy — sanitized, whitespace-collapsed
- * and possibly cut at three messages — and none of it is where you actually
- * apply on a board that wants its own form. That link was reachable only as a
- * fallback for a missing `WEB_ORIGIN`, which is to say never in production.
- * Both buttons are shown; they lead to genuinely different places.
+ * One button: "Apply", a link to the posting where it was published. The
+ * developer's call of 2026-10-15: the card already carries the text and the
+ * fit, and the only thing left to do with a good vacancy is apply on the board
+ * that owns it. The in-chat apply flow, the web "Details" page (going away in
+ * 2.0.0, ADR-024) and the 👍 / 👎 / Hide buttons are gone from the card; their
+ * callback handlers stay so buttons on cards already sent keep working.
  */
-export function renderKeyboard(
-  item: ScoredCandidate,
-  lang: Language,
-  webOrigin: string,
-): InlineKeyboard {
-  const appUrl = webOrigin ? `${webOrigin}/app/vacancies/${item.id}` : item.url;
-  const top = [
-    {
-      text: digestText(lang, 'apply'),
-      callbackData: `${BOT_CALLBACK_NAMESPACES.apply}:d:${item.id}`,
-    },
-    { text: digestText(lang, 'details'), url: appUrl },
-  ];
-  // Only when it adds something: with no WEB_ORIGIN, "Details" already is the
-  // source, and two buttons to one URL is noise.
-  if (item.url && item.url !== appUrl) {
-    top.push({ text: digestText(lang, 'source'), url: item.url });
-  }
-
-  return [
-    top,
-    [
-      { text: '👍', callbackData: `${NS}:${DIGEST_ACTION.up}:${item.id}` },
-      { text: '👎', callbackData: `${NS}:${DIGEST_ACTION.down}:${item.id}` },
-      { text: digestText(lang, 'hide'), callbackData: `${NS}:${DIGEST_ACTION.hide}:${item.id}` },
-    ],
-  ];
+export function renderKeyboard(item: ScoredCandidate, lang: Language): InlineKeyboard {
+  return item.url ? [[{ text: digestText(lang, 'apply'), url: item.url }]] : [];
 }
 
 /**

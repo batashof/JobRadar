@@ -51,7 +51,8 @@ const TEXT = {
     editSkills: 'Skills',
     retry: '🔄 Analyse again',
     back: '← Back',
-    confirmed: 'Profile saved. Vacancy matching by this profile is switched on in the next update.',
+    confirmed:
+      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. /settings changes delivery, filters and timezone.',
     askSkills: 'Send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     badSkills: 'I did not find any skills in that. Send them separated by commas, e.g. React, TypeScript.',
     noProfile: 'Send your resume as a PDF first.',
@@ -91,7 +92,8 @@ const TEXT = {
     editSkills: 'Навыки',
     retry: '🔄 Проанализировать снова',
     back: '← Назад',
-    confirmed: 'Профиль сохранён. Подбор вакансий по нему включится в следующем обновлении.',
+    confirmed:
+      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. /settings — доставка, фильтры и часовой пояс.',
     askSkills: 'Пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     badSkills: 'Не нашёл навыков в сообщении. Пришли их через запятую, например: React, TypeScript.',
     noProfile: 'Сначала пришли резюме в PDF.',
