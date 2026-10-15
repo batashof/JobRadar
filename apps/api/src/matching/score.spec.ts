@@ -93,6 +93,28 @@ describe('scoreVacancy', () => {
     );
   });
 
+  it('demotes a title on a framework the candidate does not use', () => {
+    const react = scoreVacancy(frontend, vacancy({ title: 'Senior Front-End Developer (React)' }), { now });
+    const vue = scoreVacancy(
+      frontend,
+      vacancy({ title: 'Senior Front-End Developer Vue.js', description: 'Vue 3, TypeScript.' }),
+      { now },
+    );
+    const aem = scoreVacancy(frontend, vacancy({ title: 'Senior Frontend Developer (AEM / CMS Experience)' }), {
+      now,
+    });
+    expect(vue.score).toBeLessThan(react.score - 10);
+    expect(aem.score).toBeLessThan(react.score - 5);
+  });
+
+  it('reads a Portuguese middle title as one grade below senior', () => {
+    const result = scoreVacancy(frontend, vacancy({ title: 'Desenvolvedor Pleno Front end', seniority: null }), {
+      now,
+    });
+    expect(result.vacancyLevel).toBe('middle');
+    expect(result.grade).toBe('below');
+  });
+
   it('is deterministic', () => {
     const a = scoreVacancy(frontend, vacancy({}), { now });
     const b = scoreVacancy(frontend, vacancy({}), { now });

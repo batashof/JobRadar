@@ -11,6 +11,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.28.1] — 2026-10-15
+
+### Changed
+
+- **Formula quality gate is precision** (ADR-026, amends ADR-025 §9): at least 70% of the formula's top 20 must be vacancies the LLM rated 80 or more. First run: 85%. `formula:check` reports both precision and the old top-20 overlap.
+
+### Fixed
+
+- A title naming a framework the candidate does not use ("Front-End Vue.js" for a React profile, an AEM role) no longer ranks with the candidate's own stack.
+- "Pleno" (Portuguese / Spanish for middle) and "Sênior" are read as grades.
+
 ## [1.28.0] — 2026-10-15
 
 ### Added

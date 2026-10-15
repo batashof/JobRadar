@@ -25,8 +25,8 @@ export const SENIORITY_FILTER_GAP = 2;
 const LEVEL_TERMS: Record<SeniorityLevel, string[]> = {
   intern: ['intern', 'internship', 'trainee', 'стажер', 'стажёр', 'стажировка', 'практикант'],
   junior: ['junior', 'jr', 'entry-level', 'entry level', 'джуниор', 'джун', 'младший'],
-  middle: ['middle', 'mid-level', 'mid level', 'мидл', 'средний'],
-  senior: ['senior', 'sr', 'синьор', 'сеньор', 'старший'],
+  middle: ['middle', 'mid-level', 'mid level', 'pleno', 'мидл', 'средний'],
+  senior: ['senior', 'sr', 'sênior', 'синьор', 'сеньор', 'старший'],
   lead: [
     'lead',
     'principal',

@@ -20,6 +20,7 @@ import { candidateProfiles, resumeMatches, resumes, users, vacancies } from '../
 import {
   compareRankings,
   FORMULA_CHECK_GOOD_FIT,
+  FORMULA_CHECK_MIN_PRECISION,
   FORMULA_CHECK_TOP_N,
 } from '../src/matching/formula-check';
 import { type ScoringProfile, scoreVacancy } from '../src/matching/score';
@@ -83,14 +84,12 @@ async function main(): Promise<void> {
 
     console.log(`\nScored pairs: ${pairs.length}`);
     console.log(
-      `Top ${FORMULA_CHECK_TOP_N} overlap: ${result.shared}/${result.size} = ${Math.round(result.overlap * 100)}% → ${
-        result.pass ? 'PASS' : 'FAIL'
-      } (needs ≥70%)`,
-    );
-    console.log(
       `Precision: ${Math.round(result.precision * 100)}% of the formula's top ${FORMULA_CHECK_TOP_N} scored ≥${Math.round(
         FORMULA_CHECK_GOOD_FIT * 100,
-      )} by the LLM`,
+      )} by the LLM → ${result.pass ? 'PASS' : 'FAIL'} (needs ≥${Math.round(FORMULA_CHECK_MIN_PRECISION * 100)}%, ADR-026)`,
+    );
+    console.log(
+      `Top ${FORMULA_CHECK_TOP_N} overlap (diagnostic): ${result.shared}/${result.size} = ${Math.round(result.overlap * 100)}%`,
     );
 
     const byLlm = [...pairs].sort((a, b) => b.llmScore - a.llmScore).slice(0, FORMULA_CHECK_TOP_N);

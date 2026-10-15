@@ -46,6 +46,12 @@ export const FEEDBACK_MAX_POINTS = 15;
 export const SKILL_WEIGHT_BOUNDS = { min: -0.5, max: 0.5 } as const;
 export const COMPANY_WEIGHT_BOUNDS = { min: -1, max: 0.5 } as const;
 
+/**
+ * Title credit kept when the title names a stack and none of it is the
+ * candidate's ("Front-End Vue.js" for a React developer): the right job family
+ * on the wrong framework is a different job day to day.
+ */
+export const TITLE_STACK_MISMATCH = 0.5;
 /** Credit for a posting skill the candidate has only an adjacent technology for. */
 const ADJACENT_CREDIT = 0.5;
 /** A posting naming no known technology says nothing either way about skills. */
@@ -152,11 +158,14 @@ function titleSignal(
   title: string,
   family: string | null,
   coreKeys: string[],
+  ownKeys: Set<string>,
 ): { value: number; wrongFamily: boolean } {
   const families = titleFamilies(title);
-  if (family && families.has(family)) return { value: 1, wrongFamily: false };
+  const titleSkills = detectVacancySkills(title, '');
+  const stack = titleSkills.length > 0 && !titleSkills.some((key) => ownKeys.has(key)) ? TITLE_STACK_MISMATCH : 1;
+  if (family && families.has(family)) return { value: stack, wrongFamily: false };
   if (family && (COMPATIBLE[family] ?? []).some((other) => families.has(other))) {
-    return { value: 0.7, wrongFamily: false };
+    return { value: 0.7 * stack, wrongFamily: false };
   }
   // A title naming another job family is a different job, however the
   // description reads.
@@ -257,7 +266,7 @@ export function scoreVacancy(
 
   const skills = Math.min(1, 0.5 * coverage + 0.5 * coreUse);
   const coreKeys = [...own.entries()].filter(([, w]) => w === 1).map(([key]) => key);
-  const title = titleSignal(vacancy.title, roleFamily(profile.role), coreKeys);
+  const title = titleSignal(vacancy.title, roleFamily(profile.role), coreKeys, new Set(own.keys()));
   const grade = gradeSignal(profile.grade, vacancy);
   const freshness = freshnessSignal(vacancy.publishedAt, options.now);
 

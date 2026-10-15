@@ -20,6 +20,11 @@ describe('detectSeniority (shared, ADR-012)', () => {
     expect(detectSeniority('Ведущий инженер')).toBe('lead');
   });
 
+  it('reads Portuguese level words', () => {
+    expect(detectSeniority('Desenvolvedor Pleno Front end')).toBe('middle');
+    expect(detectSeniority('Desenvolvedor Sênior React')).toBe('senior');
+  });
+
   it('returns null when no level word is present', () => {
     expect(detectSeniority('Frontend Engineer')).toBeNull();
     expect(detectSeniority('Разработчик React')).toBeNull();

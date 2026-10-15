@@ -58,7 +58,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.28.0** (phase 5.3: bot users get vacancies scored by a deterministic formula against their confirmed profile, with every delivery setting in `/settings`; keep this line in sync on every bump).
+- **Current version: 1.28.1** (phase 5.3: bot users get vacancies scored by a deterministic formula against their confirmed profile, gated by precision against the LLM (ADR-026), with every delivery setting in `/settings`; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;
