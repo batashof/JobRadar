@@ -148,6 +148,7 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 ### 5.4 New sources (v1.29.0)
 
 - [ ] DOU.ua and Djinni RSS feeds by category / keyword.
+- [ ] **More Telegram channels** (the primary source, ADR-009; 7 channels today, all RU/IT and mostly frontend). Study TGStat: its free website catalog ("Работа и вакансии" category, search, similar channels) and whether its API has a free tier usable under ADR-001 (sign-up and a token are needed even for the non-billed methods). Also Telegram's own "similar channels", reposts in the channels already read, and public lists such as t-j.ru. Probe every candidate as `seed-data.ts` describes (reachable, posts often, vacancies not noise) and cover the stacks other bot users need, not only frontend. Hirify's catalogue is not a source: its terms forbid extracting its list of sources for another product (single channels seen while browsing are fine).
 - [ ] SmartRecruiters, Recruitee, Personio public job APIs with a curated company list, like the Greenhouse/Ashby/Lever boards.
 - [ ] Re-read each source's terms for redistribution to other people; disable the doubtful ones for non-owners with one setting.
 - [ ] Optional: Adzuna / Jooble / Findwork (free key) after checking their limits and attribution rules.

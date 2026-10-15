@@ -22,6 +22,15 @@
 | Notes | Store the session string as a secret; a run yielding zero items across all channels sets `last_run_status='empty'` and alerts (likely a broken template or ban) |
 | Setup | Generate the session string locally with `pnpm --filter @jobradar/api telegram:session` (interactive, asks phone/code/2FA). Channels live in `sources.config.channels` (usernames without `@`, `messagesPerChannel` defaults to 50). The worker skips politely (no alert) while secrets or the channel list are missing |
 
+**Growing the channel list (roadmap 5.4).** Seven channels is the main limit on coverage: comparable aggregators read hundreds (Hirify, about 960). Ways to find candidates, all without automated access to anyone's catalogue:
+
+- **TGStat** (tgstat.ru, a Telegram channel statistics service): the free website catalog, category "Работа и вакансии", keyword search and its similar-channels lists. Its API (api.tgstat.ru) needs a registered token and an activated plan even for the non-billed methods; use it only if that plan is free (ADR-001), otherwise the website by hand.
+- Telegram's own "similar channels" block shown after subscribing, and reposts / mentions inside the channels already read.
+- Public curated lists (for example t-j.ru's list of IT job channels).
+- Not Hirify (hirify.me): its terms of service §3.2 forbid collecting its vacancies or "сведения об источниках" to build another product. The channels themselves are public and not Hirify's, so a channel noticed while browsing may be added; bulk-extracting its catalogue may not.
+
+Every candidate is probed before it goes into `sources.config.channels` (reachable, posts at least weekly, mostly vacancies rather than resumes, ads or chatter), as the comment in `apps/api/src/db/seed-data.ts` describes. Since 2.0.0 serves other users, cover backend, mobile, QA, data, DevOps and design channels too, not only frontend.
+
 ### 2. WeWorkRemotely — RSS — **active (secondary)**
 
 | | |
@@ -138,6 +147,8 @@ Each was fetched live and inspected before being turned down; recorded so they a
 | Jobspresso | WordPress job feed capped at 10 items |
 | NoDesk, startup.jobs, remote.co, RemoteRocketship, remotejobs.io, wfh.io | 403/404/dead — no usable public feed |
 | Adzuna, Findwork.dev, Jooble | Free tiers exist but require registering for an API key; revisit only if the free boards stop being enough |
+| Hirify (hirify.me) | Aggregator of ~960 Telegram channels + career pages. No RSS or public API, `/api/*` closed in robots.txt, and its terms (§3.2) forbid collecting its vacancies or source list for another product (probed 2026-10-15) |
+| Instahyre (instahyre.com) | An unauthenticated internal endpoint `/api/v1/job_search` returns ~12.7k jobs, but almost all are in India (Bangalore, Gurgaon, Hyderabad; "Work From Home" is India-remote), the list carries no description, and the API is not documented as public (probed 2026-10-15) |
 | Workable | `apply.workable.com/api/v1/widget/accounts/<token>` returns the company profile, not its jobs; no public per-company job endpoint found |
 
 ### RemoteOK — deactivated 2026-07-28 (ADR-016)

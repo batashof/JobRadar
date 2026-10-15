@@ -10,6 +10,14 @@
 - Merged ([batashof/JobRadar#17](https://github.com/batashof/JobRadar/pull/17)); `formula:check` on prod: precision 90% → PASS. The "Pleno" and AEM roles left the formula's top; the Vue.js role stayed because the "js" of "Vue.js" matched JavaScript, which the profile has. v1.28.2: a dot before a phrase breaks the match.
 - **Next step:** phase 5.4 (new sources).
 
+## 2026-10-15 — Instahyre / Hirify research; TGStat and more Telegram channels in the plan
+
+- Researched Instahyre (Indian two-sided hiring platform, employers pay) and Hirify (RU aggregator of ~960 Telegram channels, 399 ₽/month subscription). Notes in the project's shared folder (`research/instahyre-hirify.md`).
+- Neither is a vacancy source: Hirify's terms forbid it, Instahyre is India-only and has no descriptions in its list. Both added to "Boards probed and rejected" in DATA_SOURCES.md.
+- Developer's request: study TGStat and add new Telegram channels. New roadmap item under 5.4; DATA_SOURCES.md describes where to find channels and how to probe them.
+- No code or version change.
+- **Next step:** do it in 5.4: list candidate channels from TGStat and the other routes, probe them, extend `sources.config.channels`.
+
 ## 2026-10-15 — Formula matching and /settings in the bot (v1.28.0, roadmap 5.3)
 
 - Merged 5.2 ([batashof/JobRadar#12](https://github.com/batashof/JobRadar/pull/12)); `DB (prod)` → `migrate` applied `0020`.
