@@ -1,3 +1,4 @@
+import { SQL } from "drizzle-orm";
 import type { BotCallbackContext } from "../bot/bot.service";
 import {
   candidateProfiles,
@@ -11,6 +12,7 @@ import {
 import {
   DigestSendService,
   INSTANT_SETTLE_MINUTES,
+  ownerOnlySource,
   profileTerms,
 } from "./digest-send.service";
 
@@ -22,6 +24,8 @@ import {
 function makeDb() {
   const queues = new Map<unknown, unknown[][]>();
   const writes: { kind: string; table: unknown; values?: unknown }[] = [];
+  /** Every `where()` argument of a read, by the table its `from()` names. */
+  const wheres: { table: unknown; condition: unknown }[] = [];
 
   const chain = () => {
     let table: unknown;
@@ -39,6 +43,7 @@ function makeDb() {
           }
           return (arg: unknown) => {
             if (prop === "from" && table === undefined) table = arg;
+            if (prop === "where") wheres.push({ table, condition: arg });
             return proxy;
           };
         },
@@ -74,9 +79,21 @@ function makeDb() {
   return {
     db: db as never,
     writes,
+    wheres,
     queue: (table: unknown, ...responses: unknown[][]) =>
       queues.set(table, responses),
   };
+}
+
+/**
+ * Whether a drizzle condition embeds `needle`. Walks SQL chunks only: the
+ * fake's subqueries are proxies and must not be rendered.
+ */
+function containsSql(node: unknown, needle: SQL, seen = new Set<unknown>()): boolean {
+  if (node === needle) return true;
+  if (!(node instanceof SQL) || seen.has(node)) return false;
+  seen.add(node);
+  return node.queryChunks.some((chunk) => containsSql(chunk, needle, seen));
 }
 
 const makeBot = () => ({
@@ -759,6 +776,31 @@ describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
     expect(sent[0]?.values).toMatchObject({ vacancyId: "fit" });
     const card = bot.sendToUser.mock.calls[1][1] as string;
     expect(card).toContain("Matched: React, TypeScript; missing: GraphQL; grade: Senior ✓");
+  });
+
+  it("never offers a non-owner the owner's own sources", async () => {
+    const { db, queue, wheres } = makeDb();
+    queue(digestSettings, [userRow()]);
+    queue(candidateProfiles, [profileRow()]);
+    queue(vacancies, []);
+
+    await service(db, makeBot(), makeLlm()).sendNow("user-1", NOW);
+
+    const condition = wheres.find((w) => w.table === vacancies)?.condition;
+    expect(containsSql(condition, ownerOnlySource)).toBe(true);
+  });
+
+  it("keeps the owner's own sources for the owner", async () => {
+    const { db, queue, wheres } = makeDb();
+    queue(digestSettings, [settingsRow({ minScore: 0 })]);
+    queue(vacancies, []);
+    queue(resumes, []);
+
+    await service(db, makeBot(), makeLlm()).sendNow("user-1", NOW);
+
+    const condition = wheres.find((w) => w.table === vacancies)?.condition;
+    expect(condition).toBeDefined();
+    expect(containsSql(condition, ownerOnlySource)).toBe(false);
   });
 
   it("sends nothing until the profile is confirmed", async () => {

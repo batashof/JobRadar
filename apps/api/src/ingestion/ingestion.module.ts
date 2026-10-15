@@ -13,6 +13,7 @@ import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
 import { TelegramIngestService } from './telegram/telegram.service';
 import { WorkingNomadsIngestService } from './workingnomads/workingnomads.service';
+import { UaBoardsIngestService } from './ua-boards/ua-boards.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { IngestionController } from './ingestion.controller';
 import { IngestionProcessor } from './ingestion.processor';
@@ -34,6 +35,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
     WorkingNomadsIngestService,
     TelegramIngestService,
     WwrIngestService,
+    UaBoardsIngestService,
     LinkedInAlertsIngestService,
     IngestionTokenGuard,
   ],

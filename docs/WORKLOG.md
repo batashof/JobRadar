@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — DOU, Djinni, SmartRecruiters, owner-only sources (v1.29.0, roadmap 5.4)
+
+- Probed live: DOU RSS (25 per category), Djinni RSS (up to 100 per keyword), SmartRecruiters (ServiceNow 26, Experian 16, Freshworks 8, Canva 7 remote engineering roles). Recruitee and Personio: 48 guessed company tokens, nothing with remote engineering roles, so no adapter.
+- `ingestion/ua-boards/`: one worker for DOU and Djinni, deduplicated by posting id across feeds. DOU titles split at the last " в "; Djinni has no employer, so `company_normalized = 'unknown'` keeps dedup from merging anonymous postings.
+- ATS: SmartRecruiters adapter; details fetched only for postings not stored yet (at most 40 per board per run).
+- Terms re-read (Himalayas, Remotive, DOU; Djinni has no terms page). `sources.config.ownerOnly` hides a source from non-owners in the digest and `/settings`; set on LinkedIn alerts.
+- Rebased onto [batashof/JobRadar#19](https://github.com/batashof/JobRadar/pull/19), which added the "more Telegram channels" item to 5.4.
+- **Next step:** merge, `DB (prod)` → `migrate` to seed the new sources; then the rest of 5.4 (more Telegram channels, LinkedIn forwarding address).
+
 ## 2026-10-15 — Formula gate by precision, three formula fixes (v1.28.1)
 
 - `formula:check` on prod after [batashof/JobRadar#16](https://github.com/batashof/JobRadar/pull/16): precision 85% (17/20 of the formula's top rated ≥80 by the LLM), overlap still 15%.

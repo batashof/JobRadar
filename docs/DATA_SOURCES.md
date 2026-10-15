@@ -115,18 +115,55 @@ Every candidate is probed before it goes into `sources.config.channels` (reachab
 | Alerts | Emails in the window but zero jobs parsed → `empty` (the layout changed). No alert emails in the window → `notModified` (normal: alerts are daily). An IMAP failure → `error` |
 | Setup | 1. On the LinkedIn account: Jobs → create 3–5 **Job Alerts** (keywords, location, Remote, experience level), email notifications on. 2. Recommended: a **dedicated Gmail** for JobRadar (the app password opens the whole mailbox); on the main Gmail, a filter `from:jobalerts-noreply@linkedin.com` → *Forward to* that address. 3. On the dedicated account: 2-step verification → App passwords → create one. 4. `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD` in `.env` and in Render. 5. Check the parse: `pnpm --filter @jobradar/api linkedin:alerts:preview` (live mailbox, read-only) or `… --file alert.eml` (a saved email) — prints the jobs, writes nothing. 6. Production: GitHub Actions → `DB (prod)` → `migrate` (migration `0017` + the `linkedin` source row); `GET /health` → `checks.linkedinAlertsConfigured: true` |
 
-## Planned sources (phase 5.4, ADR-024)
+### 10. DOU.ua — RSS — **active (phase 5.4)**
 
-Probed live on 2026-10-15; implemented in roadmap step 5.4. Each one's terms are re-read for redistribution to other users before it is enabled for them.
+| | |
+|---|---|
+| Kind | Public RSS, one feed per category: `https://jobs.dou.ua/vacancies/feeds/?category=<category>` (25 newest each) |
+| Categories | `sources.config.categories`, default Front End, Node.js, Python, Java, .NET, PHP, QA, DevOps, Golang, iOS/macOS, Android, Data Science (`DEFAULT_DOU_CATEGORIES`) |
+| Auth | None |
+| Data quality | Good: full posting HTML in `description`. The title carries the rest: `<role> в <company>, <cities>, <salary>, віддалено`; the worker splits it at the last " в ". Salary only when given in $ or € (UAH figures are left out). `віддалено` → remote; a city alone leaves the format unknown, since it may be hybrid |
+| `external_id` / `url` | `dou:<vacancy id>` / the posting link without `utm_source` |
+| Terms | DOU's rules license published content under CC BY-NC-SA (non-commercial, attribution) and ask for no automated collection without consent (§2.5). The feeds are published for subscribers; JobRadar reads only them, is free, links every card to the posting and names the source. If DOU objects, `ownerOnly: true` in its seed config keeps it to the owner |
 
-| Source | How | Probe result |
+### 11. Djinni — RSS — **active (phase 5.4)**
+
+| | |
+|---|---|
+| Kind | Public RSS, one feed per primary keyword: `https://djinni.co/jobs/rss/?primary_keyword=<keyword>` (up to 100 each) |
+| Keywords | `sources.config.keywords`, default JavaScript, TypeScript, React.js, Node.js, Python, Java, .NET, PHP, QA, DevOps, Golang, iOS, Android, Data Science (`DEFAULT_DJINNI_KEYWORDS`) |
+| Auth | None |
+| Data quality | Full posting HTML, title, date. **No employer**: Djinni lets companies stay anonymous, so the card says "Company on Djinni" and `company_normalized` is `unknown`, which deduplication never matches on (two anonymous "Frontend Developer" postings must not merge). No salary, location or format in the feed |
+| `external_id` / `url` | `djinni:<job id>` / the posting link |
+| Terms | No published terms page found (2026-10-15). Public feeds, read gently, every card links back |
+
+Both boards share one worker (`ingestion/ua-boards/`). Feeds overlap (a React role is in the JavaScript and TypeScript feeds), so postings are deduplicated by id within a run. A feed that fails is skipped; a run where every feed fails is an error. Default 4-hour interval.
+
+### SmartRecruiters (inside source 7, ATS) — **active (phase 5.4)**
+
+`https://api.smartrecruiters.com/v1/companies/<token>/postings`, no key. The list has no description, so the worker keeps postings with `location.remote` true and `hybrid` false and an engineering title, then fetches each kept posting's detail (`ref`) **only when it is not stored yet**, at most 40 per board per run, newest first. The description is the job ad's job description, qualifications and additional information; the "company description" section is boilerplate and left out. Companies, probed 2026-10-15 (remote engineering postings): ServiceNow 26, Experian 16, Freshworks 8, Canva 7. Bosch has 5,000 postings and none remote and technical.
+
+### Who receives which source (roadmap 5.4)
+
+`sources.config.ownerOnly: true` keeps a source to the owner: other bot users never get its vacancies (`digest-send.service.ts`, `ownerOnlySource`) and do not see it in `/settings`. Set today on **LinkedIn alerts**, which are the owner's own personal job alerts. Terms re-read on 2026-10-15 for the rest:
+
+| Source | Terms on redistribution | For everyone? |
 |---|---|---|
-| DOU.ua | RSS per category, `https://jobs.dou.ua/vacancies/feeds/?category=Front%20End` | RSS, 25 Front End vacancies |
-| Djinni | RSS per keyword, `https://djinni.co/jobs/rss/?primary_keyword=JavaScript` | RSS works (the older note "no public API, HTML parsing" was wrong) |
-| SmartRecruiters | `https://api.smartrecruiters.com/v1/companies/<id>/postings` | No key; Bosch returned 5054 postings |
-| Recruitee | `https://<company>.recruitee.com/api/offers/` | No key |
-| Personio | `https://<company>.jobs.personio.de/xml` | No key |
-| Adzuna, Jooble, Findwork.dev | Free key after signup | Not probed; check limits and attribution first |
+| Himalayas | Use is allowed with a link back to the posting and the source named; not to be resubmitted to other job boards | Yes: cards link to the posting and name the source |
+| Remotive | "Granted so that developers can share our jobs further", link back and name Remotive; not to be submitted to third-party boards | Yes, same |
+| Jobicy, Working Nomads | Link back to the posting (their API pages have moved; the seed already records `linkBackRequired`) | Yes |
+| WeWorkRemotely, HN, ATS boards | Public feeds of employers' own postings | Yes |
+| Telegram channels | Public channel posts, each card is a `t.me` link | Yes |
+| DOU, Djinni | See above | Yes |
+| LinkedIn alerts | The owner's personal alerts | **Owner only** |
+
+### Probed, not added (phase 5.4)
+
+| Source | Why |
+|---|---|
+| Recruitee (`https://<company>.recruitee.com/api/offers/`) | No key, but 25 guessed company tokens gave 404 or boards without a single remote engineering role (bunq 22 offers, 0 remote). Add a board only when a company with remote roles is known to use it |
+| Personio (`https://<company>.jobs.personio.de/xml`) | Same: 23 guessed tokens, 404 or no remote roles (ottonova 10, tado 2) |
+| Adzuna, Jooble, Findwork.dev | Free key after signup; not probed yet, check limits and attribution first |
 
 Not available: Habr Career (the site's internal API answers, but it is not public; not used without Habr's permission), Workable (no public list, the API needs a company token: 401), Workday, Indeed, Glassdoor, Wellfound (no public API).
 

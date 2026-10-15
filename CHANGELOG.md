@@ -11,6 +11,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.29.0] — 2026-10-15
+
+### Added
+
+- **DOU.ua and Djinni** (roadmap 5.4): public RSS feeds, 12 DOU categories and 14 Djinni keywords, every 4 hours. DOU titles give the company, cities, a dollar or euro salary and the remote marker; Djinni does not name employers, so its cards say "Company on Djinni".
+- **SmartRecruiters** boards in the ATS source: ServiceNow, Experian, Freshworks, Canva, remote engineering roles only. A posting's details are fetched once, when it first appears.
+- `sources.config.ownerOnly`: a source other bot users never receive and do not see in `/settings`. Set on LinkedIn alerts, which are the owner's own.
+
+### Changed
+
+- DATA_SOURCES.md records each source's terms on redistribution, and why Recruitee and Personio are not added yet.
+
 ## [1.28.2] — 2026-10-15
 
 ### Fixed

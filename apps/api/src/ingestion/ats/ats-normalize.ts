@@ -16,7 +16,7 @@ import { parseSalaryString } from '../salary';
  * actually publishes.
  */
 
-export type AtsKind = 'greenhouse' | 'ashby' | 'lever';
+export type AtsKind = 'greenhouse' | 'ashby' | 'lever' | 'smartrecruiters';
 
 export interface AtsCompany {
   ats: AtsKind;
@@ -220,5 +220,73 @@ export function normalizeLeverJob(
     location: job.categories?.location?.trim().slice(0, 120) || job.country?.trim() || null,
     // `createdAt` is a Unix timestamp in milliseconds.
     publishedAt: job.createdAt ? new Date(job.createdAt) : null,
+  };
+}
+
+// ----------------------------------------------------------- SmartRecruiters
+
+/**
+ * `https://api.smartrecruiters.com/v1/companies/<token>/postings` — the list
+ * carries no description, so the worker fetches the detail (`ref`) of each
+ * posting that passes the remote and tech filters here.
+ */
+export interface SmartRecruitersPosting {
+  id?: string;
+  name?: string;
+  ref?: string;
+  releasedDate?: string;
+  location?: { remote?: boolean; hybrid?: boolean; fullLocation?: string };
+  function?: { label?: string };
+  department?: { label?: string };
+  typeOfEmployment?: { label?: string };
+}
+
+export interface SmartRecruitersDetail extends SmartRecruitersPosting {
+  postingUrl?: string;
+  jobAd?: {
+    sections?: Record<string, { title?: string; text?: string } | undefined>;
+  };
+}
+
+/** Remote, not hybrid, and an engineering title or function. */
+export function isSmartRecruitersCandidate(posting: SmartRecruitersPosting): boolean {
+  if (!posting.id || !posting.name || !posting.ref) return false;
+  if (!posting.location?.remote || posting.location.hybrid) return false;
+  return isTechRole(posting.name, posting.department?.label);
+}
+
+/** The job ad's sections, minus the boilerplate "about us" one. */
+function smartRecruitersDescription(detail: SmartRecruitersDetail): string {
+  const sections = detail.jobAd?.sections ?? {};
+  return ['jobDescription', 'qualifications', 'additionalInformation']
+    .map((key) => sections[key]?.text ?? '')
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function normalizeSmartRecruitersJob(
+  detail: SmartRecruitersDetail,
+  company: AtsCompany,
+  sourceId: string,
+): NewVacancy | null {
+  if (!isSmartRecruitersCandidate(detail)) return null;
+  const rawDescription = smartRecruitersDescription(detail);
+  if (!hasSubstantialDescription(rawDescription)) return null;
+
+  return {
+    sourceId,
+    externalId: `smartrecruiters:${company.token}:${detail.id}`,
+    url: detail.postingUrl ?? `https://jobs.smartrecruiters.com/${company.token}/${detail.id}`,
+    title: detail.name!,
+    companyRaw: company.name,
+    companyNormalized: normalizeCompanyName(company.name),
+    description: cleanDescription(rawDescription),
+    workFormat: 'remote',
+    employmentType: mapLeverEmployment(detail.typeOfEmployment?.label),
+    salaryMin: null,
+    salaryMax: null,
+    salaryCurrency: null,
+    location: detail.location?.fullLocation?.replace(/,\s*,/g, ',').trim().slice(0, 120) || null,
+    publishedAt: detail.releasedDate ? new Date(detail.releasedDate) : null,
   };
 }

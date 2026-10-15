@@ -121,4 +121,76 @@ describe('AtsIngestService', () => {
     ).resolves.toEqual({ fetched: 0, upserted: 0 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  describe('smartrecruiters', () => {
+    const company: AtsCompany = { ats: 'smartrecruiters', token: 'Canva', name: 'Canva' };
+    const srSource = { ...source, config: { companies: [company] } } as typeof source;
+    const posting = (id: string, over: Record<string, unknown> = {}) => ({
+      id,
+      name: 'Senior Frontend Engineer',
+      ref: `https://api.smartrecruiters.com/v1/companies/Canva/postings/${id}`,
+      releasedDate: `2026-10-0${id}T00:00:00Z`,
+      location: { remote: true, hybrid: false, fullLocation: 'Sydney, , Australia' },
+      typeOfEmployment: { label: 'Full-time' },
+      ...over,
+    });
+    const detail = (id: string) => ({
+      ...posting(id),
+      postingUrl: `https://jobs.smartrecruiters.com/Canva/${id}-senior-frontend-engineer`,
+      jobAd: {
+        sections: {
+          companyDescription: { text: 'About Canva' },
+          jobDescription: { text: `<p>${BODY}</p>` },
+          qualifications: { text: '<p>React, TypeScript</p>' },
+        },
+      },
+    });
+    /** Fake drizzle returning the stored external ids. */
+    const dbWith = (stored: string[]) =>
+      ({
+        select: () => ({
+          from: () => ({ where: () => Promise.resolve(stored.map((externalId) => ({ externalId }))) }),
+        }),
+      }) as never;
+
+    it('lists postings, keeps remote tech ones and fetches only their details', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          ok({
+            totalFound: 3,
+            content: [
+              posting('1'),
+              posting('2', { location: { remote: true, hybrid: true } }),
+              posting('3', { name: 'Account Executive' }),
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(ok(detail('1')));
+
+      const result = await new AtsIngestService(dbWith([])).ingest(srSource);
+
+      expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
+        'https://api.smartrecruiters.com/v1/companies/Canva/postings?limit=100&offset=0',
+        'https://api.smartrecruiters.com/v1/companies/Canva/postings/1',
+      ]);
+      expect(result.fetched).toBe(1);
+      const [row] = upsertMock.mock.calls[0][1];
+      expect(row).toMatchObject({
+        externalId: 'smartrecruiters:Canva:1',
+        url: 'https://jobs.smartrecruiters.com/Canva/1-senior-frontend-engineer',
+        workFormat: 'remote',
+        employmentType: 'full_time',
+        location: 'Sydney, Australia',
+      });
+      expect(row.description).toContain('React, TypeScript');
+      expect(row.description).not.toContain('About Canva');
+    });
+
+    it('skips the detail request for postings already stored', async () => {
+      fetchMock.mockResolvedValueOnce(ok({ totalFound: 1, content: [posting('1')] }));
+      const result = await new AtsIngestService(dbWith(['smartrecruiters:Canva:1'])).ingest(srSource);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result.fetched).toBe(0);
+    });
+  });
 });

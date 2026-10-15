@@ -19,6 +19,8 @@ describe('seed data', () => {
       'himalayas',
       'workingnomads',
       'linkedin',
+      'dou',
+      'djinni',
     ]);
   });
 
@@ -66,6 +68,13 @@ describe('seed data', () => {
     expect(companies.filter((c) => c.name === 'Temporal')).toEqual([
       { ats: 'ashby', token: 'temporal', name: 'Temporal' },
     ]);
+  });
+
+  it('keeps the owner\'s LinkedIn alerts away from other users, and only them', () => {
+    const ownerOnly = SEED_SOURCES.filter(
+      (s) => (s.config as { ownerOnly?: boolean } | undefined)?.ownerOnly,
+    ).map((s) => s.slug);
+    expect(ownerOnly).toEqual(['linkedin']);
   });
 
   it('uses only valid source kinds', () => {
