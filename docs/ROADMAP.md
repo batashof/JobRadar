@@ -172,6 +172,16 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 
 **Exit criterion:** a stranger goes from `/start` to the first matching vacancy in 3 minutes without a website; 10 testers use it. Release 2.0.0.
 
+### 5.7 Bot UX polish (v2.0.x, after 2.0.0)
+
+The developer's notes of 2026-10-15, to do once the current plan is done:
+
+- [ ] **Every command in the bot menu.** Register the command list with `setMyCommands` (per language, `ru` and `en`) so `/start`, `/settings`, `/help`, `/privacy` and the rest show in Telegram's menu button; today none are registered. A test keeps the menu in sync with the commands `BotService.registerCommand` knows.
+- [ ] **Bigger `/settings` buttons with icons.** Telegram draws inline buttons as wide as their row, so the fix is fewer buttons per row (one or two instead of three) with an emoji icon per action (🕒 times, 🌍 timezone, 🔕 quiet hours, 💼 format, 💰 salary, 📡 sources, 🌐 language, ⏸ pause) and labels that fit without being cut.
+- [ ] **Button texts say what they do.** The language button shows the other language's name ("English" / "Русский") instead of "🌐 Язык: Русский" / "🌐 Language: English"; review every button of the bot for the same mistake (a value where the setting's name should be).
+
+**Exit criterion:** every command is reachable from the menu, and no `/settings` button text is cut or ambiguous on a phone.
+
 ### Later (not in 2.0.0)
 
 - [ ] Telegram Mini App for settings and a filtered feed, only if chat dialogs prove too clumsy (ADR-024 §5).
