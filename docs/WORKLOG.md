@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — CLAUDE.md becomes a docs map
+
+- Replaced the "read in this order" list with a table mapping questions to docs (PRODUCT, ROADMAP, ARCHITECTURE, DATA_MODEL, DATA_SOURCES, ADR index, RISKS, runbooks, WORKLOG/CHANGELOG), so a session opens the one file it needs.
+- Added a short code map (apps, packages, workflows) and the local check commands CI runs.
+- Fixed a stale rule: work goes through a PR that is merged once CI is green (standing permission), migrations are applied with `DB (prod)` → `migrate` right after the merge. Removed the "once code exists" leftover.
+- Merged PR #7 (v1.24.0) and ran `DB (prod)` → `migrate` for `0018`.
+- Next step: watch the next digest push on 1.24.0.
+
 ## 2026-10-14 — The digest sends every new vacancy (v1.24.0)
 
 - **Request:** pushes always held 10 vacancies; the user wants every new one since the previous notification.

@@ -7,15 +7,31 @@ This file is the entry point for AI assistants (Claude Code) working on this rep
 - **Everything in this repository is written in English**: code, comments, commit messages, documentation, issues.
 - The developer communicates in Russian in chat; respond in Russian, but produce all artifacts (code, docs, commits) in English.
 
-## Where to get context (read in this order)
+## Docs map — which file answers which question
 
-1. [docs/PRODUCT.md](docs/PRODUCT.md) — what we are building, for whom, v1.0 scope, what is explicitly out of scope.
-2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, repo layout, stack and why.
-3. [docs/ROADMAP.md](docs/ROADMAP.md) — phases and their checklists; **the current phase is marked there**.
-4. [docs/DATA_MODEL.md](docs/DATA_MODEL.md) — DB entities.
-5. [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) — ingestion sources, their limits and politeness rules.
-6. [docs/decisions/](docs/decisions/) — ADRs. Do not silently violate an accepted ADR; if a change is needed, propose a new ADR that supersedes it.
-7. [docs/WORKLOG.md](docs/WORKLOG.md) — what has already been done, session by session.
+The docs are the source of truth. Open the one that matches the task instead of re-deriving it from code; search the code only for what the docs do not say.
+
+| Question | Read |
+|---|---|
+| What are we building, for whom, what is in or out of scope? | [docs/PRODUCT.md](docs/PRODUCT.md) |
+| Which phase is current, what is done, what is next? | [docs/ROADMAP.md](docs/ROADMAP.md) (current phase is marked at the top) |
+| How the system fits together: services, repo layout, stack, schedulers, the two Telegram integrations, ingestion flow | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Tables, columns, migrations, dedup rules | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) (migrations live in `apps/api/drizzle/`) |
+| Vacancy sources: which are active, their limits, politeness, the normalization contract, rejected boards | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) |
+| Why something is the way it is | [docs/decisions/README.md](docs/decisions/README.md): ADR index with status; one file per decision, `docs/decisions/NNN-*.md` |
+| Known risks (free-tier limits, Upstash command budget, parser breakage) | [docs/RISKS.md](docs/RISKS.md) |
+| Production operations (DB migrations, Supabase setup) | [docs/runbooks/](docs/runbooks/) and the `DB (prod)` workflow (`.github/workflows/db-prod.yml`) |
+| What happened recently and why | [docs/WORKLOG.md](docs/WORKLOG.md) (newest on top; read the first few entries, not the whole file) and [CHANGELOG.md](CHANGELOG.md) |
+
+`docs/original-plan.ru.md` is the historical planning document (Russian), superseded by the files above. Do not silently violate an accepted ADR; if a change is needed, add a new ADR that supersedes or amends it.
+
+## Code map and commands
+
+- `apps/api` — NestJS backend, one folder per module in `src/` (`ingestion`, `vacancies`, `matching`, `digest`, `bot`, `llm`, `resumes`, `outreach`, `interview`, `planner`, …); Drizzle schema and prod DB scripts in `src/db/`. Tests: Jest, `*.spec.ts` next to the code. Deployed to Render (`render.yaml`, auto-deploys `main`).
+- `apps/web` — Next.js App Router frontend (`app/`, `components/`, `lib/`). Tests: Vitest + React Testing Library. Deployed to Vercel.
+- `packages/shared` — types and schemas shared by both apps.
+- `.github/workflows/` — `ci.yml` (build, lint, typecheck, test), `ingestion-cron.yml` (every 4 h), `keep-alive.yml`, `db-prod.yml` (manual: `check`, `migrate`, maintenance tasks).
+- Local: `docker compose up -d` (Postgres + Redis), `pnpm install`, then `pnpm build && pnpm lint && pnpm typecheck && pnpm test`, the same checks CI runs. No secrets are needed for them.
 
 ## Non-negotiable project constraints
 
@@ -64,8 +80,7 @@ Documentation must never lag behind reality:
 ## Development conventions
 
 - TypeScript everywhere, strict mode.
-- Monorepo layout (once code exists): `apps/web`, `apps/api`, `packages/shared` (ADR-002 / ARCHITECTURE.md).
 - Conventional Commits for commit messages (`feat:`, `fix:`, `docs:`, `chore:`, ...).
 - Tests and lint must pass in CI before merge.
-- **Commit & push — mandatory.** After completing a coherent chunk of work, commit it (Conventional Commits; direct to `main` is fine for this solo project) and push to the remote in the same session. Do not leave finished work uncommitted; no explicit request from the developer is needed.
+- **Commit, push, merge — mandatory.** After completing a coherent chunk of work, commit it (Conventional Commits), push it on a branch and open a PR in the same session. Once the feature or fix is complete and CI is green, merge the PR yourself: the developer has given standing permission, no explicit request is needed. If the PR adds a migration, apply it with `DB (prod)` → `migrate` right after the merge, since Render deploys `main` automatically.
 - **Tests — mandatory for both apps.** Every feature or fix in `apps/web` (frontend, Vitest + React Testing Library) and `apps/api` (backend, Jest) lands together with tests covering it. New code without tests does not count as done.
