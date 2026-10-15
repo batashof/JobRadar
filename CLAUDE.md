@@ -58,7 +58,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.25.0** (a 10-minute ingestion tick fired by Supabase pg_cron, with per-source intervals, so fresh vacancies reach Telegram within minutes; keep this line in sync on every bump).
+- **Current version: 1.26.0** (phase 5.1: accounts are created in the Telegram bot by `/start`, with owner/user roles, `/privacy` and `/delete`; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

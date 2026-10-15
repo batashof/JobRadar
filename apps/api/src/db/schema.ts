@@ -166,7 +166,9 @@ const updatedAt = () => timestamp('updated_at', { withTimezone: true }).defaultN
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').notNull().unique(),
+  // Null for accounts created in the Telegram bot (ADR-024): they have no
+  // email, no password and no web login.
+  email: text('email').unique(),
   passwordHash: text('password_hash'),
   oauthProvider: text('oauth_provider'),
   oauthId: text('oauth_id'),
@@ -177,6 +179,12 @@ export const users = pgTable('users', {
   // OAuth refresh token for the Gmail `gmail.send` scope (ADR-011).
   // Null = email apply disabled. Encrypted at rest by the app layer.
   gmailRefreshToken: text('gmail_refresh_token'),
+  // Telegram user id (`from.id`) of the account's owner; set by `/start`.
+  // Unique: one Telegram user, one account (ADR-024).
+  telegramUserId: text('telegram_user_id').unique(),
+  // 'owner' (the author) | 'user'. LLM-per-action features and the ones that
+  // need the user's own credentials are owner-only (ADR-024 §3).
+  role: text('role').notNull().default('user'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -578,6 +586,22 @@ export const telegramAccounts = pgTable(
     uniqueIndex('telegram_accounts_chat_id_idx').on(t.chatId),
     uniqueIndex('telegram_accounts_link_token_idx').on(t.linkToken),
   ],
+);
+
+// Product analytics for the activation funnel (ADR-024): what happened, to
+// whom, when. No message text and no resume content, only event names and
+// small ids/counters. `user_id` is nulled on account deletion, so the funnel
+// keeps its counts while the person is gone.
+export const events = pgTable(
+  'events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    props: jsonb('props').$type<Record<string, string | number | boolean>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('events_name_created_at_idx').on(t.name, t.createdAt)],
 );
 
 // ---------------------------------------------------------------------------

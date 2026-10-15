@@ -167,7 +167,15 @@ export class DigestSendService implements OnModuleInit {
       .innerJoin(users, eq(users.id, digestSettings.userId))
       .leftJoin(plannerSettings, eq(plannerSettings.userId, digestSettings.userId))
       .innerJoin(telegramAccounts, eq(telegramAccounts.userId, digestSettings.userId))
-      .where(and(eq(digestSettings.enabled, true), sql`${telegramAccounts.chatId} is not null`));
+      // The LLM-verdict digest is owner-only (ADR-024 §3); other users get the
+      // formula-scored digest of ADR-025 once it lands (roadmap 5.3).
+      .where(
+        and(
+          eq(digestSettings.enabled, true),
+          eq(users.role, 'owner'),
+          sql`${telegramAccounts.chatId} is not null`,
+        ),
+      );
 
     const result: DigestRunResult = {
       users: rows.length,

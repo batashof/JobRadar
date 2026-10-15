@@ -134,6 +134,13 @@
       "when": 1791968413047,
       "tag": "0018_digest_all_new",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792099763189,
+      "tag": "0019_bot_accounts",
+      "breakpoints": true
     }
   ]
 }

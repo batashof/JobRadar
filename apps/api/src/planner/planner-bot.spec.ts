@@ -50,6 +50,7 @@ const ctx = (parts: string[]): BotCallbackContext => ({
   chatId: '555',
   messageId: 77,
   parts,
+  role: 'owner',
   language: 'ru',
 });
 

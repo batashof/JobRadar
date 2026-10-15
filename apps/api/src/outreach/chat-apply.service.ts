@@ -1,6 +1,11 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { type ApplyContact, BOT_CALLBACK_NAMESPACES, type Language } from '@jobradar/shared';
+import {
+  type ApplyContact,
+  BOT_CALLBACK_NAMESPACES,
+  isOwnerRole,
+  type Language,
+} from '@jobradar/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import { type BotCallbackContext, type BotCallbackResult, BotService } from '../bot/bot.service';
@@ -52,6 +57,8 @@ export class ChatApplyService implements OnModuleInit {
   private async handle(ctx: BotCallbackContext): Promise<BotCallbackResult> {
     const [, action, id] = ctx.parts;
     if (!action || !id) return {};
+    // Drafting is an LLM call per vacancy: owner-only (ADR-024 §3, ADR-025).
+    if (!isOwnerRole(ctx.role)) return { alert: applyText(ctx.language, 'ownerOnly') };
 
     switch (action) {
       case 'd':
