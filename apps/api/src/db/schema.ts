@@ -191,6 +191,13 @@ export const users = pgTable('users', {
   // 'owner' (the author) | 'user'. LLM-per-action features and the ones that
   // need the user's own credentials are owner-only (ADR-024 §3).
   role: text('role').notNull().default('user'),
+  // Token of the user's personal LinkedIn-alert forwarding address
+  // (`<local>+<token>@<domain>` on the alerts mailbox, ADR-027). Null until
+  // the user first opens /linkedin.
+  alertsToken: text('alerts_token').unique(),
+  // The last Gmail forwarding-confirmation code relayed to the user, so each
+  // code is sent once (ADR-027).
+  alertsConfirmationCode: text('alerts_confirmation_code'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -455,6 +462,23 @@ export const hiddenVacancies = pgTable(
     hiddenAt: timestamp('hidden_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.vacancyId] })],
+);
+
+// Who a vacancy from a personal source was addressed to (ADR-027): a LinkedIn
+// alert a user forwarded to their own address lands here, so the vacancy is
+// delivered to that user despite the source being owner-only.
+export const vacancyRecipients = pgTable(
+  'vacancy_recipients',
+  {
+    vacancyId: uuid('vacancy_id')
+      .notNull()
+      .references(() => vacancies.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.vacancyId, t.userId] })],
 );
 
 // ---------------------------------------------------------------------------

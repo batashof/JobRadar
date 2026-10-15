@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — LinkedIn alerts via personal forwarding addresses (v1.29.2, roadmap 5.4)
+
+- `/linkedin`: each user gets `<alerts mailbox>+<token>@…`; the worker maps the token in the recipients to the user and records the vacancies in `vacancy_recipients`, so the owner-only LinkedIn source reaches that user only. Gmail forwarding confirmation codes are relayed to the user once.
+- ADR-027 (amends ADR-021). Migration 0022.
+- **Next step:** after merge `DB (prod)` → `migrate`; tomorrow re-check Telegram channel yield. Then phase 5.5.
+
 ## 2026-10-15 — More Telegram channels (v1.29.1, roadmap 5.4)
 
 - Prod `check` now reports yield per source and per channel. First run: DOU 234 and Djinni 546 vacancies in 14 days (both live since the 1.29.0 seed); remote_it_jobs silent since 2026-05-29; qa_jobs 73, golang_jobs 8.

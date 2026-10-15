@@ -8,6 +8,7 @@ import {
   profileMatches,
   resumes,
   vacancies,
+  vacancyRecipients,
 } from "../db/schema";
 import {
   DigestSendService,
@@ -89,7 +90,7 @@ function makeDb() {
  * Whether a drizzle condition embeds `needle`. Walks SQL chunks only: the
  * fake's subqueries are proxies and must not be rendered.
  */
-function containsSql(node: unknown, needle: SQL, seen = new Set<unknown>()): boolean {
+function containsSql(node: unknown, needle: unknown, seen = new Set<unknown>()): boolean {
   if (node === needle) return true;
   if (!(node instanceof SQL) || seen.has(node)) return false;
   seen.add(node);
@@ -790,6 +791,19 @@ describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
     expect(containsSql(condition, ownerOnlySource)).toBe(true);
   });
 
+  it("lets through owner-only vacancies addressed to this user (ADR-027)", async () => {
+    const { db, queue, wheres } = makeDb();
+    queue(digestSettings, [userRow()]);
+    queue(candidateProfiles, [profileRow()]);
+    queue(vacancies, []);
+
+    await service(db, makeBot(), makeLlm()).sendNow("user-1", NOW);
+
+    const condition = wheres.find((w) => w.table === vacancies)?.condition;
+    expect(containsSql(condition, vacancyRecipients)).toBe(true);
+    expect(containsSql(condition, "user-1")).toBe(true);
+  });
+
   it("keeps the owner's own sources for the owner", async () => {
     const { db, queue, wheres } = makeDb();
     queue(digestSettings, [settingsRow({ minScore: 0 })]);
@@ -801,6 +815,7 @@ describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
     const condition = wheres.find((w) => w.table === vacancies)?.condition;
     expect(condition).toBeDefined();
     expect(containsSql(condition, ownerOnlySource)).toBe(false);
+    expect(containsSql(condition, vacancyRecipients)).toBe(false);
   });
 
   it("sends nothing until the profile is confirmed", async () => {

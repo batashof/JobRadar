@@ -15,7 +15,11 @@ import { readFile } from 'node:fs/promises';
 import { config } from 'dotenv';
 import { simpleParser } from 'mailparser';
 
-import { fetchAlertMessages, type AlertMessage } from '../src/ingestion/linkedin/alert-mailbox';
+import {
+  collectRecipients,
+  fetchAlertMessages,
+  type AlertMessage,
+} from '../src/ingestion/linkedin/alert-mailbox';
 import {
   collectVacancies,
   DEFAULT_ALERT_SENDERS,
@@ -34,6 +38,8 @@ async function fromFile(path: string): Promise<AlertMessage[]> {
     {
       uid: 0,
       date: parsed.date ?? null,
+      from: parsed.from?.value[0]?.address?.toLowerCase() ?? '',
+      recipients: collectRecipients(parsed),
       subject: parsed.subject ?? '',
       html: typeof parsed.html === 'string' ? parsed.html : '',
       text: parsed.text ?? '',
@@ -61,7 +67,11 @@ async function main(): Promise<void> {
   const messages = file ? await fromFile(file) : await fromMailbox(Number(arg('days') ?? 3));
 
   console.log(`${messages.length} email(s):`);
-  for (const message of messages) console.log(`  ${message.date?.toISOString() ?? '?'}  ${message.subject}`);
+  for (const message of messages) {
+    console.log(
+      `  ${message.date?.toISOString() ?? '?'}  ${message.subject}  → ${message.recipients.join(', ') || '—'}`,
+    );
+  }
 
   const rows = collectVacancies(messages, 'preview');
   console.log(`\n${rows.length} job(s):`);

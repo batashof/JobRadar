@@ -46,6 +46,7 @@ import {
   telegramAccounts,
   users,
   vacancies,
+  vacancyRecipients,
 } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
 import {
@@ -90,6 +91,15 @@ import {
  * 5.4). One switch in the seed, no migration; unset means everyone.
  */
 export const ownerOnlySource = sql`coalesce((${sources.config} ->> 'ownerOnly')::boolean, false)`;
+
+/**
+ * A vacancy addressed to this user in particular: one from the LinkedIn alerts
+ * they forwarded to their own address (ADR-027). It reaches them although its
+ * source is owner-only.
+ */
+export function addressedToUser(userId: string): SQL {
+  return sql`exists (select 1 from ${vacancyRecipients} where ${vacancyRecipients.vacancyId} = ${vacancies.id} and ${vacancyRecipients.userId} = ${userId})`;
+}
 
 const BATCH_LIMIT = 30;
 
@@ -557,9 +567,14 @@ export class DigestSendService implements OnModuleInit {
     }
 
     // Sources whose terms or nature keep them to the owner (the owner's own
-    // LinkedIn alerts, roadmap 5.4) never reach anyone else.
+    // LinkedIn alerts, roadmap 5.4) never reach anyone else — except the
+    // vacancies a user's own forwarded alerts brought in (ADR-027).
     if (basis.kind === 'formula') {
-      const clause = or(isNull(sources.slug), sql`not ${ownerOnlySource}`);
+      const clause = or(
+        isNull(sources.slug),
+        sql`not ${ownerOnlySource}`,
+        addressedToUser(userId),
+      );
       if (clause) conditions.push(clause);
     }
 

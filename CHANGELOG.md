@@ -11,6 +11,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.29.2] — 2026-10-15
+
+### Added
+
+- **LinkedIn alerts for every bot user** (roadmap 5.4, ADR-027). `/linkedin` gives a personal forwarding address (a plus address of the alerts mailbox) and the setup steps. Vacancies from a user's own forwarded alerts reach only that user; the bot sends them Gmail's forwarding confirmation code. Still no request to linkedin.com.
+- Migration `0022`: `users.alerts_token`, `users.alerts_confirmation_code`, table `vacancy_recipients`.
+
 ## [1.29.1] — 2026-10-15
 
 ### Added
