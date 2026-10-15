@@ -46,6 +46,19 @@ describe('LlmService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('keeps a restricted request away from providers outside its allowlist (ADR-025 §4)', async () => {
+    fetchMock.mockResolvedValueOnce(errorResponse(429));
+    const service = new LlmService(
+      configWith({ GROQ_API_KEY: 'g', OPENROUTER_API_KEY: 'o', GEMINI_API_KEY: 'm' }),
+    );
+
+    await expect(service.complete({ user: 'cv', providers: ['groq'] })).rejects.toBeInstanceOf(
+      LlmUnavailableError,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('groq.com');
+  });
+
   it('uses the first configured provider in order', async () => {
     fetchMock.mockResolvedValueOnce(okResponse('hello'));
     const service = new LlmService(configWith({ GROQ_API_KEY: 'gk', GEMINI_API_KEY: 'mk' }));

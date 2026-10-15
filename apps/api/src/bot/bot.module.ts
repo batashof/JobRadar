@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
+import { BotDialogs } from './bot-dialogs';
 import { BotController, BotWebhookController } from './bot.controller';
 import { BotService } from './bot.service';
 
@@ -15,7 +16,7 @@ import { BotService } from './bot.service';
 @Module({
   imports: [AuthModule],
   controllers: [BotController, BotWebhookController],
-  providers: [BotService],
-  exports: [BotService],
+  providers: [BotService, BotDialogs],
+  exports: [BotService, BotDialogs],
 })
 export class BotModule {}

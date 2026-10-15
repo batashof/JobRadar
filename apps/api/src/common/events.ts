@@ -5,10 +5,14 @@ import { events } from '../db/schema';
 
 /**
  * Funnel event names (ADR-024). A closed list, so a typo cannot open a new
- * series silently; the next steps add theirs here (resume_uploaded,
- * profile_confirmed, card_opened, feedback).
+ * series silently; later steps add theirs here (card_opened, feedback).
  */
-export type EventName = 'start' | 'account_deleted';
+export type EventName =
+  | 'start'
+  | 'account_deleted'
+  | 'resume_uploaded'
+  | 'resume_analyzed'
+  | 'profile_confirmed';
 
 const logger = new Logger('Events');
 

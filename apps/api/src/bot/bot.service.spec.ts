@@ -1,7 +1,8 @@
 import type { ConfigService } from '@nestjs/config';
 
+import { BotDialogs } from './bot-dialogs';
 import { BotService } from './bot.service';
-import { events, telegramAccounts, users } from '../db/schema';
+import { botDialogs, events, telegramAccounts, users } from '../db/schema';
 
 const fetchMock = jest.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
@@ -115,7 +116,7 @@ const RU_USER = [{ language: 'ru' }];
 describe('BotService without a token', () => {
   it('reports itself unconfigured and swallows sends', async () => {
     const { db, writes } = makeDb();
-    const bot = new BotService(db, config(undefined));
+    const bot = new BotService(db, config(undefined), new BotDialogs(db));
 
     expect(bot.isConfigured()).toBe(false);
     await expect(bot.sendToUser('user-1', 'hi')).resolves.toBeNull();
@@ -132,7 +133,7 @@ describe('BotService linking', () => {
   it('issues a single-use deep link and stores the token', async () => {
     const { db, writes } = makeDb();
     fetchMock.mockReturnValueOnce(getMe());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     const link = await bot.startLink('user-1');
 
@@ -152,7 +153,7 @@ describe('BotService linking', () => {
     );
     queue(users, RU_USER);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({
       message: { text: '/start tok-1', chat: { id: 555, type: 'private' }, from: { username: 'vlad' } },
@@ -175,7 +176,7 @@ describe('BotService linking', () => {
       [{ userId: 'user-2' }], // chat already linked elsewhere
     );
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/start tok-1', chat: { id: 555, type: 'private' } } });
 
@@ -188,7 +189,7 @@ describe('BotService linking', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/stop', chat: { id: 555, type: 'private' } } });
 
@@ -203,7 +204,7 @@ describe('BotService delivery', () => {
     const { db, queue } = makeDb();
     queue(telegramAccounts, [{ chatId: '555' }]);
     fetchMock.mockReturnValue(message(4242));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await expect(bot.sendToUser('user-1', 'hi')).resolves.toBe('4242');
   });
@@ -211,7 +212,7 @@ describe('BotService delivery', () => {
   it('skips silently when the user is not linked', async () => {
     const { db, queue } = makeDb();
     queue(telegramAccounts, []);
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await expect(bot.sendToUser('user-1', 'hi')).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -221,7 +222,7 @@ describe('BotService delivery', () => {
     const { db, writes, queue } = makeDb();
     queue(telegramAccounts, [{ chatId: '555' }], []);
     fetchMock.mockReturnValue(fail(403, 'bot was blocked by the user'));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await expect(bot.sendToUser('user-1', 'hi')).resolves.toBeNull();
     expect(writes[0]).toMatchObject({ table: telegramAccounts, values: { chatId: null } });
@@ -235,7 +236,7 @@ describe('BotService delivery', () => {
       fetchMock
         .mockReturnValueOnce(flood(3))
         .mockReturnValueOnce(message(77));
-      const bot = new BotService(db, config('123:abc'));
+      const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
       const sent = bot.sendToUser('user-1', 'hi');
       await jest.advanceTimersByTimeAsync(3000);
@@ -253,7 +254,7 @@ describe('BotService delivery', () => {
       const { db, writes, queue } = makeDb();
       queue(telegramAccounts, [{ chatId: '555' }]);
       fetchMock.mockReturnValue(flood(1));
-      const bot = new BotService(db, config('123:abc'));
+      const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
       const sent = bot.sendToUser('user-1', 'hi');
       await jest.advanceTimersByTimeAsync(1000);
@@ -270,7 +271,7 @@ describe('BotService delivery', () => {
     const { db, writes, queue } = makeDb();
     queue(telegramAccounts, [{ chatId: '555' }]);
     fetchMock.mockReturnValue(fail(400, 'message is too long'));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await expect(bot.sendToUser('user-1', 'hi')).resolves.toBeNull();
     expect(writes).toHaveLength(0);
@@ -293,7 +294,7 @@ describe('BotService callbacks', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
     const handler = jest.fn().mockResolvedValue({ alert: 'Принято' });
     bot.registerCallback('n', handler);
 
@@ -313,7 +314,7 @@ describe('BotService callbacks', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate(press);
 
@@ -325,7 +326,7 @@ describe('BotService callbacks', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
     bot.registerCallback('n', jest.fn().mockRejectedValue(new Error('boom')));
 
     await expect(bot.handleUpdate(press)).resolves.toBeUndefined();
@@ -337,7 +338,7 @@ describe('BotService callbacks', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
     bot.registerCallback('n', jest.fn().mockResolvedValue({ editText: 'done', editKeyboard: null }));
 
     await bot.handleUpdate(press);
@@ -352,7 +353,7 @@ describe('BotService callbacks', () => {
 
   it('refuses to register two handlers for one namespace', () => {
     const { db } = makeDb();
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
     bot.registerCallback('n', jest.fn());
     expect(() => bot.registerCallback('n', jest.fn())).toThrow(/already registered/);
   });
@@ -370,7 +371,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     queue(users, []); // Telegram user unknown
     inserted(users, [{ id: 'new-user' }]);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({
       message: { text: '/start', chat, from: { id: 555, username: 'anna', language_code: 'en-GB' } },
@@ -397,7 +398,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     queue(telegramAccounts, []);
     queue(users, []);
     inserted(users, []); // lost the insert to the concurrent update
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
 
@@ -410,7 +411,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, [{ userId: 'user-1' }], RU_USER);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
 
@@ -423,7 +424,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     queue(telegramAccounts, []); // chat unlinked by /stop
     queue(users, [{ userId: 'user-1' }], RU_USER);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
 
@@ -442,7 +443,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     );
     queue(users, [], RU_USER);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/start tok-1', chat, from: { id: 555 } } });
 
@@ -453,7 +454,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     const { db, queue } = makeDb();
     queue(telegramAccounts, []);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/privacy', chat, from: { id: 555, language_code: 'en' } } });
 
@@ -473,7 +474,7 @@ describe('BotService account deletion (ADR-024 §8)', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(message());
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({ message: { text: '/delete', chat: { id: 555, type: 'private' } } });
 
@@ -489,7 +490,7 @@ describe('BotService account deletion (ADR-024 §8)', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, [{ language: 'ru', role: 'user' }]);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate(press('u:del:y'));
 
@@ -505,7 +506,7 @@ describe('BotService account deletion (ADR-024 §8)', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, [{ language: 'ru', role: 'owner' }]);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate(press('u:del:y'));
 
@@ -518,7 +519,7 @@ describe('BotService account deletion (ADR-024 §8)', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, RU_USER);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate(press('u:del:n'));
 
@@ -531,12 +532,91 @@ describe('BotService account deletion (ADR-024 §8)', () => {
     queue(telegramAccounts, [{ userId: 'user-1' }]);
     queue(users, [{ language: 'en', role: 'owner' }]);
     fetchMock.mockReturnValue(ok(true));
-    const bot = new BotService(db, config('123:abc'));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
     const handler = jest.fn().mockResolvedValue({});
     bot.registerCallback('n', handler);
 
     await bot.handleUpdate(press('n:a:x'));
 
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({ role: 'owner', language: 'en' }));
+  });
+});
+
+describe('BotService messages: dialogs and documents', () => {
+  const chat = { id: 555, type: 'private' };
+  const later = new Date(Date.now() + 60_000);
+
+  beforeEach(() => fetchMock.mockReset());
+
+  it('hands typed text to the flow that opened the dialog', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'user' }]);
+    queue(botDialogs, [
+      { userId: 'user-1', flow: 'profile', step: 'skills', payload: {}, expiresAt: later },
+    ]);
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    const handler = jest.fn().mockResolvedValue(undefined);
+    bot.registerDialog('profile', handler);
+
+    await bot.handleUpdate({ message: { text: 'React, Vue', chat, from: { id: 555 } } });
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', chatId: '555', role: 'user' }),
+      'React, Vue',
+      expect.objectContaining({ flow: 'profile', step: 'skills' }),
+    );
+  });
+
+  it('ignores an expired dialog and says what the bot expects instead', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'user' }]);
+    queue(botDialogs, [
+      { userId: 'user-1', flow: 'profile', step: 'skills', payload: {}, expiresAt: new Date(Date.now() - 1) },
+    ]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    const handler = jest.fn();
+    bot.registerDialog('profile', handler);
+
+    await bot.handleUpdate({ message: { text: 'React', chat, from: { id: 555 } } });
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('Пришли резюме в PDF');
+  });
+
+  it('routes a document to the registered handler with the account context', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'en', role: 'user' }]);
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    const handler = jest.fn().mockResolvedValue(undefined);
+    bot.registerDocumentHandler(handler);
+
+    await bot.handleUpdate({
+      message: { chat, from: { id: 555 }, document: { file_id: 'F1', file_name: 'cv.pdf', mime_type: 'application/pdf' } },
+    });
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', language: 'en' }),
+      expect.objectContaining({ fileId: 'F1', fileName: 'cv.pdf' }),
+    );
+  });
+
+  it('asks a stranger who sends a file to press /start first', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, []);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    const handler = jest.fn();
+    bot.registerDocumentHandler(handler);
+
+    await bot.handleUpdate({
+      message: { chat, from: { id: 555, language_code: 'en' }, document: { file_id: 'F1' } },
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('/start');
   });
 });

@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — Resume upload and evaluation in the bot (v1.27.0, roadmap 5.2)
+
+- Merged 5.1 ([batashof/JobRadar#11](https://github.com/batashof/JobRadar/pull/11)); `DB (prod)` → `migrate` applied `0019`.
+- Bot routing: `parseUpdate` now yields `text` and `document` too; `registerDocumentHandler`, `registerDialog(flow)` with state in `bot_dialogs` (30-minute expiry); `TelegramApi.downloadFile` (getFile + file endpoint, size cap before and after reading).
+- New `candidate/` module: `analysis.ts` (prompt, zod parse, term fallback), `render.ts` (review, profile card, pickers, skills parser), `CandidateService` (one row per user, limit counted from `events`), `CandidateBotService` (upload → store → analyse → review + card; `p:` buttons; typed skills).
+- `LlmRequest.providers` restricts the chain. Non-owner resumes go only to `LLM_RESUME_PROVIDERS` (default `groq`; `gemini` is always dropped). ADR-025 named Groq → OpenRouter; OpenRouter's free models follow the account's data policy, which this session cannot see, so it is opt-in.
+- Location editing deferred to `/settings` (5.3) with the timezone.
+- **Developer's decision** on ADR-024's open question: the author's web-only tools (interview prep, planner, kanban) move into the bot in 5.5, not deleted and not kept as a web cabinet. Recorded in ROADMAP 5.5.
+- **Next step:** `DB (prod)` → `migrate` for `0020` after the merge; send a real PDF to @JobRadarAppBot and check `llmStatus`; then 5.3 (formula scoring and settings).
+
 ## 2026-10-15 — Registration in the bot (v1.26.0, roadmap 5.1)
 
 - Merged the 2.0.0 plan ([batashof/JobRadar#10](https://github.com/batashof/JobRadar/pull/10)).

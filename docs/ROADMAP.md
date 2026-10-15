@@ -124,13 +124,13 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 
 **Exit criterion:** a stranger presses Start and has an account with no website involved; `/delete` removes it.
 
-### 5.2 Resume upload and evaluation (v1.27.0)
+### 5.2 Resume upload and evaluation (v1.27.0) ✅
 
-- [ ] `bot_dialogs`: per-chat dialog state in Postgres (step, payload, expiry) and a small state-machine helper.
-- [ ] A PDF sent to the chat is downloaded through `getFile` (Bot API limit 20 MB; our cap stays 5 MB), stored in `resumes`, text extracted as today.
-- [ ] `candidate_profiles` + one LLM call → zod-validated profile and resume evaluation (ADR-025 §1); prompt version stored.
-- [ ] Provider chain for non-owners without training-on-data free tiers (ADR-025 §4); 3 analyses per 30 days; lexical fallback profile when every provider fails, with a later retry.
-- [ ] The evaluation message (strengths, gaps, what to add) and the profile confirmation dialog (`p:` buttons: edit grade, skills, English, location).
+- [x] `bot_dialogs`: per-chat dialog state in Postgres (flow, step, payload, 30-minute expiry); `BotService.registerDialog(flow, handler)` routes typed text to the flow that asked.
+- [x] A PDF sent to the chat is downloaded through `getFile` (our cap stays 5 MB), stored in `resumes`, text extracted as today; non-PDF, oversize and scan-only files get a clear answer.
+- [x] `candidate_profiles` + one LLM call → zod-validated profile and resume evaluation (ADR-025 §1); prompt version stored.
+- [x] Provider chain for non-owners: `LLM_RESUME_PROVIDERS`, default `groq` only (Gemini is always dropped; OpenRouter opt-in once its account forbids training); 3 analyses per 30 days, owner exempt; lexical fallback profile when every provider fails, with an "Analyse again" button as the retry.
+- [x] The evaluation message (strengths, gaps, what to add) and the profile card with `p:` buttons: confirm, role, grade, English (pickers) and skills (typed list). *(Location stays as the analysis read it; it becomes a setting in 5.3 with the timezone.)*
 
 **Exit criterion:** a PDF in the chat → evaluation and a confirmed profile within a minute.
 
@@ -158,7 +158,7 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 ### 5.5 Applications and owner tools in the bot (v1.30.0)
 
 - [ ] "Applied" button on a card and `/applications`: list with stage buttons (applied → screening → interview → offer / rejected), follow-up reminders.
-- [ ] The author's web-only tools, as the developer decides (ADR-024 "Not decided here"); default: mock interview and per-topic questions as chat dialogs.
+- [ ] The author's web-only tools move into the bot (developer's decision, 2026-10-15, answering ADR-024 "Not decided here"): mock interview and per-topic questions as chat dialogs, the day planner's plan composition and close-out as commands next to its existing nudges, the kanban as the `/applications` list above. Owner-only (ADR-024 §3).
 
 **Exit criterion:** nothing a job seeker or the author uses daily needs the website.
 

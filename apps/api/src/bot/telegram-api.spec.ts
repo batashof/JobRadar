@@ -98,6 +98,37 @@ describe('TelegramApi', () => {
   });
 });
 
+describe('TelegramApi.downloadFile', () => {
+  const api = new TelegramApi('123:secret-token');
+  const bytes = (n: number) =>
+    Promise.resolve({ ok: true, status: 200, arrayBuffer: () => Promise.resolve(new ArrayBuffer(n)) } as Response);
+
+  beforeEach(() => fetchMock.mockReset());
+
+  it('resolves the file path with getFile, then reads the bytes from the file endpoint', async () => {
+    fetchMock.mockReturnValueOnce(ok({ file_path: 'documents/cv.pdf', file_size: 10 })).mockReturnValueOnce(bytes(10));
+
+    const file = await api.downloadFile('F1', 1000);
+
+    expect(file.length).toBe(10);
+    expect(bodyOf()).toEqual({ file_id: 'F1' });
+    expect(String(fetchMock.mock.calls[1][0])).toBe(
+      'https://api.telegram.org/file/bot123:secret-token/documents/cv.pdf',
+    );
+  });
+
+  it('refuses a file over the cap before downloading it', async () => {
+    fetchMock.mockReturnValueOnce(ok({ file_path: 'documents/big.pdf', file_size: 5000 }));
+    await expect(api.downloadFile('F1', 1000)).rejects.toBeInstanceOf(TelegramApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a body larger than the cap when Telegram did not report the size', async () => {
+    fetchMock.mockReturnValueOnce(ok({ file_path: 'documents/x.pdf' })).mockReturnValueOnce(bytes(2000));
+    await expect(api.downloadFile('F1', 1000)).rejects.toBeInstanceOf(TelegramApiError);
+  });
+});
+
 describe('escapeHtml', () => {
   it('escapes the characters Telegram treats as markup', () => {
     expect(escapeHtml('<b>A & B</b> "quoted"')).toBe(

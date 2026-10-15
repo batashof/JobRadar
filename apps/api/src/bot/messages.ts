@@ -28,8 +28,7 @@ const STRINGS = {
       '/help — this text',
     'start.welcome':
       'Welcome to JobRadar. Your account is created: no email and no password, this chat is your login.\n\n' +
-      'Next step: send your resume as a PDF. I will evaluate it and pick vacancies that fit. ' +
-      'Resume upload arrives in the next update; for now /help lists what works.',
+      'Next step: send your resume here as a PDF file. I will evaluate it and build your profile for picking vacancies.',
     'start.back': 'Welcome back. This chat is connected to your JobRadar account again.',
     'privacy':
       'What JobRadar stores: your Telegram id, username and chat id, the interface language, and later your resume (the PDF and its text), the profile built from it, the vacancies sent to you and your reactions to them.\n\n' +
@@ -43,6 +42,8 @@ const STRINGS = {
     'delete.owner': 'The owner account cannot be deleted from the chat.',
     'delete.notLinked': 'This chat has no JobRadar account.',
     'callback.ownerOnly': 'Available to the JobRadar owner only.',
+    'text.noAccount': 'Press /start first to create your JobRadar account.',
+    'text.noDialog': 'Send your resume as a PDF, or /help for the commands.',
     'unknown': 'Unknown command. /help lists what I understand.',
     'callback.stale': 'This message is out of date — open the app.',
     'callback.failed': 'Could not do that. Try in the app.',
@@ -64,8 +65,7 @@ const STRINGS = {
       '/help — этот текст',
     'start.welcome':
       'Добро пожаловать в JobRadar. Аккаунт создан: без почты и пароля, вход — этот чат.\n\n' +
-      'Следующий шаг: пришли резюме в PDF. Я оценю его и подберу подходящие вакансии. ' +
-      'Загрузка резюме появится в следующем обновлении; пока /help покажет, что уже работает.',
+      'Следующий шаг: пришли сюда резюме файлом PDF. Я оценю его и соберу профиль для подбора вакансий.',
     'start.back': 'С возвращением. Этот чат снова подключён к твоему аккаунту JobRadar.',
     'privacy':
       'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, а позже резюме (PDF и его текст), профиль, собранный по нему, отправленные тебе вакансии и твои реакции на них.\n\n' +
@@ -79,6 +79,8 @@ const STRINGS = {
     'delete.owner': 'Аккаунт владельца нельзя удалить из чата.',
     'delete.notLinked': 'У этого чата нет аккаунта JobRadar.',
     'callback.ownerOnly': 'Доступно только владельцу JobRadar.',
+    'text.noAccount': 'Сначала нажми /start, чтобы создать аккаунт JobRadar.',
+    'text.noDialog': 'Пришли резюме в PDF или набери /help, чтобы увидеть команды.',
     'unknown': 'Неизвестная команда. /help покажет, что я понимаю.',
     'callback.stale': 'Сообщение устарело — открой приложение.',
     'callback.failed': 'Не получилось. Попробуй в приложении.',
