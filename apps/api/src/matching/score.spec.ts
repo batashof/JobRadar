@@ -104,6 +104,10 @@ describe('scoreVacancy', () => {
       now,
     });
     expect(vue.score).toBeLessThan(react.score - 10);
+    // "js" inside "Vue.js" is not JavaScript, so it cannot rescue the title.
+    const vueJs = scoreVacancy(frontend, vacancy({ title: 'Développeur(se) Front-End Vue.js (H/F)' }), { now });
+    expect(vueJs.score).toBeLessThan(react.score - 10);
+    expect(detectVacancySkills('Vue.js developer', '')).toEqual(['vue']);
     expect(aem.score).toBeLessThan(react.score - 5);
   });
 

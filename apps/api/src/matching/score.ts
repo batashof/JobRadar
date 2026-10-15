@@ -101,12 +101,17 @@ export interface VacancyScore {
 
 const patternCache = new Map<string, RegExp>();
 
-/** Word-boundary, Unicode-aware; same rule as resume-terms and seniority. */
+/**
+ * Word-boundary, Unicode-aware; same rule as resume-terms and seniority, plus
+ * a dot before the phrase breaks it: the "js" of "Vue.js" or "Next.js" is not
+ * JavaScript, and reading it as such made a Vue title look like the
+ * candidate's stack.
+ */
 function phrasePattern(phrase: string): RegExp {
   let pattern = patternCache.get(phrase);
   if (!pattern) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu');
+    pattern = new RegExp(`(?<![\\p{L}\\p{N}.])${escaped}(?![\\p{L}\\p{N}])`, 'iu');
     patternCache.set(phrase, pattern);
   }
   return pattern;

@@ -11,6 +11,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.28.2] — 2026-10-15
+
+### Fixed
+
+- The "js" of "Vue.js" or "Next.js" no longer counts as JavaScript, so a Vue.js title no longer passes for a React candidate's stack. `formula:check` after 1.28.1: precision 90%; this was the one miss left.
+
 ## [1.28.1] — 2026-10-15
 
 ### Changed
