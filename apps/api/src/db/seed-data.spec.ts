@@ -1,90 +1,113 @@
-import { sourceKindEnum } from './schema';
-import { DEV_PROFILE, SEED_SOURCES } from './seed-data';
+import { sourceKindEnum } from "./schema";
+import { DEV_PROFILE, SEED_SOURCES } from "./seed-data";
 
-describe('seed data', () => {
-  it('has unique source slugs', () => {
+describe("seed data", () => {
+  it("has unique source slugs", () => {
     const slugs = SEED_SOURCES.map((s) => s.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it('registers the active sources (telegram primary, hh and remoteok dropped)', () => {
+  it("registers the active sources (telegram primary, hh and remoteok dropped)", () => {
     const active = SEED_SOURCES.filter((s) => s.isActive).map((s) => s.slug);
     expect(active).toEqual([
-      'telegram',
-      'weworkremotely',
-      'remotive',
-      'jobicy',
-      'hn',
-      'ats',
-      'himalayas',
-      'workingnomads',
-      'linkedin',
-      'dou',
-      'djinni',
+      "telegram",
+      "weworkremotely",
+      "remotive",
+      "jobicy",
+      "hn",
+      "ats",
+      "himalayas",
+      "workingnomads",
+      "linkedin",
+      "dou",
+      "djinni",
     ]);
   });
 
-  it('keeps hh (ADR-009) and remoteok (ADR-016) registered but inactive', () => {
+  it("keeps hh (ADR-009) and remoteok (ADR-016) registered but inactive", () => {
     const inactive = SEED_SOURCES.filter((s) => !s.isActive).map((s) => s.slug);
-    expect(inactive).toEqual(['hh', 'remoteok']);
+    expect(inactive).toEqual(["hh", "remoteok"]);
   });
 
-  it('points multi-feed sources at unique feed URLs', () => {
+  it("points multi-feed sources at unique feed URLs", () => {
     for (const source of SEED_SOURCES) {
-      const feedUrls = (source.config as { feedUrls?: string[] } | undefined)?.feedUrls;
+      const feedUrls = (source.config as { feedUrls?: string[] } | undefined)
+        ?.feedUrls;
       if (!feedUrls) continue;
       expect(feedUrls.length).toBeGreaterThan(0);
       expect(new Set(feedUrls).size).toBe(feedUrls.length);
     }
   });
 
-  it('configures telegram channels as clean, unique usernames without @', () => {
-    const telegram = SEED_SOURCES.find((s) => s.slug === 'telegram');
-    const channels = (telegram?.config as { channels?: string[] } | undefined)?.channels ?? [];
+  it("configures telegram channels as clean, unique usernames without @", () => {
+    const telegram = SEED_SOURCES.find((s) => s.slug === "telegram");
+    const channels =
+      (telegram?.config as { channels?: string[] } | undefined)?.channels ?? [];
     expect(channels.length).toBeGreaterThan(0);
     expect(new Set(channels).size).toBe(channels.length);
     for (const channel of channels) {
-      expect(channel).not.toContain('@');
+      expect(channel).not.toContain("@");
       expect(channel).toMatch(/^[a-z0-9_]+$/i);
     }
   });
 
-  it('reads LinkedIn only from alert emails, never from linkedin.com (ADR-021)', () => {
-    const linkedin = SEED_SOURCES.find((s) => s.slug === 'linkedin');
-    expect(linkedin?.kind).toBe('email');
-    const config = linkedin?.config as { senders?: string[]; feedUrl?: string } | undefined;
-    expect(config?.senders).toEqual(['jobalerts-noreply@linkedin.com']);
+  it("reads Telegram channels for more stacks than frontend, without the dead ones", () => {
+    const telegram = SEED_SOURCES.find((s) => s.slug === "telegram");
+    const channels =
+      (telegram?.config as { channels?: string[] } | undefined)?.channels ?? [];
+    expect(channels).toEqual(
+      expect.arrayContaining([
+        "job_react",
+        "forfrontend",
+        "python_jobs",
+        "devops_jobs",
+        "qa_jobs",
+      ]),
+    );
+    expect(channels).not.toContain("remote_it_jobs");
+  });
+
+  it("reads LinkedIn only from alert emails, never from linkedin.com (ADR-021)", () => {
+    const linkedin = SEED_SOURCES.find((s) => s.slug === "linkedin");
+    expect(linkedin?.kind).toBe("email");
+    const config = linkedin?.config as
+      | { senders?: string[]; feedUrl?: string }
+      | undefined;
+    expect(config?.senders).toEqual(["jobalerts-noreply@linkedin.com"]);
     expect(config?.feedUrl).toBeUndefined();
   });
 
-  it('lists each ATS board once, and Temporal on its current Ashby board', () => {
-    const ats = SEED_SOURCES.find((s) => s.slug === 'ats');
+  it("lists each ATS board once, and Temporal on its current Ashby board", () => {
+    const ats = SEED_SOURCES.find((s) => s.slug === "ats");
     const companies =
-      (ats?.config as { companies?: { ats: string; token: string; name: string }[] })?.companies ??
-      [];
+      (
+        ats?.config as {
+          companies?: { ats: string; token: string; name: string }[];
+        }
+      )?.companies ?? [];
     const boards = companies.map((c) => `${c.ats}:${c.token.toLowerCase()}`);
     expect(new Set(boards).size).toBe(boards.length);
     // greenhouse:temporaltechnologies answers 404 since Temporal moved to Ashby.
-    expect(companies.filter((c) => c.name === 'Temporal')).toEqual([
-      { ats: 'ashby', token: 'temporal', name: 'Temporal' },
+    expect(companies.filter((c) => c.name === "Temporal")).toEqual([
+      { ats: "ashby", token: "temporal", name: "Temporal" },
     ]);
   });
 
-  it('keeps the owner\'s LinkedIn alerts away from other users, and only them', () => {
+  it("keeps the owner's LinkedIn alerts away from other users, and only them", () => {
     const ownerOnly = SEED_SOURCES.filter(
       (s) => (s.config as { ownerOnly?: boolean } | undefined)?.ownerOnly,
     ).map((s) => s.slug);
-    expect(ownerOnly).toEqual(['linkedin']);
+    expect(ownerOnly).toEqual(["linkedin"]);
   });
 
-  it('uses only valid source kinds', () => {
+  it("uses only valid source kinds", () => {
     for (const source of SEED_SOURCES) {
       expect(sourceKindEnum.enumValues).toContain(source.kind);
     }
   });
 
-  it('dev profile targets remote work', () => {
-    expect(DEV_PROFILE.workFormat).toEqual(['remote']);
+  it("dev profile targets remote work", () => {
+    expect(DEV_PROFILE.workFormat).toEqual(["remote"]);
     expect(DEV_PROFILE.keywords?.length).toBeGreaterThan(0);
   });
 });

@@ -11,6 +11,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.29.1] — 2026-10-15
+
+### Added
+
+- **Eleven more Telegram sources** (roadmap 5.4), 17 in all: forfrontend and fordev for frontend, plus Python, Node.js, Java, PHP, Android, DevOps and data/analytics channels and public vacancy groups, so bot users outside frontend get vacancies too.
+- The `check` task of `DB (prod)` prints vacancies per source and per Telegram channel over the last 14 days, with the newest date.
+
+### Changed
+
+- Resume posts in the vacancy groups (`#резюме`, `#cv`, "ищу работу", "open to work") are no longer taken for vacancies.
+- A Telegram channel that cannot be read no longer fails the whole run; a long FLOOD_WAIT stops the run and keeps what was already read.
+
+### Removed
+
+- remote_it_jobs, silent since May 2026.
+
 ## [1.29.0] — 2026-10-15
 
 ### Added

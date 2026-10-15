@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — More Telegram channels (v1.29.1, roadmap 5.4)
+
+- Prod `check` now reports yield per source and per channel. First run: DOU 234 and Djinni 546 vacancies in 14 days (both live since the 1.29.0 seed); remote_it_jobs silent since 2026-05-29; qa_jobs 73, golang_jobs 8.
+- TGStat's website returns 403 to scripts, so candidates came from `t.me/s/` previews and the groups' descriptions. Added 11, removed 1 (17 channels); verdicts in DATA_SOURCES.md.
+- Groups mix vacancies and resumes: `isResumePost` drops tagged or phrased resumes. One unreadable channel no longer fails the Telegram run.
+- **Next step:** re-run `check` after a day and drop channels that yield nothing; then LinkedIn alerts via a personal forwarding address.
+
 ## 2026-10-15 — Bot UX fixes planned (roadmap 5.7)
 
 - The developer's notes added to ROADMAP as step 5.7, after release 2.0.0: every command in Telegram's menu (`setMyCommands`, none registered today), bigger `/settings` buttons with icons (fewer per row), and button texts that name the setting (the language button shows the other language instead of "Language").

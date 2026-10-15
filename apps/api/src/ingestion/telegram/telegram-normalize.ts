@@ -1,5 +1,5 @@
-import type { NewVacancy } from '../hh/hh-normalize';
-import { normalizeCompanyName } from '../company-name';
+import type { NewVacancy } from "../hh/hh-normalize";
+import { normalizeCompanyName } from "../company-name";
 
 /**
  * Regex-first parsing of Telegram job-channel posts (ADR-009). Channels are
@@ -40,25 +40,46 @@ export function isJunkPost(text: string): boolean {
   return JUNK_PATTERNS.some((re) => re.test(text));
 }
 
+/**
+ * Job seekers' posts. The group chats among the channels (golang_jobs,
+ * qa_jobs, python_jobs, …) carry "vacancies and job-search requests", so a
+ * resume tagged or phrased as one must not become a vacancy. Only explicit
+ * markers: "ищу разработчика" is a vacancy, "ищу работу" is not.
+ */
+const RESUME_PATTERNS: RegExp[] = [
+  /#(?:резюме|cv|resume|ищу_?работу|opentowork|lookingforjob)(?![\p{L}\p{N}_])/iu,
+  /(?<![\p{L}\p{N}])(?:ищу\s+(?:работу|проект|подработку)|в\s+поиске\s+работы|open\s+to\s+work)(?![\p{L}\p{N}])/iu,
+  /\blooking\s+for\s+(?:a\s+)?(?:job|new\s+(?:job|opportunit))/iu,
+];
+
+/** True for a job seeker's post (resume, "ищу работу"), not a vacancy. */
+export function isResumePost(text: string): boolean {
+  return RESUME_PATTERNS.some((re) => re.test(text));
+}
+
 export function isLikelyVacancy(text: string): boolean {
   const trimmed = text.trim();
-  return trimmed.length >= MIN_VACANCY_LENGTH && !isJunkPost(trimmed);
+  return (
+    trimmed.length >= MIN_VACANCY_LENGTH &&
+    !isJunkPost(trimmed) &&
+    !isResumePost(trimmed)
+  );
 }
 
 /** First non-empty line, stripped of markdown/emoji decoration — the title. */
 export function extractTitle(text: string): string {
   const line = text
-    .split('\n')
+    .split("\n")
     .map((l) =>
       l
-        .replace(/[*_`~#]/g, '')
+        .replace(/[*_`~#]/g, "")
         // Strip pictographic decoration (emoji), keep letters/digits/punctuation.
-        .replace(/[\p{Extended_Pictographic}️‍]/gu, '')
-        .replace(/\s+/g, ' ')
+        .replace(/[\p{Extended_Pictographic}️‍]/gu, "")
+        .replace(/\s+/g, " ")
         .trim(),
     )
     .find((l) => l.length > 0);
-  return (line ?? '').slice(0, 200);
+  return (line ?? "").slice(0, 200);
 }
 
 const COMPANY_RE = /(?:компания|company)\s*[:—–-]\s*([^\n]+)/iu;
@@ -66,31 +87,44 @@ const LOCATION_RE = /(?:локация|город|location)\s*[:—–-]\s*([^\n
 
 export function extractCompany(text: string): string | null {
   const m = COMPANY_RE.exec(text);
-  return m?.[1]?.replace(/[*_`]/g, '').trim() || null;
+  return m?.[1]?.replace(/[*_`]/g, "").trim() || null;
 }
 
 export function extractLocation(text: string): string | null {
   const m = LOCATION_RE.exec(text);
-  return m?.[1]?.replace(/[*_`]/g, '').trim().slice(0, 120) || null;
+  return m?.[1]?.replace(/[*_`]/g, "").trim().slice(0, 120) || null;
 }
 
-export function extractWorkFormat(text: string): NewVacancy['workFormat'] {
-  if (/гибрид|hybrid/iu.test(text)) return 'hybrid';
-  if (/удал[её]н|remote|релокац/iu.test(text)) return 'remote';
-  if (/офис|on-?site/iu.test(text)) return 'onsite';
+export function extractWorkFormat(text: string): NewVacancy["workFormat"] {
+  if (/гибрид|hybrid/iu.test(text)) return "hybrid";
+  if (/удал[её]н|remote|релокац/iu.test(text)) return "remote";
+  if (/офис|on-?site/iu.test(text)) return "onsite";
   return null;
 }
 
-export function extractEmploymentType(text: string): NewVacancy['employmentType'] {
-  if (/part[\s-]?time|частичная\s+занятость/iu.test(text)) return 'part_time';
-  if (/freelance|фриланс|проектная\s+(?:работа|занятость)/iu.test(text)) return 'freelance';
-  if (/full[\s-]?time|полная\s+занятость|полный\s+день/iu.test(text)) return 'full_time';
+export function extractEmploymentType(
+  text: string,
+): NewVacancy["employmentType"] {
+  if (/part[\s-]?time|частичная\s+занятость/iu.test(text)) return "part_time";
+  if (/freelance|фриланс|проектная\s+(?:работа|занятость)/iu.test(text))
+    return "freelance";
+  if (/full[\s-]?time|полная\s+занятость|полный\s+день/iu.test(text))
+    return "full_time";
   return null;
 }
 
 const CURRENCY_BY_TOKEN: Record<string, string> = {
-  $: 'USD', usd: 'USD', '€': 'EUR', eur: 'EUR', '₽': 'RUB', руб: 'RUB', rub: 'RUB',
-  '£': 'GBP', gbp: 'GBP', грн: 'UAH', uah: 'UAH',
+  $: "USD",
+  usd: "USD",
+  "€": "EUR",
+  eur: "EUR",
+  "₽": "RUB",
+  руб: "RUB",
+  rub: "RUB",
+  "£": "GBP",
+  gbp: "GBP",
+  грн: "UAH",
+  uah: "UAH",
 };
 
 // Plain digit runs ("5000") or explicit thousand separators ("300 000", "3,000").
@@ -99,14 +133,20 @@ const CUR = String.raw`(\$|€|₽|£|usd|eur|rub|gbp|руб|грн|uah)`;
 // "3000–5000 $", "$3k-5k", "от 3000 до 5000 usd", "до 300 000 ₽", "from 3000 usd"
 const SALARY_RANGE_RE = new RegExp(
   String.raw`(?:от\s+)?${CUR}?\s*${AMOUNT}\s*(?:[-–—]|до)\s*${CUR}?\s*${AMOUNT}\s*${CUR}?`,
-  'iu',
+  "iu",
 );
-const SALARY_FROM_RE = new RegExp(String.raw`(?:от|from)\s+${CUR}?\s*${AMOUNT}\s*${CUR}?`, 'iu');
-const SALARY_TO_RE = new RegExp(String.raw`(?:до|up\s+to)\s+${CUR}?\s*${AMOUNT}\s*${CUR}?`, 'iu');
+const SALARY_FROM_RE = new RegExp(
+  String.raw`(?:от|from)\s+${CUR}?\s*${AMOUNT}\s*${CUR}?`,
+  "iu",
+);
+const SALARY_TO_RE = new RegExp(
+  String.raw`(?:до|up\s+to)\s+${CUR}?\s*${AMOUNT}\s*${CUR}?`,
+  "iu",
+);
 
 function parseAmount(raw: string): number | null {
   const k = /[kк]$/iu.test(raw);
-  const n = Number(raw.replace(/[kк]/giu, '').replace(/[\s.,']/g, ''));
+  const n = Number(raw.replace(/[kк]/giu, "").replace(/[\s.,']/g, ""));
   if (!Number.isFinite(n) || n <= 0) return null;
   const value = k ? n * 1000 : n;
   // Guard against phone numbers / ids swallowed by the regex.
@@ -128,13 +168,17 @@ export interface ParsedSalary {
 }
 
 export function extractSalary(text: string): ParsedSalary {
-  const none: ParsedSalary = { salaryMin: null, salaryMax: null, salaryCurrency: null };
+  const none: ParsedSalary = {
+    salaryMin: null,
+    salaryMax: null,
+    salaryCurrency: null,
+  };
 
   const range = SALARY_RANGE_RE.exec(text);
   if (range) {
     const [, cur1, minRaw, cur2, maxRaw, cur3] = range;
-    const salaryMin = parseAmount(minRaw ?? '');
-    const salaryMax = parseAmount(maxRaw ?? '');
+    const salaryMin = parseAmount(minRaw ?? "");
+    const salaryMax = parseAmount(maxRaw ?? "");
     const salaryCurrency = currencyOf(cur1, cur2, cur3);
     // A currency marker is required: bare number ranges are usually dates/ids.
     if (salaryCurrency && (salaryMin != null || salaryMax != null)) {
@@ -145,7 +189,7 @@ export function extractSalary(text: string): ParsedSalary {
   const from = SALARY_FROM_RE.exec(text);
   if (from) {
     const [, cur1, raw, cur2] = from;
-    const salaryMin = parseAmount(raw ?? '');
+    const salaryMin = parseAmount(raw ?? "");
     const salaryCurrency = currencyOf(cur1, cur2);
     if (salaryCurrency && salaryMin != null) {
       return { salaryMin, salaryMax: null, salaryCurrency };
@@ -155,7 +199,7 @@ export function extractSalary(text: string): ParsedSalary {
   const to = SALARY_TO_RE.exec(text);
   if (to) {
     const [, cur1, raw, cur2] = to;
-    const salaryMax = parseAmount(raw ?? '');
+    const salaryMax = parseAmount(raw ?? "");
     const salaryCurrency = currencyOf(cur1, cur2);
     if (salaryCurrency && salaryMax != null) {
       return { salaryMin: null, salaryMax, salaryCurrency };

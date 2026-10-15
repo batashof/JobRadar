@@ -14,15 +14,16 @@
 |---|---|
 | Kind | Public channel messages read over MTProto (GramJS) |
 | Auth | `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` from my.telegram.org (free) + a persisted user **session string** (secret). The Bot API cannot read arbitrary public channels, so MTProto is required |
-| Channels | User-configurable list; each channel gets its own parsing template |
+| Channels | `sources.config.channels`, 17 since 1.29.1: frontend (job_react, geekjobs, rabotafrontend, forfrontend, fordev), Go, QA, IT freelance, Python, Node.js, Java, PHP, Android, DevOps (two each for Python and DevOps) and data/analytics. Public channels and public vacancy groups both work over MTProto |
 | Parsing | Per-channel regex first (title / stack / format / contact); LLM-assisted extraction later (ADR-005). Missing fields stay null |
 | `external_id` | `<channel>:<message_id>` (stable, dedup-friendly) |
 | `url` | `https://t.me/<channel>/<message_id>` deep link — this is the "open vacancy" target; **no in-app apply**, the user responds in Telegram |
 | Rate limits | Every 10 minutes (ADR-023): reading public channels is what any Telegram client does; respect MTProto FLOOD_WAIT; honest client, no proxies |
+| Groups | Some sources are public groups that carry "vacancies and job-search requests" (golang_jobs, qa_jobs, python_jobs, …). Posts tagged or phrased as a resume (`#резюме`, `#cv`, "ищу работу", "open to work") are dropped (`isResumePost`). A channel that fails (renamed, private) is skipped for that run; a FLOOD_WAIT longer than a minute stops the run and keeps what was read |
 | Notes | Store the session string as a secret; a run yielding zero items across all channels sets `last_run_status='empty'` and alerts (likely a broken template or ban) |
 | Setup | Generate the session string locally with `pnpm --filter @jobradar/api telegram:session` (interactive, asks phone/code/2FA). Channels live in `sources.config.channels` (usernames without `@`, `messagesPerChannel` defaults to 50). The worker skips politely (no alert) while secrets or the channel list are missing |
 
-**Growing the channel list (roadmap 5.4).** Seven channels is the main limit on coverage: comparable aggregators read hundreds (Hirify, about 960). Ways to find candidates, all without automated access to anyone's catalogue:
+**Growing the channel list (roadmap 5.4).** The channel count is the main limit on coverage: comparable aggregators read hundreds (Hirify, about 960). Ways to find candidates, all without automated access to anyone's catalogue:
 
 - **TGStat** (tgstat.ru, a Telegram channel statistics service): the free website catalog, category "Работа и вакансии", keyword search and its similar-channels lists. Its API (api.tgstat.ru) needs a registered token and an activated plan even for the non-billed methods; use it only if that plan is free (ADR-001), otherwise the website by hand.
 - Telegram's own "similar channels" block shown after subscribing, and reposts / mentions inside the channels already read.
@@ -30,6 +31,21 @@
 - Not Hirify (hirify.me): its terms of service §3.2 forbid collecting its vacancies or "сведения об источниках" to build another product. The channels themselves are public and not Hirify's, so a channel noticed while browsing may be added; bulk-extracting its catalogue may not.
 
 Every candidate is probed before it goes into `sources.config.channels` (reachable, posts at least weekly, mostly vacancies rather than resumes, ads or chatter), as the comment in `apps/api/src/db/seed-data.ts` describes. Since 2.0.0 serves other users, cover backend, mobile, QA, data, DevOps and design channels too, not only frontend.
+
+Public channels show their last 20 posts on `https://t.me/s/<channel>`, which is enough to judge frequency and content. Groups have no such preview; judge them by the description on `https://t.me/<group>` and, once added, by their yield. The `check` task of the `DB (prod)` workflow prints vacancies per source and per Telegram channel over the last 14 days, with the newest date, so a channel that went quiet shows up there.
+
+**Probed 2026-10-15 (1.29.1).** TGStat's website answers 403 to non-browser clients, so candidates came from the channels already read and the usual names:
+
+| Channel | Verdict |
+|---|---|
+| forfrontend, forpython, fordevops, foranalysts | Added. The "Job for …" network: about two short vacancy posts a day each (role, company, format, a link to the full posting) |
+| fordev, python_jobs, nodejs_jobs, java_jobs, php_jobs, android_jobs, devops_jobs | Added. Public vacancy groups, 6–22 thousand members; fordev keeps resumes in a separate group, java_jobs allows one post a week per employer |
+| remote_it_jobs | Removed: no post since 2026-05-29 |
+| forgamedev, forproducts | Not added: game art, design and product management, not development |
+| javascript_jobs, angular_jobs, rust_jobs | Not added: chats with discussion, not a vacancy feed |
+| remotejobs | Not added: career tips and weekly digests that link to another product |
+| itjobs_ru | Not added: several vacancies per post, which the one-post-one-vacancy parser cannot split |
+| datascience_jobs, kotlin_jobs, devopsjobs, fordevelopers, forios | Not added: silent for months |
 
 ### 2. WeWorkRemotely — RSS — **active (secondary)**
 

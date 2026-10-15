@@ -1,20 +1,25 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { TelegramClient } from 'telegram';
-import { StringSession } from 'telegram/sessions';
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions";
 
-import { DB, type Database } from '../../db/db.module';
-import type { sources } from '../../db/schema';
-import type { IngestResult } from '../hh/hh.service';
-import { upsertVacancies } from '../vacancy-upsert';
-import { normalizeTelegramMessage } from './telegram-normalize';
-import type { NewVacancy } from '../hh/hh-normalize';
+import { DB, type Database } from "../../db/db.module";
+import type { sources } from "../../db/schema";
+import type { IngestResult } from "../hh/hh.service";
+import { upsertVacancies } from "../vacancy-upsert";
+import { normalizeTelegramMessage } from "./telegram-normalize";
+import type { NewVacancy } from "../hh/hh-normalize";
 
 interface TelegramSourceConfig {
   /** Public channel usernames (without @). Each post becomes a vacancy candidate. */
   channels?: string[];
   /** How many latest messages to scan per channel per run. */
   messagesPerChannel?: number;
+}
+
+/** GramJS raises FloodWaitError with the wait in `seconds`. */
+function isFloodWait(error: unknown): boolean {
+  return typeof (error as { seconds?: unknown } | null)?.seconds === "number";
 }
 
 @Injectable()
@@ -31,39 +36,61 @@ export class TelegramIngestService {
     const channels = config.channels ?? [];
     const limit = config.messagesPerChannel ?? 50;
 
-    const apiId = Number(this.config.get<string>('TELEGRAM_API_ID'));
-    const apiHash = this.config.get<string>('TELEGRAM_API_HASH');
-    const session = this.config.get<string>('TELEGRAM_SESSION');
+    const apiId = Number(this.config.get<string>("TELEGRAM_API_ID"));
+    const apiHash = this.config.get<string>("TELEGRAM_API_HASH");
+    const session = this.config.get<string>("TELEGRAM_SESSION");
 
     // Missing secrets or channel list is a deployment state, not source
     // breakage — skip quietly (notModified) instead of raising an 'empty' alert.
     if (!apiId || !apiHash || !session) {
       this.logger.warn(
-        'telegram: TELEGRAM_API_ID/TELEGRAM_API_HASH/TELEGRAM_SESSION not set — skipping',
+        "telegram: TELEGRAM_API_ID/TELEGRAM_API_HASH/TELEGRAM_SESSION not set — skipping",
       );
       return { fetched: 0, upserted: 0, notModified: true };
     }
     if (channels.length === 0) {
-      this.logger.warn('telegram: no channels configured in sources.config — skipping');
+      this.logger.warn(
+        "telegram: no channels configured in sources.config — skipping",
+      );
       return { fetched: 0, upserted: 0, notModified: true };
     }
 
-    const client = new TelegramClient(new StringSession(session), apiId, apiHash, {
-      connectionRetries: 3,
-      // Sleep through short FLOOD_WAITs instead of failing the run (politeness).
-      floodSleepThreshold: 60,
-    });
+    const client = new TelegramClient(
+      new StringSession(session),
+      apiId,
+      apiHash,
+      {
+        connectionRetries: 3,
+        // Sleep through short FLOOD_WAITs instead of failing the run (politeness).
+        floodSleepThreshold: 60,
+      },
+    );
 
     const rows: NewVacancy[] = [];
     let fetched = 0;
     try {
       await client.connect();
       if (!(await client.isUserAuthorized())) {
-        throw new Error('telegram session is not authorized — regenerate TELEGRAM_SESSION');
+        throw new Error(
+          "telegram session is not authorized — regenerate TELEGRAM_SESSION",
+        );
       }
 
+      // One bad channel (renamed, made private) must not cost the others
+      // their run; the run fails only when no channel could be read.
+      const failures: unknown[] = [];
       for (const channel of channels) {
-        const messages = await client.getMessages(channel, { limit });
+        let messages: Awaited<ReturnType<TelegramClient["getMessages"]>>;
+        try {
+          messages = await client.getMessages(channel, { limit });
+        } catch (error) {
+          failures.push(error);
+          this.logger.warn(`telegram @${channel}: ${(error as Error).message}`);
+          // A long FLOOD_WAIT (longer than floodSleepThreshold) covers the
+          // whole account: stop here instead of hitting it per channel.
+          if (isFloodWait(error)) break;
+          continue;
+        }
         fetched += messages.length;
         for (const message of messages) {
           if (!message.message) continue; // media-only / service messages
@@ -78,7 +105,12 @@ export class TelegramIngestService {
           );
           if (row) rows.push(row);
         }
-        this.logger.log(`telegram @${channel}: scanned ${messages.length} messages`);
+        this.logger.log(
+          `telegram @${channel}: scanned ${messages.length} messages`,
+        );
+      }
+      if (failures.length > 0 && fetched === 0 && rows.length === 0) {
+        throw failures[0];
       }
     } finally {
       // destroy(), not disconnect(): GramJS's update loop runs until the
