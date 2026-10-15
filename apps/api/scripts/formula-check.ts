@@ -17,7 +17,11 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { fallbackProfile } from '../src/candidate/analysis';
 import { openScriptDb } from '../src/db/prod-db';
 import { candidateProfiles, resumeMatches, resumes, users, vacancies } from '../src/db/schema';
-import { compareRankings, FORMULA_CHECK_TOP_N } from '../src/matching/formula-check';
+import {
+  compareRankings,
+  FORMULA_CHECK_GOOD_FIT,
+  FORMULA_CHECK_TOP_N,
+} from '../src/matching/formula-check';
 import { type ScoringProfile, scoreVacancy } from '../src/matching/score';
 
 config({ path: '../../.env' });
@@ -82,6 +86,11 @@ async function main(): Promise<void> {
       `Top ${FORMULA_CHECK_TOP_N} overlap: ${result.shared}/${result.size} = ${Math.round(result.overlap * 100)}% → ${
         result.pass ? 'PASS' : 'FAIL'
       } (needs ≥70%)`,
+    );
+    console.log(
+      `Precision: ${Math.round(result.precision * 100)}% of the formula's top ${FORMULA_CHECK_TOP_N} scored ≥${Math.round(
+        FORMULA_CHECK_GOOD_FIT * 100,
+      )} by the LLM`,
     );
 
     const byLlm = [...pairs].sort((a, b) => b.llmScore - a.llmScore).slice(0, FORMULA_CHECK_TOP_N);
