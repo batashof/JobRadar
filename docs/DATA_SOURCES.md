@@ -1,6 +1,6 @@
 # Data Sources
 
-> Global politeness rules apply to **every** source: fetch at most once per 4 hours, cache responses, exponential backoff on errors, honest User-Agent, no proxies. Proxies are a "success problem" — revisit only if the project outgrows these rules. An ingestion run returning zero items sets `sources.last_run_status = 'empty'` and triggers a Sentry alert (likely breakage or ban).
+> Global politeness rules apply to **every** source: fetch at most once per 4 hours unless the source has its own interval (ADR-023: Telegram and LinkedIn alerts every 10 minutes, ATS boards and WeWorkRemotely hourly; `apps/api/src/ingestion/schedule.ts`), cache responses, exponential backoff on errors, honest User-Agent, no proxies. Proxies are a "success problem" — revisit only if the project outgrows these rules. An ingestion run returning zero items sets `sources.last_run_status = 'empty'` and triggers a Sentry alert (likely breakage or ban).
 
 > **Quality gate (ADR-016).** Every board worker sanitizes descriptions through the shared `ingestion/description.ts`: HTML/entity decoding, mojibake repair, and removal of board boilerplate (anti-spam footers, cookie banners). An item whose cleaned description is shorter than 200 characters is **not ingested** — it is a stub or a scraped page, not a vacancy. Telegram is exempt (raw post text, own rules per ADR-009).
 
@@ -18,7 +18,7 @@
 | Parsing | Per-channel regex first (title / stack / format / contact); LLM-assisted extraction later (ADR-005). Missing fields stay null |
 | `external_id` | `<channel>:<message_id>` (stable, dedup-friendly) |
 | `url` | `https://t.me/<channel>/<message_id>` deep link — this is the "open vacancy" target; **no in-app apply**, the user responds in Telegram |
-| Rate limits | Global 4-hour politeness rule applies; respect MTProto FLOOD_WAIT; honest client, no proxies |
+| Rate limits | Every 10 minutes (ADR-023): reading public channels is what any Telegram client does; respect MTProto FLOOD_WAIT; honest client, no proxies |
 | Notes | Store the session string as a secret; a run yielding zero items across all channels sets `last_run_status='empty'` and alerts (likely a broken template or ban) |
 | Setup | Generate the session string locally with `pnpm --filter @jobradar/api telegram:session` (interactive, asks phone/code/2FA). Channels live in `sources.config.channels` (usernames without `@`, `messagesPerChannel` defaults to 50). The worker skips politely (no alert) while secrets or the channel list are missing |
 

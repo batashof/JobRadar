@@ -9,6 +9,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.25.0] — 2026-10-15
+
+### Changed
+
+- **Sources are checked every 10 minutes, and fresh vacancies reach Telegram within about 10–20 minutes** (ADR-023). The production database now calls the ingestion hook itself: Supabase `pg_cron` + `pg_net`, every 10 minutes, with the token kept in Supabase Vault. GitHub Actions had been running the "every 10 minutes" keep-alive only every 4–5 hours, so the API slept most of the day. The tick keeps it awake. Set up with `DB (prod)` → `schedule:enable`; `schedule:status` shows the last runs and HTTP answers, `schedule:disable` removes it. The GitHub workflows stay as a fallback.
+- **Each source has its own interval**: Telegram channels and LinkedIn alert emails every 10 minutes, ATS boards and WeWorkRemotely hourly, the other aggregators every 4 hours as before. The hook enqueues only the sources that are due, and nothing at all when none is. A failed source is retried after an hour at most, not on every tick.
+- **Instant digest settle delay 10 → 5 minutes.**
+
+### Fixed
+
+- **Costs that would have multiplied with a faster cycle.** Dedup read every canonical vacancy (~17k rows) on each run; it now reads only companies that received a vacancy in the last day, within twice the dedup window, which keeps Supabase egress flat. The LLM résumé pass keeps its 4-hour cadence instead of running on every tick.
+- `package.json` versions were left at 1.23.1 in the 1.24.0 release; all four now carry 1.25.0.
+
 ## [1.24.0] — 2026-10-14
 
 ### Changed

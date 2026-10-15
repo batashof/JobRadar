@@ -28,6 +28,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [020](020-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted (amended by ADR-022) |
 | [021](021-linkedin-job-alert-emails.md) | LinkedIn vacancies from job-alert emails read over IMAP — no request to linkedin.com (amends ADR-003) | Accepted |
 | [022](022-digest-sends-every-new-vacancy.md) | The digest sends every new vacancy since the previous send, not a top ten (amends ADR-020) | Accepted |
+| [023](023-ten-minute-ingestion-tick.md) | A 10-minute ingestion tick fired by Supabase pg_cron, with per-source intervals (amends ADR-006, ADR-020 §3) | Accepted |
 
 ## Template
 

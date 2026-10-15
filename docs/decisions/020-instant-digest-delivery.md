@@ -1,6 +1,6 @@
 # ADR-020: Instant digest delivery — push new matches after each ingestion, not only on a schedule
 
-- Status: Accepted; §2, §5 and the `BATCH_LIMIT` consequence amended by ADR-022 (every new vacancy is scored and sent; the watermark is `judged_through` and serves both modes)
+- Status: Accepted; §2, §5 and the `BATCH_LIMIT` consequence amended by ADR-022 (every new vacancy is scored and sent; the watermark is `judged_through` and serves both modes); §3 settle delay is 5 minutes since ADR-023
 - Date: 2026-09-29
 - Extends ADR-015 §7 (in-process scheduler, per-user timezone) and the Telegram digest built on it
 

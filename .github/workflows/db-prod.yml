@@ -4,7 +4,8 @@ name: DB (prod)
 # on the developer's machine, whose network blocks outbound TCP 5432.
 #
 # Secrets: DATABASE_URL_PROD (Supabase session pooler URL), DATABASE_CA_CERT_PROD
-# (Supabase root CA, PEM), NEON_DATABASE_URL (only for the one-off copy). They
+# (Supabase root CA, PEM), NEON_DATABASE_URL (only for the one-off copy),
+# INGESTION_TOKEN (only for schedule:enable, stored in Supabase Vault). They
 # live in the `main - jobradar-api` environment; repository secrets of the same
 # names work too (an environment secret wins over a repository one).
 on:
@@ -20,6 +21,9 @@ on:
           - backfill:seniority
           - backfill:contacts
           - cleanup:junk
+          - schedule:enable
+          - schedule:status
+          - schedule:disable
       dry_run:
         description: Dry run (backfill:seniority, cleanup:junk)
         type: boolean
@@ -66,6 +70,14 @@ jobs:
       - name: Check the connection (read-only)
         if: inputs.task == 'check'
         run: pnpm --filter @jobradar/api db:check:prod
+
+      # ADR-023: pg_cron + pg_net call the ingestion hook every 10 minutes.
+      - name: Ingestion tick in the database (pg_cron)
+        if: startsWith(inputs.task, 'schedule:')
+        env:
+          TASK: ${{ inputs.task }}
+          INGESTION_TOKEN: ${{ secrets.INGESTION_TOKEN }}
+        run: pnpm --filter @jobradar/api db:schedule:prod "${TASK#schedule:}"
 
       - name: Migrate + seed sources
         if: inputs.task == 'migrate'

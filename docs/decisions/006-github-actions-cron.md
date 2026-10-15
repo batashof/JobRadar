@@ -1,6 +1,6 @@
 # ADR-006: External cron via GitHub Actions schedule
 
-- Status: Accepted
+- Status: Accepted; the primary trigger moved to Supabase pg_cron by ADR-023 (GitHub Actions schedules ran every 4–5 hours instead of every 10 minutes); the workflows remain a fallback
 - Date: 2026-07-19
 
 ## Context

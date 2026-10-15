@@ -1,5 +1,8 @@
 name: Keep-alive ping
 
+# Fallback since ADR-023: GitHub runs this schedule every 4-5 hours, not every
+# 10 minutes, so the real keep-alive is the Supabase pg_cron ingestion tick.
+#
 # External keep-alive (ADR-006): the free-tier Render container spins down after
 # ~15 min of inactivity, so the first request afterwards is slow (30-60s cold
 # start). GitHub Actions pings the public /health endpoint every 10 minutes to
