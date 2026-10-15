@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — Plan for 2.0.0: a Telegram-only product
+
+- **Request:** record the move from the web app to a Telegram bot (registration, resume upload, matching, all settings, new sources) in the docs and start building it; the move may be version 2.0.0.
+- **ADR-024:** the bot is the only client for other job seekers; accounts by `/start` keyed on the Telegram user id; `users.role` = `owner` | `user` keeps LLM-per-action features for the author; dialog state in Postgres; no Mini App in 2.0.0; the web app is removed in the last step, leaving a static landing page with the privacy policy.
+- **ADR-025:** one free-LLM resume analysis per upload (no training-on-data tiers for strangers' resumes), then a pure scoring formula with a related-technology dictionary; exit check against the author's `resume_matches`.
+- ROADMAP: phase 4 closed (open items dropped or moved), phase 5 rewritten as six steps 5.1–5.6 (v1.26.0 → 2.0.0). PRODUCT, ARCHITECTURE, DATA_SOURCES (DOU/Djinni RSS and other probed sources), RISKS, CLAUDE.md updated.
+- Open question for the developer: what happens to the author's web-only tools (interview prep, planner UI, kanban) at removal; default is to move applications and the mock interview into the bot.
+- **Next step:** 5.1, registration in the bot (v1.26.0).
+
 ## 2026-10-15 — A 10-minute ingestion tick (v1.25.0)
 
 - **Request:** check sources every 10 minutes and push new vacancies right away; is Render enough?

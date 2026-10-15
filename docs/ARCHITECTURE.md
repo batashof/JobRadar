@@ -57,6 +57,19 @@ Each decision has a full ADR in [decisions/](decisions/):
 | 19 | Production Postgres on Supabase: always-on, no compute-hour quota; session pooler + verified TLS; prod maintenance via the `DB (prod)` workflow | [019](decisions/019-postgres-on-supabase.md) |
 | 20 | Instant digest delivery: new matches pushed right after each ingestion, quiet hours, stricter floor | [020](decisions/020-instant-digest-delivery.md) |
 | 21 | LinkedIn via the job-alert emails LinkedIn sends the user, read over IMAP; still no request to linkedin.com (amends 003) | [021](decisions/021-linkedin-job-alert-emails.md) |
+| 24 | Telegram bot is the only client for other job seekers; accounts by `/start`, owner-only flag for LLM-per-action features; web app reduced to a static landing page in 2.0.0 | [024](decisions/024-telegram-only-product.md) |
+| 25 | LLM reads the resume once at registration; vacancies scored by a pure formula + synonym dictionary for non-owners | [025](decisions/025-llm-only-at-registration.md) |
+
+## Target architecture for 2.0.0 (phase 5)
+
+The API stays a separate NestJS service (ADR-002). Its client changes: the Telegram bot replaces the Next.js app (ADR-024).
+
+- **Accounts** are keyed by `users.telegram_user_id`, created by `/start`; `users.role` = `owner` | `user` gates the LLM-per-action features.
+- **Dialogs** (onboarding, profile, settings) are state machines with their state in `bot_dialogs`, driven through new callback namespaces `o:` / `p:` / `s:` on the existing router.
+- **Resume analysis** is the only LLM call for non-owners: one call per upload → `candidate_profiles` (ADR-025).
+- **Scoring** is `matching/score.ts`, a pure function over the candidate profile and a vacancy, with a dictionary of related technologies in `packages/shared`.
+- **Delivery** goes through one rate limiter for all chats.
+- **`apps/web`** shrinks to a static landing page and the privacy policy in 2.0.0.
 
 ## Repository layout (monorepo)
 

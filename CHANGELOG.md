@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+- **Plan for 2.0.0: JobRadar becomes a Telegram-bot product for other job seekers** (ADR-024, ADR-025). Registration by `/start`, resume PDF in the chat with a one-time free-LLM evaluation, vacancies scored by a formula, every setting in the bot, new sources (DOU, Djinni, SmartRecruiters, Recruitee, Personio). The web app keeps running until the bot covers it, then shrinks to a static landing page in 2.0.0. Roadmap phase 5 lists the six steps.
+
 - Phase 4 remainder: browser extension, calendar sync.
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".

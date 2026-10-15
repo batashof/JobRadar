@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 4 — Extensions (apply assistant first, ADR-011).** v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product, v2.0.0 (ADR-024, ADR-025).** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -92,28 +92,89 @@ A personal execution surface over existing app state: `planner/` on the API, `/a
 - [x] Estimation calibration: `estimation_factor` (global + per category) from the last N blocks, surfaced on the day surface and applied to new blocks. *(median over ≤20 timed blocks, needs ≥5, clamped to [0.5, 4]; live-verified ×2.00 after five 30→60 min blocks)*
 - [x] `planner:tick` BullMQ repeatable job (1 min): due nudges, midway checks, day rollover per timezone, idempotent claim-before-send. *(live-verified: stale day auto-closed, morning + debt + block_start raised once each, escalation repeated then recorded as ignored)*
 - [x] Telegram bot channel: `TELEGRAM_BOT_TOKEN` outbound `sendMessage` + `POST /bot/telegram/webhook` (secret-token guarded), inline *Start / Done / Skip*. *(v1.16.0 — shipped as a shared `bot/` module rather than a planner-private one, since the digest needs the same channel: account linking via a `t.me` deep link, callback routing by namespace, and nudge delivery on the existing `planner_nudges` rows. Endpoint moved from `/planner/telegram/webhook` to `/bot/telegram/webhook`; *+15 min* was dropped in favour of Start/Done/Skip, which map onto the planner actions that already exist.)*
-- [ ] Planner stats on the dashboard: completion rate, debt (count + minutes), per-category time vs targets, estimation factor.
+- [ ] ~~Planner stats on the dashboard~~ — dropped with the web app (phase 5, ADR-024).
 
 ### Other extensions
 
-- [ ] LLM relevance scoring + description summarization (free tiers, failover — ADR-005).
-- [ ] **Daily vacancy digest in Telegram** — up to 10 resume-matched vacancies per send, with an *Apply* button that shortens the path to a sent resume + cover letter.
+- [ ] ~~LLM relevance scoring + description summarization~~ — superseded: owner has the LLM verdict (ADR-022), everyone else the formula (ADR-025).
+- [x] **Daily vacancy digest in Telegram** — up to 10 resume-matched vacancies per send, with an *Apply* button that shortens the path to a sent resume + cover letter.
   - [x] Bot channel (v1.16.0) — linking, outbound send, inline buttons, webhook.
   - [x] Schedule configuration (v1.17.0) — `digest_settings`: on/off, 1–4 send times a day in the user's timezone, per-send cap, resume-fit floor; `GET`/`PATCH /digest/settings` + a card on the day surface.
   - [x] The send itself (v1.18.0) — `digest_items` (never repeat a vacancy), the SQL → level-gate → one-batch-LLM funnel, an in-process scheduler on the per-user local times, Telegram cards with *Apply* / *Details* / *Hide* / 👍👎, and a "send it now" button.
   - [x] Instant delivery mode (v1.22.0, ADR-020) — push new matches right after each ingestion run instead of at fixed times, with quiet hours and a stricter floor.
   - [x] The three apply paths keyed on `vacancies.apply_contact` (v1.19.0): `email` → draft + confirm + send via Gmail; `telegram` → ready-made text plus a link to the chat; `url`/absent → the letter plus links into the app and the posting.
 - [x] **LinkedIn via job-alert emails** (v1.23.0, ADR-021) — the alerts LinkedIn mails the user, read over IMAP (read-only, dedicated mailbox recommended); one vacancy per card, no request to linkedin.com. `linkedin:alerts:preview` checks the parse against real mail.
-- [ ] Browser extension: one-click "Save to JobRadar" (covers LinkedIn/Djinni manually).
+- [ ] ~~Browser extension: one-click "Save to JobRadar"~~ — dropped (ADR-024); forwarding a link to the bot replaces it, and Djinni gets an RSS source in phase 5.4.
 - [x] More sources: **Remotive, Jobicy, Working Nomads** (free no-auth JSON feeds, 2026-07-21); **Himalayas + HN "Who is hiring?"**, WWR across five category feeds, Jobicy across four industries (2026-07-28, ADR-016 — RemoteOK dropped in the same pass). *(Telegram channels promoted to a v1.0 primary source — ADR-009.)* Also **company career pages via Greenhouse/Ashby/Lever** (36 curated boards, 2026-07-28). Still open: Djinni.
 - [x] Funnel statistics: applied → screening → interview → offer conversion. *(`furthest_stage` column tracks the deepest non-terminal stage each application ever reached, so rejected/withdrawn cards still count through their peak; `GET /applications/stats` + dashboard Funnel card with per-step conversion — E2E verified)*
-- [ ] Google Calendar sync for interviews (OAuth).
+- [ ] ~~Google Calendar sync for interviews (OAuth)~~ — dropped (ADR-024).
 
-## Phase 5 — Hypothetical monetization (only if real external users appear)
+## Phase 5 — Telegram-only product, v2.0.0 (ADR-024, ADR-025)
 
-- [ ] Multi-tenancy review, per-plan limits.
-- [ ] Stripe in test mode (subscriptions, webhooks) — as a learning integration.
-- [ ] Landing page, onboarding.
+JobRadar opens to other job seekers, and the Telegram bot becomes the whole product: registration, resume upload and evaluation, matching, every setting. The LLM reads a resume once at registration; vacancies are scored by a formula. Each step below is one PR with tests, a minor version bump and a deploy; the next step starts once the previous one is in production. The web app keeps running until step 5.6 removes it, which is the 2.0.0 release.
+
+### 5.1 Registration in the bot (v1.26.0)
+
+- [ ] `users.telegram_user_id` (unique), `users.role` (`owner` / `user`), `users.email` and `password_hash` optional — migration; the author's account becomes `owner` and keeps its chat link.
+- [ ] `/start` from an unknown Telegram user creates the account and its chat link in one step; `/start <token>` keeps linking the author's web account.
+- [ ] Interface language from the Telegram client (`language_code` → `ru` / `en`, ADR-014), changeable in settings.
+- [ ] `bot_dialogs`: per-chat dialog state in Postgres (step, payload, expiry) and a small state-machine helper the next steps build on.
+- [ ] Owner-only feature flag (`role = 'owner'`) on brief, cover letter, LLM digest verdict, interview, planner, Gmail send, LinkedIn IMAP.
+- [ ] Commands: `/help`, `/privacy` (links the policy), `/delete` (confirm button → account and everything keyed to it removed).
+- [ ] `events` table (start, resume_uploaded, profile_confirmed, card_opened, feedback) for the activation funnel.
+
+**Exit criterion:** a stranger presses Start and has an account with no website involved; `/delete` removes it.
+
+### 5.2 Resume upload and evaluation (v1.27.0)
+
+- [ ] A PDF sent to the chat is downloaded through `getFile` (Bot API limit 20 MB; our cap stays 5 MB), stored in `resumes`, text extracted as today.
+- [ ] `candidate_profiles` + one LLM call → zod-validated profile and resume evaluation (ADR-025 §1); prompt version stored.
+- [ ] Provider chain for non-owners without training-on-data free tiers (ADR-025 §4); 3 analyses per 30 days; lexical fallback profile when every provider fails, with a later retry.
+- [ ] The evaluation message (strengths, gaps, what to add) and the profile confirmation dialog (`p:` buttons: edit grade, skills, English, location).
+
+**Exit criterion:** a PDF in the chat → evaluation and a confirmed profile within a minute.
+
+### 5.3 Matching and settings in the bot (v1.28.0)
+
+- [ ] `matching/score.ts` pure scoring function + synonym / adjacent-tech dictionary in `packages/shared`; template explanation on each card.
+- [ ] Compare with the author's `resume_matches`: top-20 overlap ≥ 70% (ADR-025 §9).
+- [ ] Digest funnel for non-owners on the formula; owner keeps the LLM verdict.
+- [ ] 👍 / 👎 / Hide adjust skill and company weights within bounds.
+- [ ] `/settings` (`s:` buttons): work format, employment, minimum salary, delivery mode (instant / scheduled), send times, quiet hours, timezone, minimum score, cap, sources on/off, language, pause.
+- [ ] One send limiter for all chats (≈30 msg/s overall, 1/s per chat); `403 blocked` turns the digest off.
+
+**Exit criterion:** a new user gets scored vacancies with an explanation and changes every setting without the website.
+
+### 5.4 New sources (v1.29.0)
+
+- [ ] DOU.ua and Djinni RSS feeds by category / keyword.
+- [ ] SmartRecruiters, Recruitee, Personio public job APIs with a curated company list, like the Greenhouse/Ashby/Lever boards.
+- [ ] Re-read each source's terms for redistribution to other people; disable the doubtful ones for non-owners with one setting.
+- [ ] Optional: Adzuna / Jooble / Findwork (free key) after checking their limits and attribution rules.
+- [ ] LinkedIn alerts for everyone through a personal forwarding address (`alerts+<token>@…`), parsed by the recipient; still no request to linkedin.com (ADR-003, ADR-021).
+
+**Exit criterion:** a senior frontend profile gets noticeably more matching vacancies a day than before (baseline measured in 5.3).
+
+### 5.5 Applications and owner tools in the bot (v1.30.0)
+
+- [ ] "Applied" button on a card and `/applications`: list with stage buttons (applied → screening → interview → offer / rejected), follow-up reminders.
+- [ ] The author's web-only tools, as the developer decides (ADR-024 "Not decided here"); default: mock interview and per-topic questions as chat dialogs.
+
+**Exit criterion:** nothing a job seeker or the author uses daily needs the website.
+
+### 5.6 Web app removal — release 2.0.0
+
+- [ ] `apps/web` reduced to a static landing page (what the bot does, "Open in Telegram") and the privacy policy (ADR-024 §7).
+- [ ] Email + password auth, sessions, web proxy and web-only API endpoints removed where nothing else calls them.
+- [ ] README, PRODUCT, ARCHITECTURE describe the bot-only product; CI drops the web test suite that no longer exists.
+- [ ] Find 10–20 testers (developers the author knows, IT chats in Telegram).
+
+**Exit criterion:** a stranger goes from `/start` to the first matching vacancy in 3 minutes without a website; 10 testers use it. Release 2.0.0.
+
+### Later (not in 2.0.0)
+
+- [ ] Telegram Mini App for settings and a filtered feed, only if chat dialogs prove too clumsy (ADR-024 §5).
+- [ ] Monetization decision at roughly 100 active users: donations, one-off purchases or a subscription in Telegram Stars, or stay free. Billing code only after that decision.
 
 ## Timeline sanity check
 
