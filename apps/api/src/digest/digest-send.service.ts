@@ -82,9 +82,11 @@ const CANDIDATE_WINDOW_DAYS = 14;
 /**
  * Instant mode (ADR-020) only considers vacancies ingested at least this long
  * ago: dedup and matching run after the source jobs, and a posting seen in
- * three channels must be pushed once, as its canonical row.
+ * three channels must be pushed once, as its canonical row. Five minutes since
+ * ADR-023: a 10-minute tick fetches only Telegram and LinkedIn alerts, and its
+ * dedup + match jobs finish within a couple of minutes.
  */
-const INSTANT_SETTLE_MINUTES = 10;
+export const INSTANT_SETTLE_MINUTES = 5;
 
 /** Where a fresh watermark starts: the last day, not the board. */
 const FIRST_LOOKBACK_HOURS = 24;

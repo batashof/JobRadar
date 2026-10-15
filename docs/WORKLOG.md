@@ -2,6 +2,15 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — A 10-minute ingestion tick (v1.25.0)
+
+- **Request:** check sources every 10 minutes and push new vacancies right away; is Render enough?
+- **Cause, found in the Actions history:** Render is fine, the trigger is not. The `*/10` keep-alive ran at 00:22, 04:59, 09:45, 14:26, 18:30 UTC on 2026-10-15, and the 4-hourly ingestion cron ran 5–9 hours apart, so the instance slept most of the day.
+- **Decision (ADR-023):** Supabase `pg_cron` + `pg_net` call `POST /ingestion/run` every 10 minutes (token in Vault), which also keeps Render awake. Per-source intervals: Telegram and LinkedIn 10 min, ATS and WWR 1 h, the rest 4 h; the hook enqueues only due sources. Dedup reads only companies with fresh vacancies (egress); the LLM résumé pass stays at 4 h; instant settle 10 → 5 min.
+- New `DB (prod)` tasks `schedule:enable` / `schedule:status` / `schedule:disable` (`apps/api/src/db/prod-schedule.ts`).
+- Package versions had stayed at 1.23.1 through the 1.24.0 release; bumped all four to 1.25.0.
+- **Next step:** after the merge run `schedule:enable`, then `schedule:status` and the Render logs to confirm a `202` every 10 minutes. Watch Supabase egress and Upstash commands for a few days.
+
 ## 2026-10-15 — CLAUDE.md becomes a docs map
 
 - Replaced the "read in this order" list with a table mapping questions to docs (PRODUCT, ROADMAP, ARCHITECTURE, DATA_MODEL, DATA_SOURCES, ADR index, RISKS, runbooks, WORKLOG/CHANGELOG), so a session opens the one file it needs.

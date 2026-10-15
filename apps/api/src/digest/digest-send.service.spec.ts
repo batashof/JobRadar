@@ -9,7 +9,7 @@ import {
   resumes,
   vacancies,
 } from "../db/schema";
-import { DigestSendService } from "./digest-send.service";
+import { DigestSendService, INSTANT_SETTLE_MINUTES } from "./digest-send.service";
 
 /**
  * Fake drizzle: a query is keyed by the table its `from()` names, so the join
@@ -700,5 +700,11 @@ describe("DigestSendService buttons", () => {
     const bot = makeBot();
     await handlerFor(db, bot)(ctx(["d"]));
     expect(writes).toHaveLength(0);
+  });
+});
+
+describe("instant settle delay (ADR-023)", () => {
+  it("waits five minutes, half the 10-minute ingestion tick", () => {
+    expect(INSTANT_SETTLE_MINUTES).toBe(5);
   });
 });

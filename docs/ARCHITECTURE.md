@@ -4,8 +4,8 @@
 
 ```
                        ┌────────────────────────────────────────────┐
-                       │              GitHub Actions                │
-                       │  (schedule: triggers ingestion every 4h)   │
+                       │   Supabase pg_cron + pg_net (ADR-023)      │
+                       │ (every 10 min; GitHub Actions = fallback)  │
                        └───────────────────┬────────────────────────┘
                                            │ HTTP (authenticated hook)
                                            ▼
@@ -126,7 +126,7 @@ apps/api/src/
 
 | Clock | Granularity | Where | Why |
 |---|---|---|---|
-| Ingestion / keep-alive | 4 h / 10 min | GitHub Actions (ADR-006) | Free external trigger; wakes the sleeping Render container |
+| Ingestion tick / keep-alive | 10 min (each source on its own interval: 10 min – 4 h) | Supabase `pg_cron` + `pg_net` in the production DB (ADR-023); GitHub Actions workflows as fallback (ADR-006) | GitHub's free schedules ran every 4–5 h instead of every 10 min. The tick also keeps Render awake |
 | `planner:tick` | 1 min | Plain in-process `setInterval` in the API (revised ADR-015 §7) | Minute granularity in a private repo would exceed the free Actions allowance; the 10-min keep-alive keeps the process warm. **Not BullMQ** — the tick only touches Postgres, and BullMQ's Redis polling was burning the Upstash free-tier command budget. Idempotent via DB writes (a nudge is raised once per day/block) |
 
 ## Telegram: two independent integrations
@@ -144,8 +144,8 @@ The Bot API side is one module (`apps/api/src/bot`) with one chat link per accou
 
 ## Data flow: ingestion
 
-1. GitHub Actions cron fires every 4 hours → authenticated HTTP call to `POST /ingestion/run`.
-2. API enqueues one BullMQ job per active source.
+1. Supabase `pg_cron` fires every 10 minutes (ADR-023; GitHub Actions as fallback) → authenticated HTTP call to `POST /ingestion/run`.
+2. API enqueues one BullMQ job per active source whose own interval has elapsed (`ingestion/schedule.ts`: Telegram and LinkedIn alerts 10 min, ATS and WWR 1 h, the rest 4 h); nothing when none is due.
 3. Each worker fetches new items (API pagination / RSS), respecting per-source politeness rules ([DATA_SOURCES.md](DATA_SOURCES.md)).
 4. Items are normalized into the common `Vacancy` shape and upserted (`source + external_id` unique key).
 5. Dedup job links duplicates across sources (heuristic v1, ADR-004).

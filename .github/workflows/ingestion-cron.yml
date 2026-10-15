@@ -1,5 +1,9 @@
 name: Ingestion cron
 
+# Fallback since ADR-023: the 10-minute tick comes from Supabase pg_cron. This
+# workflow still calls the same hook whenever GitHub runs it; the API fetches
+# only sources whose own interval has elapsed.
+#
 # External cron (ADR-006): free-tier containers sleep, so GitHub Actions wakes
 # the API every 4 hours and triggers ingestion via the authenticated hook.
 on:
@@ -8,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: Bypass the 4-hour politeness interval
+        description: Bypass the per-source politeness intervals
         type: boolean
         default: false
 

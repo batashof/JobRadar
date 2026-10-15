@@ -13,13 +13,26 @@ const captureExceptionMock = Sentry.captureException as jest.MockedFunction<
 const job = (data: IngestJobData): Job<IngestJobData> => ({ data }) as Job<IngestJobData>;
 
 describe('IngestionProcessor error handling', () => {
-  const activeSource = { id: 1, slug: 'remoteok', isActive: true, lastRunAt: null, lastRunStatus: null };
+  const activeSource = {
+    id: 1,
+    slug: 'remoteok',
+    isActive: true,
+    lastRunAt: null,
+    lastRunStatus: null,
+  };
 
-  const makeProcessor = (worker: { ingest: jest.Mock }) => {
+  const makeProcessor = (
+    worker: { ingest: jest.Mock },
+    resumeMatching = {
+      scorePending: jest.fn().mockResolvedValue({ scored: 0, remaining: 0 }),
+    },
+  ) => {
     const where = jest.fn().mockResolvedValue(undefined);
     const set = jest.fn().mockReturnValue({ where });
     const db = {
-      query: { sources: { findFirst: jest.fn().mockResolvedValue(activeSource) } },
+      query: {
+        sources: { findFirst: jest.fn().mockResolvedValue(activeSource) },
+      },
       update: jest.fn().mockReturnValue({ set }),
     };
     const processor = new IngestionProcessor(
@@ -36,19 +49,23 @@ describe('IngestionProcessor error handling', () => {
       { ingest: jest.fn() } as never, // wwr
       { ingest: jest.fn() } as never, // linkedin
       { run: jest.fn() } as never, // dedup
-      { rematchAll: jest.fn() } as never, // matching
-      { scorePending: jest.fn().mockResolvedValue({ scored: 0, remaining: 0 }) } as never, // resume matching
+      { rematchAll: jest.fn().mockResolvedValue({ profiles: 1 }) } as never, // matching
+      resumeMatching as never,
     );
-    return { processor, set };
+    return { processor, set, db };
   };
 
   beforeEach(() => captureExceptionMock.mockClear());
 
   it('reports a source failure to Sentry, marks it error, and rethrows', async () => {
     const boom = new Error('remoteok fetch failed');
-    const { processor, set } = makeProcessor({ ingest: jest.fn().mockRejectedValue(boom) });
+    const { processor, set } = makeProcessor({
+      ingest: jest.fn().mockRejectedValue(boom),
+    });
 
-    await expect(processor.process(job({ kind: 'source', slug: 'remoteok' }))).rejects.toThrow(boom);
+    await expect(processor.process(job({ kind: 'source', slug: 'remoteok' }))).rejects.toThrow(
+      boom,
+    );
 
     expect(captureExceptionMock).toHaveBeenCalledWith(boom, {
       tags: { source: 'remoteok', job: 'ingestion' },
@@ -64,5 +81,56 @@ describe('IngestionProcessor error handling', () => {
     await processor.process(job({ kind: 'source', slug: 'remoteok' }));
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it('skips a source that ran within its interval', async () => {
+    const worker = { ingest: jest.fn() };
+    const { processor, db } = makeProcessor(worker);
+    db.query.sources.findFirst.mockResolvedValueOnce({
+      ...activeSource,
+      lastRunAt: new Date(Date.now() - 30 * 60 * 1000),
+      lastRunStatus: 'ok',
+    });
+
+    expect(await processor.process(job({ kind: 'source', slug: 'remoteok' }))).toEqual({
+      skipped: 'ran-recently',
+    });
+    expect(worker.ingest).not.toHaveBeenCalled();
+  });
+});
+
+describe('IngestionProcessor match job', () => {
+  it('runs the LLM résumé pass at most once per 4 hours, matching every time', async () => {
+    const rematchAll = jest.fn().mockResolvedValue({ profiles: 1 });
+    const scorePending = jest.fn().mockResolvedValue({ scored: 3, remaining: 0 });
+    const noop = { ingest: jest.fn() };
+    const processor = new IngestionProcessor(
+      {} as never,
+      noop as never, // hh
+      noop as never, // remoteok
+      noop as never, // remotive
+      noop as never, // jobicy
+      noop as never, // himalayas
+      noop as never, // hn
+      noop as never, // ats
+      noop as never, // workingnomads
+      noop as never, // telegram
+      noop as never, // wwr
+      noop as never, // linkedin
+      { run: jest.fn() } as never,
+      { rematchAll } as never,
+      { scorePending } as never,
+    );
+
+    const first = await processor.process(job({ kind: 'match' }));
+    const second = await processor.process(job({ kind: 'match' }));
+
+    expect(rematchAll).toHaveBeenCalledTimes(2);
+    expect(scorePending).toHaveBeenCalledTimes(1);
+    expect(first).toEqual({
+      profiles: 1,
+      resumeMatching: { scored: 3, remaining: 0 },
+    });
+    expect(second).toEqual({ profiles: 1 });
   });
 });

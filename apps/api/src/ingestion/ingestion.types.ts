@@ -4,7 +4,7 @@ export type IngestJobData =
   | {
       kind: 'source';
       slug: string;
-      /** Bypass the 4-hour minimum interval (manual runs). */
+      /** Bypass the per-source minimum interval (manual runs, `schedule.ts`). */
       force?: boolean;
     }
   | {

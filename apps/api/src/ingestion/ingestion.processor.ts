@@ -22,9 +22,15 @@ import { TelegramIngestService } from './telegram/telegram.service';
 import { WorkingNomadsIngestService } from './workingnomads/workingnomads.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
+import { isSourceDue } from './schedule';
 
-/** Politeness: never fetch a source more often than this (docs/DATA_SOURCES.md). */
-const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
+/**
+ * The LLM résumé pass (ADR-011) keeps the old 4-hour cadence although matching
+ * now runs every 10 minutes (ADR-023): each pass spends up to 10 LLM calls on
+ * the backlog, and 144 passes a day would exhaust the free provider quotas the
+ * digest also depends on (ADR-005).
+ */
+export const RESUME_SCORING_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 /**
  * Idle-polling budget on Upstash (ADR-001, ADR-007). A BullMQ worker blocks on
@@ -47,6 +53,7 @@ type JobOutcome =
 @Processor(INGESTION_QUEUE, IDLE_POLL_OPTIONS)
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
+  private lastResumeScoringAt = 0;
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -76,6 +83,9 @@ export class IngestionProcessor extends WorkerHost {
       const result = await this.matching.rematchAll();
       // LLM pass rides the same job: budget-capped, cached, and a no-op
       // without an LLM key — never fails the rules-based matching (ADR-011).
+      // In-memory gate: a restart only brings the next pass forward.
+      if (Date.now() - this.lastResumeScoringAt < RESUME_SCORING_INTERVAL_MS) return result;
+      this.lastResumeScoringAt = Date.now();
       try {
         const resumeRun = await this.resumeMatching.scorePending();
         return { ...result, resumeMatching: resumeRun };
@@ -90,9 +100,9 @@ export class IngestionProcessor extends WorkerHost {
     });
     if (!source || !source.isActive) return { skipped: 'inactive-or-unknown-source' };
 
-    const ranRecently =
-      source.lastRunAt !== null && Date.now() - source.lastRunAt.getTime() < MIN_INTERVAL_MS;
-    if (ranRecently && source.lastRunStatus === 'ok' && !job.data.force) {
+    // The hook enqueues only due sources; this re-check covers a job that
+    // waited in the queue behind a duplicate trigger.
+    if (!isSourceDue(source, new Date(), job.data.force)) {
       this.logger.log(`${source.slug}: ran recently, skipping (politeness interval)`);
       return { skipped: 'ran-recently' };
     }
