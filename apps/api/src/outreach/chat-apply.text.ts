@@ -25,6 +25,7 @@ const TEXT = {
     openPosting: 'Open the posting',
     noResume: 'Upload a resume first — it is attached to the email.',
     failed: 'Could not prepare the application. Try again from the app.',
+    ownerOnly: 'Ready-made applications are not available yet.',
   },
   ru: {
     preparing: 'Готовлю отклик…',
@@ -46,6 +47,7 @@ const TEXT = {
     openPosting: 'Открыть вакансию',
     noResume: 'Сначала загрузи резюме — оно прикладывается к письму.',
     failed: 'Не удалось подготовить отклик. Попробуй из приложения.',
+    ownerOnly: 'Готовые отклики пока недоступны.',
   },
 } as const;
 

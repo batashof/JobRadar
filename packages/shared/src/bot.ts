@@ -52,4 +52,17 @@ export const BOT_CALLBACK_NAMESPACES = {
    * surface that offers "apply" reuses the same handler.
    */
   apply: 'a',
+  /** The account itself: deletion confirmation (ADR-024). Owned by the bot module. */
+  account: 'u',
 } as const;
+
+/**
+ * Account role (ADR-024 §3). `owner` is the author: the only account with the
+ * LLM-per-action features (brief, cover letter, LLM digest verdict, interview,
+ * planner) and the ones that need personal credentials (Gmail, LinkedIn IMAP).
+ */
+export type UserRole = 'owner' | 'user';
+
+export function isOwnerRole(role: string | null | undefined): boolean {
+  return role === 'owner';
+}

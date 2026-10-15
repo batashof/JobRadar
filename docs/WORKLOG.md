@@ -2,6 +2,16 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — Registration in the bot (v1.26.0, roadmap 5.1)
+
+- Merged the 2.0.0 plan ([batashof/JobRadar#10](https://github.com/batashof/JobRadar/pull/10)).
+- Plain `/start` from an unknown Telegram user creates the account (`users.telegram_user_id`, language from `language_code`, role `user`) and the chat link; a known user after `/stop` is reconnected; a racing second `/start` loses the insert (`on conflict do nothing`) and stays silent. Token linking also stores the Telegram user id and refuses when that Telegram user already owns another account.
+- `/privacy`, `/delete` (`u:del:y|n`, refused for the owner; one `DELETE FROM users`, all user tables cascade, checked on a local Postgres), `/help`.
+- `users.role`: every pre-existing account becomes `owner` in `0019`. Handlers receive `role`; chat Apply refuses non-owners, the digest query runs only for owners.
+- `events` table with `user_id` set null on delete.
+- `bot_dialogs` moved to 5.2, its first consumer; language change moved to `/settings` (5.3).
+- **Next step:** after the merge, `DB (prod)` → `migrate` for `0019`, then 5.2 (resume upload and evaluation).
+
 ## 2026-10-15 — Plan for 2.0.0: a Telegram-only product
 
 - **Request:** record the move from the web app to a Telegram bot (registration, resume upload, matching, all settings, new sources) in the docs and start building it; the move may be version 2.0.0.

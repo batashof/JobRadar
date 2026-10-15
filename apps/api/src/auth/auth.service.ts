@@ -20,13 +20,15 @@ interface SessionResult {
 
 function toAuthUser(row: {
   id: string;
-  email: string;
+  email: string | null;
   digestEnabled: boolean;
   language: string;
 }): AuthUser {
   return {
     id: row.id,
-    email: row.email,
+    // Web sessions exist only for email + password accounts; bot-made
+    // accounts (ADR-024) have no email and cannot log in on the web.
+    email: row.email ?? '',
     digestEnabled: row.digestEnabled,
     language: row.language as Language,
   };
@@ -48,7 +50,7 @@ export class AuthService {
   async signup(input: SignupInput): Promise<SessionResult> {
     const passwordHash = await hashPassword(input.password);
     let created:
-      | { id: string; email: string; digestEnabled: boolean; language: string }
+      | { id: string; email: string | null; digestEnabled: boolean; language: string }
       | undefined;
     try {
       const [row] = await this.db

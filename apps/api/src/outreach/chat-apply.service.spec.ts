@@ -88,6 +88,7 @@ const ctx = (parts: string[]): BotCallbackContext => ({
   chatId: '555',
   messageId: 7,
   parts,
+  role: 'owner',
   language: 'ru',
 });
 
@@ -112,6 +113,19 @@ function build(
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('ChatApplyService — drafting', () => {
+  it('refuses non-owners: a draft is an LLM call per vacancy (ADR-024 §3)', async () => {
+    const { db, writes } = makeDb();
+    const bot = makeBot();
+    const outreach = makeOutreach();
+    const handler = build(db, bot, outreach, makeGmail());
+
+    const result = await handler({ ...ctx(['a', 'd', 'vac-1']), role: 'user' });
+
+    expect(result).toEqual({ alert: 'Готовые отклики пока недоступны.' });
+    expect(outreach.draftApplyEmail).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
+  });
+
   it('registers under the apply namespace, not the digest one', () => {
     const { db } = makeDb();
     const bot = makeBot();

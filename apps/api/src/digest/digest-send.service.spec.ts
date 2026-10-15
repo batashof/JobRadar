@@ -643,6 +643,7 @@ describe("DigestSendService buttons", () => {
     chatId: "555",
     messageId: 77,
     parts,
+    role: "owner",
     language: "ru",
   });
 

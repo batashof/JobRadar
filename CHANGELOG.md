@@ -11,6 +11,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.26.0] — 2026-10-15
+
+### Added
+
+- **Sign up in Telegram** (ADR-024, roadmap 5.1). A plain `/start` from someone the bot has never seen creates a JobRadar account on the spot: no email, no password, the chat is the login, and the interface language follows the Telegram client (Russian for ru/be/kk/ky/uz/tg, English otherwise). A known user who had pressed `/stop` is reconnected, not given a second account. `/start <token>` still links the author's web account and now remembers the Telegram user id.
+- **`/privacy`** says what is stored, who sees it and for how long. **`/delete`** asks for confirmation and then removes the account and everything keyed to it. The owner account cannot be deleted from the chat.
+- **Roles.** `users.role` is `owner` or `user`. Pre-existing accounts became `owner`. Button handlers receive the role: the in-chat Apply (an LLM draft) refuses other users, and the LLM-verdict digest runs only for owners until the formula digest arrives (5.3).
+- **`events`** table for the activation funnel (`start`, `account_deleted`); deleting an account keeps its events anonymously.
+- `/help` lists the commands.
+
+### Migration
+
+- `0019` makes `users.email` nullable, adds `users.telegram_user_id` (unique) and `users.role` (default `user`, every existing row set to `owner`), and creates `events`. Additive for the 1.25.0 API, so it can be applied before or with the deploy.
+
 ## [1.25.0] — 2026-10-15
 
 ### Changed

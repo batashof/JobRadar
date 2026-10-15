@@ -8,6 +8,8 @@ describe('parseUpdate', () => {
       type: 'command',
       chatId: '12345',
       username: null,
+      fromId: null,
+      languageCode: null,
       command: 'help',
       argument: '',
     });
@@ -16,12 +18,18 @@ describe('parseUpdate', () => {
   it('parses /start with its deep-link token and the sender username', () => {
     expect(
       parseUpdate({
-        message: { text: '/start abc_TOKEN-123', chat: privateChat, from: { username: 'vlad' } },
+        message: {
+          text: '/start abc_TOKEN-123',
+          chat: privateChat,
+          from: { id: 12345, username: 'vlad', language_code: 'en-US' },
+        },
       }),
     ).toEqual({
       type: 'command',
       chatId: '12345',
       username: 'vlad',
+      fromId: '12345',
+      languageCode: 'en-US',
       command: 'start',
       argument: 'abc_TOKEN-123',
     });

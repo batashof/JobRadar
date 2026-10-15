@@ -1,7 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
 
 import { BotService } from './bot.service';
-import { telegramAccounts, users } from '../db/schema';
+import { events, telegramAccounts, users } from '../db/schema';
 
 const fetchMock = jest.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
@@ -36,7 +36,13 @@ const getMe = () => ok({ id: 7, username: 'JobRadarBot' });
  */
 function makeDb() {
   const queues = new Map<unknown, unknown[][]>();
-  const writes: { kind: 'insert' | 'update'; table: unknown; values: Record<string, unknown> }[] = [];
+  const writes: {
+    kind: 'insert' | 'update' | 'delete';
+    table: unknown;
+    values: Record<string, unknown>;
+  }[] = [];
+  /** Rows `insert ... onConflictDoNothing().returning()` yields, per table. */
+  const returning = new Map<unknown, unknown[][]>();
 
   const next = (table: unknown): unknown[] => queues.get(table)?.shift() ?? [];
 
@@ -55,12 +61,32 @@ function makeDb() {
       },
     }),
     insert: (table: unknown) => ({
-      values: (values: Record<string, unknown>) => ({
-        onConflictDoUpdate: () => {
-          writes.push({ kind: 'insert', table, values });
-          return Promise.resolve();
-        },
-      }),
+      values: (values: Record<string, unknown>) => {
+        const record = () => writes.push({ kind: 'insert', table, values });
+        return {
+          onConflictDoUpdate: () => {
+            record();
+            return Promise.resolve();
+          },
+          onConflictDoNothing: () => ({
+            returning: () => {
+              record();
+              return Promise.resolve(returning.get(table)?.shift() ?? []);
+            },
+          }),
+          // A plain `await db.insert(t).values(v)`.
+          then: (resolve: (v: unknown) => unknown) => {
+            record();
+            return Promise.resolve(undefined).then(resolve);
+          },
+        };
+      },
+    }),
+    delete: (table: unknown) => ({
+      where: () => {
+        writes.push({ kind: 'delete', table, values: {} });
+        return Promise.resolve();
+      },
     }),
     update: (table: unknown) => ({
       set: (values: Record<string, unknown>) => ({
@@ -77,6 +103,8 @@ function makeDb() {
     writes,
     /** Scripts the responses `select ... from(table)` returns, in order. */
     queue: (table: unknown, ...responses: unknown[][]) => queues.set(table, responses),
+    /** Scripts what `insert(table)...returning()` yields, in order. */
+    inserted: (table: unknown, ...responses: unknown[][]) => returning.set(table, responses),
   };
 }
 
@@ -152,7 +180,7 @@ describe('BotService linking', () => {
     await bot.handleUpdate({ message: { text: '/start tok-1', chat: { id: 555, type: 'private' } } });
 
     expect(writes).toHaveLength(0);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('другому аккаунту');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('другой аккаунт');
   });
 
   it('unlinks on /stop', async () => {
@@ -327,5 +355,188 @@ describe('BotService callbacks', () => {
     const bot = new BotService(db, config('123:abc'));
     bot.registerCallback('n', jest.fn());
     expect(() => bot.registerCallback('n', jest.fn())).toThrow(/already registered/);
+  });
+});
+
+describe('BotService registration in the bot (ADR-024)', () => {
+  const chat = { id: 555, type: 'private' };
+  const sentText = (call = 0) => JSON.parse(fetchMock.mock.calls[call][1].body as string).text as string;
+
+  beforeEach(() => fetchMock.mockReset());
+
+  it('creates an account on a plain /start from a stranger, in the client language', async () => {
+    const { db, writes, queue, inserted } = makeDb();
+    queue(telegramAccounts, []); // chat not linked
+    queue(users, []); // Telegram user unknown
+    inserted(users, [{ id: 'new-user' }]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({
+      message: { text: '/start', chat, from: { id: 555, username: 'anna', language_code: 'en-GB' } },
+    });
+
+    expect(writes[0]).toMatchObject({
+      kind: 'insert',
+      table: users,
+      values: { telegramUserId: '555', language: 'en', role: 'user' },
+    });
+    // The account has no email and no password: the chat is the login.
+    expect(writes[0]?.values).not.toHaveProperty('email');
+    expect(writes[1]).toMatchObject({
+      kind: 'insert',
+      table: telegramAccounts,
+      values: { userId: 'new-user', chatId: '555', username: 'anna' },
+    });
+    expect(writes[2]).toMatchObject({ table: events, values: { userId: 'new-user', name: 'start' } });
+    expect(sentText()).toContain('Welcome to JobRadar');
+  });
+
+  it('does nothing more when a racing /start already created the account', async () => {
+    const { db, writes, queue, inserted } = makeDb();
+    queue(telegramAccounts, []);
+    queue(users, []);
+    inserted(users, []); // lost the insert to the concurrent update
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
+
+    expect(writes.map((w) => w.table)).toEqual([users]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('greets a chat that already has an account instead of creating a second one', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ userId: 'user-1' }], RU_USER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
+
+    expect(writes).toHaveLength(0);
+    expect(sentText()).toContain('уже привязан');
+  });
+
+  it('reconnects a known Telegram user after /stop', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, []); // chat unlinked by /stop
+    queue(users, [{ userId: 'user-1' }], RU_USER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
+
+    expect(writes).toEqual([
+      expect.objectContaining({ kind: 'insert', table: telegramAccounts, values: expect.objectContaining({ userId: 'user-1', chatId: '555' }) }),
+    ]);
+    expect(sentText()).toContain('С возвращением');
+  });
+
+  it('remembers the Telegram user id when a web account links by token', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(
+      telegramAccounts,
+      [{ userId: 'user-1', linkTokenExpiresAt: new Date(Date.now() + 60_000) }],
+      [],
+    );
+    queue(users, [], RU_USER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({ message: { text: '/start tok-1', chat, from: { id: 555 } } });
+
+    expect(writes[1]).toMatchObject({ kind: 'update', table: users, values: { telegramUserId: '555' } });
+  });
+
+  it('answers /privacy in the client language when there is no account yet', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, []);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({ message: { text: '/privacy', chat, from: { id: 555, language_code: 'en' } } });
+
+    expect(sentText()).toContain('What JobRadar stores');
+  });
+});
+
+describe('BotService account deletion (ADR-024 §8)', () => {
+  const press = (data: string) => ({
+    callback_query: { id: 'cb-1', data, message: { message_id: 77, chat: { id: 555 } } },
+  });
+
+  beforeEach(() => fetchMock.mockReset());
+
+  it('asks for confirmation with two buttons on /delete', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, RU_USER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate({ message: { text: '/delete', chat: { id: 555, type: 'private' } } });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).toContain('Удалить аккаунт');
+    expect(body.reply_markup.inline_keyboard[0].map((b: { callback_data: string }) => b.callback_data))
+      .toEqual(['u:del:y', 'u:del:n']);
+    expect(writes).toHaveLength(0);
+  });
+
+  it('deletes the account on confirm and keeps an anonymous event', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'user' }]);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate(press('u:del:y'));
+
+    expect(writes).toEqual([
+      expect.objectContaining({ table: events, values: expect.objectContaining({ name: 'account_deleted' }) }),
+      expect.objectContaining({ kind: 'delete', table: users }),
+    ]);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).text).toContain('удалены');
+  });
+
+  it('never deletes the owner account from the chat', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'owner' }]);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate(press('u:del:y'));
+
+    expect(writes).toHaveLength(0);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('владельца');
+  });
+
+  it('cancels without touching anything', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, RU_USER);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'));
+
+    await bot.handleUpdate(press('u:del:n'));
+
+    expect(writes).toHaveLength(0);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).text).toContain('Ничего не удалено');
+  });
+
+  it('passes the account role to feature handlers', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'en', role: 'owner' }]);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'));
+    const handler = jest.fn().mockResolvedValue({});
+    bot.registerCallback('n', handler);
+
+    await bot.handleUpdate(press('n:a:x'));
+
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ role: 'owner', language: 'en' }));
   });
 });

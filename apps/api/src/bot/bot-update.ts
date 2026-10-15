@@ -14,7 +14,7 @@ export interface TelegramUpdate {
     message_id?: number;
     text?: string;
     chat?: { id?: number | string; type?: string };
-    from?: { username?: string; is_bot?: boolean };
+    from?: { id?: number | string; username?: string; is_bot?: boolean; language_code?: string };
   };
   callback_query?: {
     id?: string;
@@ -28,6 +28,10 @@ export interface ParsedCommand {
   type: 'command';
   chatId: string;
   username: string | null;
+  /** Telegram user id of the sender (`from.id`); null if Telegram omitted it. */
+  fromId: string | null;
+  /** IETF language tag of the sender's client, e.g. `ru` or `en-US`. */
+  languageCode: string | null;
   /** Lower-cased, without the leading slash and without any `@botname` suffix. */
   command: string;
   /** Everything after the command, trimmed; empty string when absent. */
@@ -80,6 +84,8 @@ export function parseUpdate(update: TelegramUpdate): ParsedUpdate {
     type: 'command',
     chatId: String(chatId),
     username: message.from?.username ?? null,
+    fromId: message.from?.id !== undefined ? String(message.from.id) : null,
+    languageCode: message.from?.language_code ?? null,
     command,
     argument: rest.join(' ').trim(),
   };

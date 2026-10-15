@@ -2,17 +2,21 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import {
+  BOT_CALLBACK_NAMESPACES,
+  isOwnerRole,
   type Language,
   type TelegramLinkStart,
   type TelegramLinkStatus,
   TELEGRAM_LINK_TOKEN_TTL_MINUTES,
+  type UserRole,
 } from '@jobradar/shared';
 import { and, eq, isNotNull } from 'drizzle-orm';
 
+import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
 import { telegramAccounts, users } from '../db/schema';
-import { parseUpdate, type TelegramUpdate } from './bot-update';
-import { resolveLink } from './link-logic';
+import { type ParsedCommand, parseUpdate, type TelegramUpdate } from './bot-update';
+import { languageFromTelegram, resolveLink } from './link-logic';
 import { botMessage, DEFAULT_BOT_LANGUAGE } from './messages';
 import {
   escapeHtml,
@@ -37,6 +41,8 @@ export interface BotCallbackContext {
   /** `callback_data` split on ':' — `[namespace, action, ...rest]`. */
   parts: string[];
   language: Language;
+  /** ADR-024 §3: handlers of LLM-per-action features refuse non-owners. */
+  role: UserRole;
 }
 
 /** What a handler asks the bot to do once it has processed the press. */
@@ -80,6 +86,8 @@ export class BotService {
     if (!this.api) {
       this.logger.log('TELEGRAM_BOT_TOKEN is not set — the bot channel is off');
     }
+    // The account namespace is the bot's own; features register theirs on init.
+    this.handlers.set(BOT_CALLBACK_NAMESPACES.account, (ctx) => this.handleAccountCallback(ctx));
   }
 
   isConfigured(): boolean {
@@ -259,7 +267,7 @@ export class BotService {
 
     try {
       if (parsed.type === 'command') {
-        await this.handleCommand(parsed.chatId, parsed.command, parsed.argument, parsed.username);
+        await this.handleCommand(parsed);
       } else {
         await this.handleCallback(parsed);
       }
@@ -270,33 +278,37 @@ export class BotService {
     }
   }
 
-  private async handleCommand(
-    chatId: string,
-    command: string,
-    argument: string,
-    username: string | null,
-  ): Promise<void> {
-    switch (command) {
+  private async handleCommand(cmd: ParsedCommand): Promise<void> {
+    const { chatId } = cmd;
+    switch (cmd.command) {
       case 'start':
-        await this.completeLink(chatId, argument, username);
+        await this.start(cmd);
         return;
       case 'stop':
         await this.stopFromChat(chatId);
         return;
-      case 'help':
-        await this.replyToChat(chatId, 'help');
+      case 'delete':
+        await this.askDelete(chatId);
         return;
-      default:
-        await this.replyToChat(chatId, 'unknown');
+      case 'help':
+      case 'privacy':
+      default: {
+        const account = await this.accountByChat(chatId);
+        const language = account
+          ? await this.languageOf(account.userId)
+          : languageFromTelegram(cmd.languageCode);
+        const key = cmd.command === 'help' || cmd.command === 'privacy' ? cmd.command : 'unknown';
+        await this.replyToChat(chatId, key, language);
+      }
     }
   }
 
-  /** `/start <token>` — the second half of the deep link. */
-  private async completeLink(
-    chatId: string,
-    token: string,
-    username: string | null,
-  ): Promise<void> {
+  /**
+   * `/start`. With a token it is the second half of the web deep link; without
+   * one it signs a Telegram user up, or reconnects a known one (ADR-024).
+   */
+  private async start(cmd: ParsedCommand): Promise<void> {
+    const { chatId, argument: token, username, fromId } = cmd;
     const now = new Date();
     const pending = token
       ? ((
@@ -310,17 +322,27 @@ export class BotService {
         )[0] ?? null)
       : null;
     const owner = await this.accountByChat(chatId);
+    const telegramUser = fromId ? await this.accountByTelegramUser(fromId) : null;
+    const fallbackLanguage = languageFromTelegram(cmd.languageCode);
 
     const outcome = resolveLink({
       token,
       pending,
       chatOwnerUserId: owner?.userId ?? null,
+      telegramUserOwnerId: telegramUser?.userId ?? null,
       now,
     });
 
     switch (outcome.kind) {
       case 'greet':
-        await this.replyToChat(chatId, outcome.alreadyLinked ? 'link.already' : 'start.plain');
+        await this.replyToChat(chatId, 'link.already', await this.languageOf(owner!.userId));
+        return;
+      case 'register':
+        await this.register(cmd, fallbackLanguage, now);
+        return;
+      case 'relink':
+        await this.attachChat(outcome.userId, chatId, username, now);
+        await this.replyToChat(chatId, 'start.back', await this.languageOf(outcome.userId));
         return;
       case 'expired':
         await this.replyToChat(chatId, 'link.expired');
@@ -340,8 +362,100 @@ export class BotService {
             updatedAt: now,
           })
           .where(eq(telegramAccounts.userId, outcome.userId));
+        // Remember who the person is, so a later plain `/start` after `/stop`
+        // reconnects this account instead of creating a second one.
+        if (fromId && !telegramUser) {
+          await this.db
+            .update(users)
+            .set({ telegramUserId: fromId, updatedAt: now })
+            .where(eq(users.id, outcome.userId));
+        }
         await this.replyToChat(chatId, 'link.done', await this.languageOf(outcome.userId));
     }
+  }
+
+  /** A new account from a plain `/start`: no email, no password, this chat is the login. */
+  private async register(cmd: ParsedCommand, language: Language, now: Date): Promise<void> {
+    if (!cmd.fromId) {
+      // Telegram always sends `from` in a private chat; without it there is no
+      // identity to key the account on, so do nothing rather than guess.
+      return;
+    }
+    const [created] = await this.db
+      .insert(users)
+      .values({ telegramUserId: cmd.fromId, language, role: 'user' })
+      .onConflictDoNothing({ target: users.telegramUserId })
+      .returning({ id: users.id });
+
+    // A second `/start` racing the first lost the insert; the winner replies.
+    if (!created) return;
+
+    await this.attachChat(created.id, cmd.chatId, cmd.username, now);
+    await recordEvent(this.db, created.id, 'start', { language });
+    await this.replyToChat(cmd.chatId, 'start.welcome', language);
+  }
+
+  private async attachChat(
+    userId: string,
+    chatId: string,
+    username: string | null,
+    now: Date,
+  ): Promise<void> {
+    await this.db
+      .insert(telegramAccounts)
+      .values({ userId, chatId, username, linkedAt: now })
+      .onConflictDoUpdate({
+        target: telegramAccounts.userId,
+        set: { chatId, username, linkedAt: now, updatedAt: now },
+      });
+  }
+
+  // -------------------------------------------------------------------------
+  // Account deletion (ADR-024 §8)
+  // -------------------------------------------------------------------------
+
+  private async askDelete(chatId: string): Promise<void> {
+    if (!this.api) return;
+    const account = await this.accountByChat(chatId);
+    if (!account) {
+      await this.replyToChat(chatId, 'delete.notLinked');
+      return;
+    }
+    const language = await this.languageOf(account.userId);
+    const ns = BOT_CALLBACK_NAMESPACES.account;
+    try {
+      await this.api.sendMessage(chatId, escapeHtml(botMessage(language, 'delete.confirm')), {
+        parseMode: 'HTML',
+        keyboard: [
+          [
+            { text: botMessage(language, 'delete.yes'), callbackData: `${ns}:del:y` },
+            { text: botMessage(language, 'delete.no'), callbackData: `${ns}:del:n` },
+          ],
+        ],
+      });
+    } catch (err) {
+      this.logger.warn(
+        `delete prompt to chat ${chatId} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private async handleAccountCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
+    const [, action, answer] = ctx.parts;
+    if (action !== 'del') return {};
+
+    if (answer !== 'y') {
+      return { editText: escapeHtml(botMessage(ctx.language, 'delete.cancelled')), editKeyboard: null };
+    }
+    if (isOwnerRole(ctx.role)) {
+      return { alert: botMessage(ctx.language, 'delete.owner') };
+    }
+    // Recorded before the row goes, so the funnel counts it; the FK then nulls
+    // the user id and nothing personal is left in the event.
+    await recordEvent(this.db, ctx.userId, 'account_deleted');
+    // Every table keyed to a user cascades on delete (schema.ts).
+    await this.db.delete(users).where(eq(users.id, ctx.userId));
+    return { editText: escapeHtml(botMessage(ctx.language, 'delete.done')), editKeyboard: null };
   }
 
   private async stopFromChat(chatId: string): Promise<void> {
@@ -363,7 +477,8 @@ export class BotService {
   }): Promise<void> {
     const account = await this.accountByChat(parsed.chatId);
     const handler = this.handlers.get(parsed.parts[0] ?? '');
-    const language = account ? await this.languageOf(account.userId) : DEFAULT_BOT_LANGUAGE;
+    const profile = account ? await this.profileOf(account.userId) : null;
+    const language = profile?.language ?? DEFAULT_BOT_LANGUAGE;
 
     if (!account || !handler) {
       await this.api?.answerCallbackQuery(parsed.callbackId, botMessage(language, 'callback.stale'));
@@ -378,6 +493,7 @@ export class BotService {
         messageId: parsed.messageId,
         parts: parsed.parts,
         language,
+        role: profile?.role ?? 'user',
       });
     } catch (err) {
       this.logger.warn(
@@ -415,12 +531,27 @@ export class BotService {
     return row ?? null;
   }
 
-  private async languageOf(userId: string): Promise<Language> {
+  private async accountByTelegramUser(telegramUserId: string) {
     const [row] = await this.db
-      .select({ language: users.language })
+      .select({ userId: users.id })
+      .from(users)
+      .where(eq(users.telegramUserId, telegramUserId));
+    return row ?? null;
+  }
+
+  private async languageOf(userId: string): Promise<Language> {
+    return (await this.profileOf(userId)).language;
+  }
+
+  private async profileOf(userId: string): Promise<{ language: Language; role: UserRole }> {
+    const [row] = await this.db
+      .select({ language: users.language, role: users.role })
       .from(users)
       .where(eq(users.id, userId));
-    return row?.language === 'en' ? 'en' : 'ru';
+    return {
+      language: row?.language === 'en' ? 'en' : 'ru',
+      role: isOwnerRole(row?.role) ? 'owner' : 'user',
+    };
   }
 
   private async replyToChat(

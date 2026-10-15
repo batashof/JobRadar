@@ -42,13 +42,15 @@ User 1──n PlannerNudge        (n──1 DayPlan / PlanBlock, nullable)
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| email | text unique | |
-| password_hash | text nullable | null when OAuth-only |
+| email | text unique nullable | null for accounts created in the Telegram bot (ADR-024, migration `0019`) |
+| password_hash | text nullable | null when OAuth-only or bot-made |
 | oauth_provider | text nullable | `github` / `google` |
 | oauth_id | text nullable | |
 | digest_enabled | boolean default true | unsubscribe flag |
 | digest_last_sent_at | timestamptz nullable | idempotency for digest job |
-| language | text not null default `'ru'` | interface + AI-generation language, `en` \| `ru` (ADR-014) |
+| language | text not null default `'ru'` | interface + AI-generation language, `en` \| `ru` (ADR-014); bot-made accounts take it from the Telegram client's `language_code` |
+| telegram_user_id | text unique nullable | Telegram `from.id`; set by `/start` (ADR-024). One Telegram user, one account |
+| role | text not null default `'user'` | `owner` \| `user`; LLM-per-action and personal-credential features are owner-only (ADR-024 §3). `0019` made every pre-existing account `owner` |
 | created_at / updated_at | timestamptz | |
 
 ### sessions
@@ -365,6 +367,22 @@ The text is stored rather than re-generated on confirm: regenerating would send 
 | sent_at | timestamptz | indexed with user_id |
 
 A row is written even when Telegram refused the message: a vacancy the user may have seen must not come back tomorrow.
+
+## Phase 5 additions (ADR-024 — Telegram-only product)
+
+### events
+
+Activation-funnel analytics. No message text, no resume content: event names and small counters only.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → users, nullable | **set null** on user delete, so the funnel keeps its counts after `/delete` |
+| name | text not null | `start`, `account_deleted` (5.1); later `resume_uploaded`, `profile_confirmed`, `card_opened`, `feedback` |
+| props | jsonb nullable | small flat map, e.g. `{ "language": "en" }` |
+| created_at | timestamptz | index `(name, created_at)` |
+
+Account deletion (`/delete`) is one `DELETE FROM users`: every other user-keyed table cascades.
 
 ## Phase 4 additions (ADR-015 — day planner)
 

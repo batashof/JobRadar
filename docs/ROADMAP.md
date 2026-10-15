@@ -113,20 +113,20 @@ A personal execution surface over existing app state: `planner/` on the API, `/a
 
 JobRadar opens to other job seekers, and the Telegram bot becomes the whole product: registration, resume upload and evaluation, matching, every setting. The LLM reads a resume once at registration; vacancies are scored by a formula. Each step below is one PR with tests, a minor version bump and a deploy; the next step starts once the previous one is in production. The web app keeps running until step 5.6 removes it, which is the 2.0.0 release.
 
-### 5.1 Registration in the bot (v1.26.0)
+### 5.1 Registration in the bot (v1.26.0) ✅
 
-- [ ] `users.telegram_user_id` (unique), `users.role` (`owner` / `user`), `users.email` and `password_hash` optional — migration; the author's account becomes `owner` and keeps its chat link.
-- [ ] `/start` from an unknown Telegram user creates the account and its chat link in one step; `/start <token>` keeps linking the author's web account.
-- [ ] Interface language from the Telegram client (`language_code` → `ru` / `en`, ADR-014), changeable in settings.
-- [ ] `bot_dialogs`: per-chat dialog state in Postgres (step, payload, expiry) and a small state-machine helper the next steps build on.
-- [ ] Owner-only feature flag (`role = 'owner'`) on brief, cover letter, LLM digest verdict, interview, planner, Gmail send, LinkedIn IMAP.
-- [ ] Commands: `/help`, `/privacy` (links the policy), `/delete` (confirm button → account and everything keyed to it removed).
-- [ ] `events` table (start, resume_uploaded, profile_confirmed, card_opened, feedback) for the activation funnel.
+- [x] `users.telegram_user_id` (unique), `users.role` (`owner` / `user`), `users.email` optional — migration `0019`; every pre-existing account becomes `owner` and keeps its chat link.
+- [x] `/start` from an unknown Telegram user creates the account and its chat link in one step; a known one whose chat was unlinked is reconnected, not duplicated; `/start <token>` keeps linking the author's web account and now remembers the Telegram user id.
+- [x] Interface language from the Telegram client (`language_code` → `ru` / `en`, ADR-014). *(Changing it moves to `/settings` in 5.3.)*
+- [x] Owner-only flag (`role = 'owner'`): handlers receive the role; the in-chat Apply (LLM draft) refuses non-owners, the LLM-verdict digest runs only for owners. *(The web-only features — brief, cover letter, interview, planner, Gmail, LinkedIn IMAP — are unreachable for bot-made accounts, which have no web login.)*
+- [x] Commands: `/help`, `/privacy` (text in the chat; the landing-page URL comes in 5.6), `/delete` (confirm button → one `DELETE FROM users`, everything cascades; refused for the owner).
+- [x] `events` table (`start`, `account_deleted`) for the activation funnel; later steps add theirs. *(`bot_dialogs` moves to 5.2, its first consumer.)*
 
 **Exit criterion:** a stranger presses Start and has an account with no website involved; `/delete` removes it.
 
 ### 5.2 Resume upload and evaluation (v1.27.0)
 
+- [ ] `bot_dialogs`: per-chat dialog state in Postgres (step, payload, expiry) and a small state-machine helper.
 - [ ] A PDF sent to the chat is downloaded through `getFile` (Bot API limit 20 MB; our cap stays 5 MB), stored in `resumes`, text extracted as today.
 - [ ] `candidate_profiles` + one LLM call → zod-validated profile and resume evaluation (ADR-025 §1); prompt version stored.
 - [ ] Provider chain for non-owners without training-on-data free tiers (ADR-025 §4); 3 analyses per 30 days; lexical fallback profile when every provider fails, with a later retry.
