@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-15 — Bot UX fixes planned (roadmap 5.7)
+
+- The developer's notes added to ROADMAP as step 5.7, after release 2.0.0: every command in Telegram's menu (`setMyCommands`, none registered today), bigger `/settings` buttons with icons (fewer per row), and button texts that name the setting (the language button shows the other language instead of "Language").
+- **Next step:** unchanged, the rest of 5.4 (more Telegram channels, LinkedIn forwarding address).
+
 ## 2026-10-15 — DOU, Djinni, SmartRecruiters, owner-only sources (v1.29.0, roadmap 5.4)
 
 - Probed live: DOU RSS (25 per category), Djinni RSS (up to 100 per keyword), SmartRecruiters (ServiceNow 26, Experian 16, Freshworks 8, Canva 7 remote engineering roles). Recruitee and Personio: 48 guessed company tokens, nothing with remote engineering roles, so no adapter.
