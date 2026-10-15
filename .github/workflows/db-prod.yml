@@ -83,7 +83,10 @@ jobs:
       # ADR-025 §9: the formula's top 20 against the LLM's on the author's resume. Read-only.
       - name: Formula vs LLM check
         if: inputs.task == 'formula:check'
-        run: pnpm --filter @jobradar/api formula:check --prod
+        # The script imports @jobradar/shared, which resolves to its built dist/.
+        run: |
+          pnpm --filter @jobradar/shared build
+          pnpm --filter @jobradar/api formula:check --prod
 
       - name: Migrate + seed sources
         if: inputs.task == 'migrate'
