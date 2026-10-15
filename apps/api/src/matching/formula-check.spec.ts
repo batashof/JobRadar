@@ -12,9 +12,14 @@ describe('compareRankings', () => {
     expect(compareRankings(pairs, 2)).toEqual({ size: 2, shared: 2, overlap: 1, pass: true, precision: 1 });
   });
 
-  it('fails below 70% overlap', () => {
+  it('fails below 70% precision', () => {
     const pairs = [pair('a', 0.9, 10), pair('b', 0.8, 80), pair('c', 0.1, 90)];
-    expect(compareRankings(pairs, 2)).toMatchObject({ shared: 1, overlap: 0.5, pass: false });
+    expect(compareRankings(pairs, 2)).toMatchObject({ shared: 1, overlap: 0.5, precision: 0.5, pass: false });
+  });
+
+  it('passes on precision even when the top lists differ (ADR-026)', () => {
+    const pairs = [pair('a', 0.95, 10), pair('b', 0.9, 20), pair('c', 0.85, 90), pair('d', 0.82, 80)];
+    expect(compareRankings(pairs, 2)).toMatchObject({ shared: 0, overlap: 0, precision: 1, pass: true });
   });
 
   it('does not pass on nothing', () => {
@@ -24,6 +29,7 @@ describe('compareRankings', () => {
   it('is deterministic on ties', () => {
     const pairs = [pair('b', 1, 1), pair('a', 1, 1), pair('c', 1, 1)];
     expect(compareRankings(pairs, 2)).toMatchObject({ shared: 2, pass: true });
+    expect(compareRankings(pairs, 2)).toEqual(compareRankings([...pairs].reverse(), 2));
   });
 
   it('measures how much of the formula top the LLM rated a good fit', () => {

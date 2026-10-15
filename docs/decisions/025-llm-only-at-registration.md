@@ -1,6 +1,6 @@
 # ADR-025: The LLM reads the resume once at registration; vacancies are scored by a deterministic formula
 
-- Status: Accepted
+- Status: Accepted (§9 amended by ADR-026)
 - Date: 2026-10-15
 - Amends ADR-005 (provider choice for resume analysis), ADR-011 and ADR-012 (LLM resume ↔ vacancy fit), ADR-020 and ADR-022 (LLM verdict in the digest funnel). All of those stay as they are for the `owner` role (ADR-024)
 

@@ -35,6 +35,7 @@ export const SKILL_DICTIONARY: SkillEntry[] = [
   { key: 'nuxt', label: 'Nuxt', aliases: ['nuxt.js', 'nuxtjs'], related: ['vue', 'next.js'] },
   { key: 'angular', label: 'Angular', aliases: ['angularjs', 'angular.js'], related: ['rxjs', 'typescript'] },
   { key: 'svelte', label: 'Svelte', aliases: ['sveltekit'], related: ['vue', 'react'] },
+  { key: 'aem', label: 'AEM', aliases: ['adobe experience manager'] },
   { key: 'typescript', label: 'TypeScript', aliases: ['ts'], related: ['javascript'] },
   { key: 'javascript', label: 'JavaScript', aliases: ['js', 'es6', 'ecmascript'], related: ['typescript'] },
   { key: 'redux', label: 'Redux', aliases: ['redux toolkit', 'rtk', 'redux-toolkit'], related: ['zustand', 'mobx', 'redux-saga', 'tanstack query'] },

@@ -137,7 +137,7 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 ### 5.3 Matching and settings in the bot (v1.28.0)
 
 - [x] `matching/score.ts` pure scoring function + synonym / adjacent-tech dictionary in `packages/shared`; template explanation on each card.
-- [ ] Compare with the author's `resume_matches`: top-20 overlap ≥ 70% (ADR-025 §9). Script ready: `DB (prod)` → `formula:check`.
+- [x] Compare with the author's `resume_matches` (ADR-025 §9, gate amended by ADR-026): precision 85% (17 of the formula's top 20 rated ≥80 by the LLM) against the ≥70% bar; top-20 overlap 15% kept as a diagnostic. `DB (prod)` → `formula:check`.
 - [x] Digest funnel for non-owners on the formula; owner keeps the LLM verdict.
 - [x] 👍 / 👎 / Hide adjust skill and company weights within bounds. Superseded on the card the same day: the developer asked for a single "Apply" button linking the original posting, so new cards carry no feedback buttons; the weights and handlers stay for cards already sent.
 - [x] `/settings` (`s:` buttons): work format, employment, minimum salary, delivery mode (instant / scheduled), send times, quiet hours, timezone, minimum score, cap, sources on/off, language, pause.
