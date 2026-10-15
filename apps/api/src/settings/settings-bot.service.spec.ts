@@ -121,6 +121,26 @@ describe('SettingsBotService', () => {
     expect(options.keyboard.length).toBeGreaterThan(0);
   });
 
+  it("lists only the sources a user receives: the owner's own stay hidden", async () => {
+    const rows = [
+      { slug: 'dou', config: {} },
+      { slug: 'linkedin', config: { ownerOnly: true } },
+    ];
+    const buttons = async (role: BotCallbackContext['role']) => {
+      const { callback, queue } = setup();
+      queue(digestSettings, [digestRow]);
+      queue(plannerSettings, [{ timezone: 'Europe/Minsk' }]);
+      queue(sources, rows);
+      const result = await callback({ ...press(['s', 'open', 'src']), role });
+      return JSON.stringify(result.editKeyboard);
+    };
+
+    const user = await buttons('user');
+    expect(user).toContain('s:src:dou');
+    expect(user).not.toContain('s:src:linkedin');
+    expect(await buttons('owner')).toContain('s:src:linkedin');
+  });
+
   it('saves a button press and rewrites the menu in place', async () => {
     const { callback, writes, queue, dialogs } = setup();
     queue(digestSettings, [digestRow]);

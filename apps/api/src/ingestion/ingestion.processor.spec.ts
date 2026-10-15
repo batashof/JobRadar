@@ -26,6 +26,7 @@ describe('IngestionProcessor error handling', () => {
     resumeMatching = {
       scorePending: jest.fn().mockResolvedValue({ scored: 0, remaining: 0 }),
     },
+    uaBoards = { ingestDou: jest.fn(), ingestDjinni: jest.fn() },
   ) => {
     const where = jest.fn().mockResolvedValue(undefined);
     const set = jest.fn().mockReturnValue({ where });
@@ -48,6 +49,7 @@ describe('IngestionProcessor error handling', () => {
       { ingest: jest.fn() } as never, // telegram
       { ingest: jest.fn() } as never, // wwr
       { ingest: jest.fn() } as never, // linkedin
+      uaBoards as never,
       { run: jest.fn() } as never, // dedup
       { rematchAll: jest.fn().mockResolvedValue({ profiles: 1 }) } as never, // matching
       resumeMatching as never,
@@ -81,6 +83,23 @@ describe('IngestionProcessor error handling', () => {
     await processor.process(job({ kind: 'source', slug: 'remoteok' }));
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it('routes DOU and Djinni to the Ukrainian boards worker', async () => {
+    const uaBoards = {
+      ingestDou: jest.fn().mockResolvedValue({ fetched: 2, upserted: 2 }),
+      ingestDjinni: jest.fn().mockResolvedValue({ fetched: 3, upserted: 3 }),
+    };
+    const { processor, db } = makeProcessor({ ingest: jest.fn() }, undefined, uaBoards);
+    db.query.sources.findFirst
+      .mockResolvedValueOnce({ ...activeSource, slug: 'dou' })
+      .mockResolvedValueOnce({ ...activeSource, slug: 'djinni' });
+
+    await processor.process(job({ kind: 'source', slug: 'dou' }));
+    await processor.process(job({ kind: 'source', slug: 'djinni' }));
+
+    expect(uaBoards.ingestDou).toHaveBeenCalledTimes(1);
+    expect(uaBoards.ingestDjinni).toHaveBeenCalledTimes(1);
   });
 
   it('skips a source that ran within its interval', async () => {
@@ -117,6 +136,7 @@ describe('IngestionProcessor match job', () => {
       noop as never, // telegram
       noop as never, // wwr
       noop as never, // linkedin
+      {} as never, // uaBoards
       { run: jest.fn() } as never,
       { rematchAll } as never,
       { scorePending } as never,

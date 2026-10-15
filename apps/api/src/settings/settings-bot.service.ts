@@ -3,6 +3,7 @@ import {
   BOT_CALLBACK_NAMESPACES,
   DIGEST_DEFAULTS,
   type DigestMode,
+  isOwnerRole,
   type Language,
 } from '@jobradar/shared';
 import { asc, eq } from 'drizzle-orm';
@@ -57,7 +58,7 @@ export class SettingsBotService implements OnModuleInit {
   private async showMenu(ctx: BotMessageContext): Promise<void> {
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const screen = renderScreen('main', state, await this.sourceSlugs());
+    const screen = renderScreen('main', state, await this.sourceSlugs(ctx.role));
     await this.bot.sendToUser(ctx.userId, screen.text, {
       parseMode: 'HTML',
       keyboard: screen.keyboard,
@@ -66,7 +67,7 @@ export class SettingsBotService implements OnModuleInit {
 
   private async onCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
     const state = await this.load(ctx.userId, ctx.language);
-    const slugs = await this.sourceSlugs();
+    const slugs = await this.sourceSlugs(ctx.role);
     const decision = decide(state, ctx.parts, slugs);
 
     let next = state;
@@ -103,7 +104,7 @@ export class SettingsBotService implements OnModuleInit {
     await this.save(ctx.userId, patch);
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const screen = renderScreen('main', state, await this.sourceSlugs());
+    const screen = renderScreen('main', state, await this.sourceSlugs(ctx.role));
     await this.bot.sendToUser(ctx.userId, `${settingsText(state.language, 'saved')}\n\n${screen.text}`, {
       parseMode: 'HTML',
       keyboard: screen.keyboard,
@@ -162,13 +163,16 @@ export class SettingsBotService implements OnModuleInit {
     await recordEvent(this.db, userId, 'settings_changed', { keys: Object.keys(patch).join(',') });
   }
 
-  /** Sources a user can switch off: the active ones. */
-  private async sourceSlugs(): Promise<string[]> {
+  /** Sources a user can switch off: the active ones they receive at all. */
+  private async sourceSlugs(role: string): Promise<string[]> {
     const rows = await this.db
-      .select({ slug: sources.slug })
+      .select({ slug: sources.slug, config: sources.config })
       .from(sources)
       .where(eq(sources.isActive, true))
       .orderBy(asc(sources.slug));
-    return rows.map((row) => row.slug);
+    const owner = isOwnerRole(role);
+    return rows
+      .filter((row) => owner || !(row.config as { ownerOnly?: boolean } | null)?.ownerOnly)
+      .map((row) => row.slug);
   }
 }

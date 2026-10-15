@@ -164,7 +164,7 @@ The Bot API side is one module (`apps/api/src/bot`) with one chat link per accou
 ## Data flow: ingestion
 
 1. Supabase `pg_cron` fires every 10 minutes (ADR-023; GitHub Actions as fallback) → authenticated HTTP call to `POST /ingestion/run`.
-2. API enqueues one BullMQ job per active source whose own interval has elapsed (`ingestion/schedule.ts`: Telegram and LinkedIn alerts 10 min, ATS and WWR 1 h, the rest 4 h); nothing when none is due.
+2. API enqueues one BullMQ job per active source whose own interval has elapsed (`ingestion/schedule.ts`: Telegram and LinkedIn alerts 10 min, ATS (Greenhouse, Ashby, Lever, SmartRecruiters) and WWR 1 h, the rest, DOU and Djinni RSS included, 4 h); nothing when none is due.
 3. Each worker fetches new items (API pagination / RSS), respecting per-source politeness rules ([DATA_SOURCES.md](DATA_SOURCES.md)).
 4. Items are normalized into the common `Vacancy` shape and upserted (`source + external_id` unique key).
 5. Dedup job links duplicates across sources (heuristic v1, ADR-004).

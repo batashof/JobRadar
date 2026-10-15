@@ -84,6 +84,13 @@ import {
  * How many candidates the LLM ranks in one call. Above this the prompt bloats,
  * so a larger window is scored as several calls of this size (ADR-022).
  */
+
+/**
+ * `sources.config.ownerOnly`: a source delivered to the owner only (roadmap
+ * 5.4). One switch in the seed, no migration; unset means everyone.
+ */
+export const ownerOnlySource = sql`coalesce((${sources.config} ->> 'ownerOnly')::boolean, false)`;
+
 const BATCH_LIMIT = 30;
 
 /**
@@ -546,6 +553,13 @@ export class DigestSendService implements OnModuleInit {
     const tooJunior = resumeLevel ? levelsBelowResume(resumeLevel) : [];
     if (tooJunior.length > 0) {
       const clause = or(isNull(vacancies.seniority), notInArray(vacancies.seniority, tooJunior));
+      if (clause) conditions.push(clause);
+    }
+
+    // Sources whose terms or nature keep them to the owner (the owner's own
+    // LinkedIn alerts, roadmap 5.4) never reach anyone else.
+    if (basis.kind === 'formula') {
+      const clause = or(isNull(sources.slug), sql`not ${ownerOnlySource}`);
       if (clause) conditions.push(clause);
     }
 

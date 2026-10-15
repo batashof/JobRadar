@@ -19,6 +19,7 @@ import { LinkedInAlertsIngestService } from './linkedin/linkedin-alerts.service'
 import { RemoteOkIngestService } from './remoteok/remoteok.service';
 import { RemotiveIngestService } from './remotive/remotive.service';
 import { TelegramIngestService } from './telegram/telegram.service';
+import { UaBoardsIngestService } from './ua-boards/ua-boards.service';
 import { WorkingNomadsIngestService } from './workingnomads/workingnomads.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
@@ -68,6 +69,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly telegram: TelegramIngestService,
     private readonly wwr: WwrIngestService,
     private readonly linkedin: LinkedInAlertsIngestService,
+    private readonly uaBoards: UaBoardsIngestService,
     private readonly dedup: DedupService,
     private readonly matching: MatchingService,
     private readonly resumeMatching: ResumeMatchingService,
@@ -142,6 +144,12 @@ export class IngestionProcessor extends WorkerHost {
           break;
         case 'linkedin':
           result = await this.linkedin.ingest(source);
+          break;
+        case 'dou':
+          result = await this.uaBoards.ingestDou(source);
+          break;
+        case 'djinni':
+          result = await this.uaBoards.ingestDjinni(source);
           break;
         default:
           this.logger.warn(`${source.slug}: no worker implemented yet`);

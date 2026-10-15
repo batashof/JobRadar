@@ -1,3 +1,7 @@
+import {
+  DEFAULT_DJINNI_KEYWORDS,
+  DEFAULT_DOU_CATEGORIES,
+} from '../ingestion/ua-boards/ua-boards-normalize';
 import type { searchProfiles, sources, users } from './schema';
 
 type SourceSeed = Pick<typeof sources.$inferInsert, 'slug' | 'kind' | 'isActive' | 'config'>;
@@ -155,6 +159,14 @@ export const SEED_SOURCES: SourceSeed[] = [
         { ats: 'ashby', token: 'harvey', name: 'Harvey' },
         { ats: 'lever', token: 'veeva', name: 'Veeva Systems' },
         { ats: 'lever', token: 'spotify', name: 'Spotify' },
+        // SmartRecruiters (roadmap 5.4), probed 2026-10-15: remote engineering
+        // roles among the company's postings — ServiceNow 26, Experian 16,
+        // Freshworks 8, Canva 7. Bosch (5000 postings, none remote and
+        // technical) and others with fewer than 5 were left out.
+        { ats: 'smartrecruiters', token: 'ServiceNow', name: 'ServiceNow' },
+        { ats: 'smartrecruiters', token: 'Experian', name: 'Experian' },
+        { ats: 'smartrecruiters', token: 'Freshworks', name: 'Freshworks' },
+        { ats: 'smartrecruiters', token: 'Canva', name: 'Canva' },
       ],
     },
   },
@@ -188,6 +200,31 @@ export const SEED_SOURCES: SourceSeed[] = [
       senders: ['jobalerts-noreply@linkedin.com'],
       lookbackDays: 3,
       maxMessages: 50,
+      // The owner's own alerts: never delivered to other bot users (roadmap 5.4).
+      ownerOnly: true,
+    },
+  },
+  {
+    // DOU.ua public RSS, one feed per category (roadmap 5.4). Ukrainian IT
+    // market; content is CC BY-NC-SA on DOU's terms — the card links back to
+    // the posting and names the source, and JobRadar is free.
+    slug: 'dou',
+    kind: 'rss',
+    isActive: true,
+    config: {
+      categories: [...DEFAULT_DOU_CATEGORIES],
+      linkBackRequired: true,
+    },
+  },
+  {
+    // Djinni public RSS, one feed per primary keyword (roadmap 5.4). The feed
+    // does not name employers (Djinni lets them stay anonymous).
+    slug: 'djinni',
+    kind: 'rss',
+    isActive: true,
+    config: {
+      keywords: [...DEFAULT_DJINNI_KEYWORDS],
+      linkBackRequired: true,
     },
   },
 ];

@@ -91,7 +91,7 @@ Index: `(user_id)`.
 | id | uuid PK | |
 | slug | text unique | `hh`, `remoteok`, `weworkremotely`, ... |
 | kind | enum | `api` / `rss` / `telegram` / `manual` / `email` (ADR-021: LinkedIn job-alert emails) |
-| config | jsonb | endpoint, feed URL, fetch interval |
+| config | jsonb | endpoint, feed URL, fetch interval; `ownerOnly: true` keeps the source's vacancies to the owner (phase 5.4, set on `linkedin`) |
 | is_active | boolean | |
 | last_run_at | timestamptz nullable | |
 | last_run_status | enum nullable | `ok` / `empty` / `error` — `empty` triggers Sentry alert |
