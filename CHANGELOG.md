@@ -11,6 +11,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.30.0] — 2026-10-16
+
+### Added
+
+- **Applications in the bot** (roadmap 5.5), for every user: a "✅ Applied" button next to "Apply" on each vacancy card adds it to `/applications`; the list shows each application's stage and days without an answer, opens a card with stage buttons (applied, screening, interview, offer, rejected, withdrawn) and keeps closed ones in an archive.
+- Follow-up reminders: an hourly sweep messages the user, during 10:00–20:00 their time, about an application with no answer past its threshold (7 days by default), with the stage buttons and "Remind in N days". Migration `0023`: `applications.reminded_at`.
+
+### Fixed
+
+- A button press that only swaps buttons (not text) now updates the message's keyboard.
+
 ## [1.29.2] — 2026-10-15
 
 ### Added

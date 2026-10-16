@@ -362,6 +362,23 @@ describe('BotService callbacks', () => {
     });
   });
 
+  it('swaps only the buttons when the handler gives a keyboard without text', async () => {
+    const { db, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, RU_USER);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    const keyboard = [[{ text: 'x', callbackData: 'n:x' }]];
+    bot.registerCallback('n', jest.fn().mockResolvedValue({ alert: 'ok', editKeyboard: keyboard }));
+
+    await bot.handleUpdate(press);
+
+    expect(fetchMock.mock.calls[1][0]).toContain('editMessageReplyMarkup');
+    const body = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(body.reply_markup).toEqual({ inline_keyboard: [[{ text: 'x', callback_data: 'n:x' }]] });
+    expect(body.text).toBeUndefined();
+  });
+
   it('refuses to register two handlers for one namespace', () => {
     const { db } = makeDb();
     const bot = new BotService(db, config('123:abc'), new BotDialogs(db));

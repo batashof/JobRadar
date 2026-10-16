@@ -58,6 +58,8 @@ export const BOT_CALLBACK_NAMESPACES = {
   profile: 'p',
   /** /settings: delivery, filters, timezone, language, pause (roadmap 5.3). */
   settings: 's',
+  /** /applications: the job-application list, cards and follow-up reminders (roadmap 5.5). */
+  applications: 'j',
 } as const;
 
 /**

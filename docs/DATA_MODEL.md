@@ -136,9 +136,12 @@ Indexes: `(source_id, external_id)` unique; GIN on `search_vector`; `(company_no
 | applied_at | timestamptz nullable | |
 | last_activity_at | timestamptz | drives "no answer for N days" reminders |
 | remind_after_days | integer nullable | per-application override |
+| reminded_at | timestamptz nullable | when the bot last sent a follow-up reminder (migration `0023_application_reminders`, v1.30); a reminder is due again only once `last_activity_at` moves past it |
 | created_at / updated_at | timestamptz | |
 
 Constraint: unique `(user_id, vacancy_id)`.
+
+Follow-up reminders in the bot (roadmap 5.5): an application in `applied` / `screening` / `tech_interview` whose `last_activity_at` is older than `coalesce(remind_after_days, 7)` days and with `reminded_at` null or older than `last_activity_at` gets one message, between 10:00 and 20:00 in the owner's `planner_settings.timezone`. A stage change and the reminder's "Remind in N days" button both stamp `last_activity_at = now()`, which restarts the clock and re-arms the reminder.
 
 ### profile_matches (materialized matching results)
 

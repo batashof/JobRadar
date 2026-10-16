@@ -335,6 +335,9 @@ export const applications = pgTable(
     appliedAt: timestamp('applied_at', { withTimezone: true }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).defaultNow().notNull(),
     remindAfterDays: integer('remind_after_days'),
+    // When the bot last sent a follow-up reminder for this application. A
+    // reminder is due again only after new activity (reminded_at < last_activity_at).
+    remindedAt: timestamp('reminded_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

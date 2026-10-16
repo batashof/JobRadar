@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Applications in the bot (v1.30.0, roadmap 5.5)
+
+- Card gets a second button "✅ Откликнулся" (the developer was asked on a card; built on the recommended option while waiting). `/applications` list, application card with stage buttons, archive, delete with confirmation. Hourly reminder sweep (`APPLICATION_REMINDERS_DISABLED` switches it off), migration 0023.
+- `BotService` can now edit only a message's keyboard (`editMessageReplyMarkup`).
+- **Next step:** merge, `DB (prod)` → `migrate`; then the owner tools in the bot (5.5 item 2).
+
 ## 2026-10-15 — LinkedIn alerts via personal forwarding addresses (v1.29.2, roadmap 5.4)
 
 - `/linkedin`: each user gets `<alerts mailbox>+<token>@…`; the worker maps the token in the recipients to the user and records the vacancies in `vacancy_recipients`, so the owner-only LinkedIn source reaches that user only. Gmail forwarding confirmation codes are relayed to the user once.

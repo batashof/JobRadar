@@ -58,7 +58,7 @@ Newest entries go at the top. Keep entries factual and short.
 ## Versioning — mandatory
 
 - The application version lives in [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog format, SemVer).
-- **Current version: 1.29.2** (phase 5.4 in progress: DOU, Djinni and SmartRecruiters sources, 17 Telegram channels across stacks, LinkedIn alerts for every user via /linkedin (ADR-027), owner-only sources; bot users get vacancies scored by a formula gated by precision against the LLM (ADR-026), with every delivery setting in `/settings`; keep this line in sync on every bump).
+- **Current version: 1.30.0** (phase 5.5 in progress: applications in the bot with stage buttons and reminders; phase 5.4 done: DOU, Djinni and SmartRecruiters sources, 17 Telegram channels across stacks, LinkedIn alerts for every user via /linkedin (ADR-027), owner-only sources; bot users get vacancies scored by a formula gated by precision against the LLM (ADR-026), with every delivery setting in `/settings`; keep this line in sync on every bump).
 - Bump the version and add a CHANGELOG entry whenever a meaningful, coherent chunk of functionality lands:
   - `0.0.x` — pre-code / scaffolding steps;
   - `0.x.0` — each completed roadmap phase before release;

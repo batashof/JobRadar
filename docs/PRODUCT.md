@@ -41,7 +41,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 3. Vacancies scored by a deterministic formula (no LLM per vacancy), delivered instantly or on a schedule, with Apply / Details / Hide / 👍👎.
 4. Every setting in the bot (`/settings`); `/privacy`, `/delete`.
 5. More sources for the CIS audience: DOU, Djinni, SmartRecruiters, Recruitee, Personio.
-6. Applications list in the bot.
+6. Applications list in the bot (`/applications`): "✅ Applied" on a vacancy card adds it, buttons move it through the stages, and the bot reminds the user to follow up when a company stays silent.
 7. The web app is removed; a static landing page with the privacy policy stays.
 
 The author (`owner` role) keeps the LLM-per-vacancy features: brief, cover letter, LLM digest verdict, Gmail apply, LinkedIn alerts, interview prep, planner.

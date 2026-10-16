@@ -30,6 +30,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 
+import { ApplicationsService } from '../applications/applications.service';
 import { type BotCallbackContext, type BotCallbackResult, BotService } from '../bot/bot.service';
 import { DB, type Database } from '../db/db.module';
 import {
@@ -205,6 +206,7 @@ export class DigestSendService implements OnModuleInit {
     @Inject(DB) private readonly db: Database,
     private readonly bot: BotService,
     private readonly llm: LlmService,
+    private readonly applications: ApplicationsService,
   ) {}
 
   onModuleInit(): void {
@@ -841,6 +843,19 @@ export class DigestSendService implements OnModuleInit {
           await this.learn(ctx, vacancyId, feedback > 0 ? 'up' : 'down');
         }
         return { alert: digestText(ctx.language, feedback > 0 ? 'liked' : 'disliked') };
+      }
+      case DIGEST_ACTION.applied: {
+        // New → applied, saved → applied, anything further along stays put.
+        const { item } = await this.applications.markApplied(ctx.userId, vacancyId);
+        return {
+          alert: digestText(ctx.language, 'addedToApplications'),
+          // Only the buttons change: the card text stays as it was sent.
+          editKeyboard: renderKeyboard(
+            { id: vacancyId, url: item.vacancy.url },
+            ctx.language,
+            true,
+          ),
+        };
       }
       default:
         return {};

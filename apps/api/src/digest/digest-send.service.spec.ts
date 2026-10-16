@@ -152,11 +152,19 @@ const vacancyRow = (over: Record<string, unknown> = {}) => ({
 /** What `ruleScores()` reads: best profile-match score per vacancy. */
 const ruleRow = (vacancyId: string, score: number) => ({ vacancyId, score });
 
+const makeApplications = () => ({
+  markApplied: jest.fn().mockResolvedValue({
+    item: { id: "app-1", stage: "applied", vacancy: { url: "https://acme.test/1" } },
+    outcome: "created",
+  }),
+});
+
 const service = (
   db: never,
   bot: ReturnType<typeof makeBot>,
   llm: ReturnType<typeof makeLlm>,
-) => new DigestSendService(db, bot as never, llm as never);
+  applications: ReturnType<typeof makeApplications> = makeApplications(),
+) => new DigestSendService(db, bot as never, llm as never, applications as never);
 
 describe("DigestSendService.sendNow", () => {
   it("says so plainly when there is nothing to send", async () => {
@@ -726,6 +734,53 @@ describe("DigestSendService buttons", () => {
       table: digestItems,
       values: { feedback: -1 },
     });
+  });
+
+  it("puts the vacancy on the applications and swaps only the button (roadmap 5.5)", async () => {
+    const { db, writes } = makeDb();
+    const bot = makeBot();
+    const applications = makeApplications();
+    const instance = service(db, bot, makeLlm(), applications);
+    instance.onModuleInit();
+    const handler = bot.registerCallback.mock.calls[0][1] as (
+      c: BotCallbackContext,
+    ) => Promise<{ alert?: string; editText?: string; editKeyboard?: unknown }>;
+
+    const result = await handler(ctx(["d", "a", "vac-1"]));
+
+    expect(applications.markApplied).toHaveBeenCalledWith("user-1", "vac-1");
+    expect(result.alert).toBe("Добавлено в отклики — /applications");
+    // The card text is left as sent; only the keyboard changes.
+    expect(result.editText).toBeUndefined();
+    expect(result.editKeyboard).toEqual([
+      [
+        { text: "Откликнуться", url: "https://acme.test/1" },
+        { text: "✅ В откликах", callbackData: "d:a:vac-1" },
+      ],
+    ]);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("answers a repeated press the same way, without moving a later stage back", async () => {
+    const { db } = makeDb();
+    const bot = makeBot();
+    const applications = makeApplications();
+    applications.markApplied.mockResolvedValue({
+      item: { id: "app-1", stage: "offer", vacancy: { url: "" } },
+      outcome: "kept",
+    });
+    service(db, bot, makeLlm(), applications).onModuleInit();
+    const handler = bot.registerCallback.mock.calls[0][1] as (
+      c: BotCallbackContext,
+    ) => Promise<{ alert?: string; editKeyboard?: unknown }>;
+
+    const result = await handler(ctx(["d", "a", "vac-1"]));
+
+    expect(result.alert).toBe("Добавлено в отклики — /applications");
+    // No link on the posting: the state button stays on its own.
+    expect(result.editKeyboard).toEqual([
+      [{ text: "✅ В откликах", callbackData: "d:a:vac-1" }],
+    ]);
   });
 
   it("ignores malformed callback data", async () => {
