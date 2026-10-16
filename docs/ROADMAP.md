@@ -159,7 +159,7 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 ### 5.5 Applications and owner tools in the bot (v1.30.0)
 
 - [x] "Applied" button on a card and `/applications`: list with stage buttons (applied → screening → interview → offer / rejected), follow-up reminders. *(v1.30.0: "✅ Откликнулся" next to "Откликнуться" on every card; `/applications` with an archive, a card per application with stage buttons; an hourly sweep reminds about applications with no answer, 10:00–20:00 local time; for every user)*
-- [ ] The author's web-only tools move into the bot (developer's decision, 2026-10-15, answering ADR-024 "Not decided here"): mock interview and per-topic questions as chat dialogs, the day planner's plan composition and close-out as commands next to its existing nudges, the kanban as the `/applications` list above. Owner-only (ADR-024 §3).
+- [x] The author's web-only tools move into the bot (developer's decision, 2026-10-15, answering ADR-024 "Not decided here"): mock interview and per-topic questions as chat dialogs, the day planner's plan composition and close-out as commands next to its existing nudges, the kanban as the `/applications` list above. Owner-only (ADR-024 §3). *(v1.30.1: `/interview` (topic plan, questions with model answer and review, mock interview) and `/plan` (compose with the LLM, add blocks, start/pause/done/drop, close the day); `/help` lists them for the owner only)*
 
 **Exit criterion:** nothing a job seeker or the author uses daily needs the website.
 

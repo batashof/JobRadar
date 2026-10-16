@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Author tools in the bot (v1.30.1, roadmap 5.5)
+
+- `/interview` and `/plan`, owner only, on top of the existing `InterviewService` / `PlannerService` (namespaces `i`, `l`). Role-aware `/help` (`help.owner`). Delete in `/plan` drops a block with a recorded reason (ADR-015); a running block cannot be deleted.
+- **Next step:** phase 5.6, web removal and release 2.0.0, after the developer confirms the bot covers daily use.
+
 ## 2026-10-16 — Applications in the bot (v1.30.0, roadmap 5.5)
 
 - Card gets a second button "✅ Откликнулся" (the developer was asked on a card; built on the recommended option while waiting). `/applications` list, application card with stage buttons, archive, delete with confirmation. Hourly reminder sweep (`APPLICATION_REMINDERS_DISABLED` switches it off), migration 0023.

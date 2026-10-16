@@ -11,6 +11,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [1.30.1] — 2026-10-16
+
+### Added
+
+- **Author tools in the bot** (roadmap 5.5, owner only): `/interview` (topic plan with statuses, questions by topic with a model answer and a review of a typed answer, the text mock interview with pause and finish) and `/plan` (compose today's plan with the LLM, accept or regenerate, add blocks by text, start / pause / done / drop a block, close the day with its result). Planner nudges get an "Open plan" button.
+- `/help` shows an extra "Author tools" section to the owner only.
+
 ## [1.30.0] — 2026-10-16
 
 ### Added
