@@ -13,6 +13,7 @@ Vacancy n──1 Source
 Vacancy n──n Vacancy          (duplicate links)
 SearchProfile n──n Vacancy    (matches, materialized)
 User n──n Vacancy             (hidden_vacancies, manual feed mute)
+User n──n Vacancy             (vacancy_recipients, forwarded LinkedIn alerts, ADR-027)
 
 Phase 4 (ADR-011):
 User 1──n Resume
@@ -51,6 +52,8 @@ User 1──n PlannerNudge        (n──1 DayPlan / PlanBlock, nullable)
 | language | text not null default `'ru'` | interface + AI-generation language, `en` \| `ru` (ADR-014); bot-made accounts take it from the Telegram client's `language_code` |
 | telegram_user_id | text unique nullable | Telegram `from.id`; set by `/start` (ADR-024). One Telegram user, one account |
 | role | text not null default `'user'` | `owner` \| `user`; LLM-per-action and personal-credential features are owner-only (ADR-024 §3). `0019` made every pre-existing account `owner` |
+| alerts_token | text unique nullable | migration `0022`. Token of the personal LinkedIn-alert forwarding address `<local>+<token>@<domain>` on `ALERTS_IMAP_USER` (ADR-027): 12 lowercase base32 characters, created the first time the user opens `/linkedin` |
+| alerts_confirmation_code | text nullable | migration `0022`. The last Gmail forwarding-confirmation code relayed to the user in the bot, so each code is sent once |
 | created_at / updated_at | timestamptz | |
 
 ### sessions
@@ -426,6 +429,18 @@ The profile one resume analysis produces (ADR-025); one row per user, replaced b
 | created_at / updated_at | timestamptz | |
 
 The analysis limit (3 per 30 days, owner exempt) is counted from `events` (`resume_analyzed` with `props.source = 'llm'`), which survive a re-upload.
+
+### vacancy_recipients (migration `0022`)
+
+Which user a vacancy from a personal source was addressed to (ADR-027): the vacancies of a LinkedIn alert a user forwarded to their own address. The digest delivers an `ownerOnly` source's vacancy to a non-owner only when a row here names them.
+
+| Column | Type | Notes |
+|---|---|---|
+| vacancy_id | uuid FK → vacancies (cascade) | |
+| user_id | uuid FK → users (cascade) | |
+| created_at | timestamptz | first time the vacancy reached this user's alerts; `/linkedin` counts the last 14 days |
+
+Primary key `(vacancy_id, user_id)`; ingestion inserts with `on conflict do nothing`, so re-reading an email is idempotent.
 
 ## Phase 4 additions (ADR-015 — day planner)
 

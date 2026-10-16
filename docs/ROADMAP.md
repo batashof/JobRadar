@@ -152,7 +152,7 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 - [x] SmartRecruiters, Recruitee, Personio public job APIs with a curated company list, like the Greenhouse/Ashby/Lever boards. *(v1.29.0: SmartRecruiters with ServiceNow, Experian, Freshworks, Canva. Recruitee and Personio probed: no company with remote engineering roles found, so no adapter yet; see DATA_SOURCES.md)*
 - [x] Re-read each source's terms for redistribution to other people; disable the doubtful ones for non-owners with one setting. *(v1.29.0: `sources.config.ownerOnly`; set on LinkedIn alerts. The table is in DATA_SOURCES.md)*
 - [ ] Optional: Adzuna / Jooble / Findwork (free key) after checking their limits and attribution rules.
-- [ ] LinkedIn alerts for everyone through a personal forwarding address (`alerts+<token>@…`), parsed by the recipient; still no request to linkedin.com (ADR-003, ADR-021).
+- [x] LinkedIn alerts for everyone through a personal forwarding address (`alerts+<token>@…`), parsed by the recipient; still no request to linkedin.com (ADR-003, ADR-021). *(v1.29.2, ADR-027: `/linkedin` gives each user a plus address of the alerts mailbox; vacancies from a user's own alerts reach only that user (`vacancy_recipients`); the bot relays Gmail's forwarding confirmation code)*
 
 **Exit criterion:** a senior frontend profile gets noticeably more matching vacancies a day than before (baseline measured in 5.3).
 

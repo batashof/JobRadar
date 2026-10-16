@@ -118,17 +118,18 @@ Public channels show their last 20 posts on `https://t.me/s/<channel>`, which is
 | Data quality | Medium: `title`, `company_name`, `category_name`, comma-joined `tags`, `location`, `pub_date`. No salary or employment type. Only the "exposed" slice (~40 items) is public |
 | Notes | Aggregates remote/contract roles including freelance marketplaces (e.g. Lemon.io). The worker keeps only the `Development` category to stay on-topic. `external_id` is the trailing numeric id in the job URL |
 
-### 9. LinkedIn job-alert emails — IMAP — **active (secondary, ADR-021)**
+### 9. LinkedIn job-alert emails — IMAP — **active (secondary, ADR-021, ADR-027)**
 
 | | |
 |---|---|
 | Kind | The job-alert emails LinkedIn sends the user, read from a mailbox over IMAP. **No request to linkedin.com** — LinkedIn runs the saved search and mails the result |
 | Auth | `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD` (a Gmail **app password**; needs 2-step verification on that Google account). Optional `ALERTS_IMAP_HOST` (default `imap.gmail.com`) / `ALERTS_IMAP_PORT` (993). The worker skips quietly while they are missing |
-| Config | `sources.config`: `senders` (default `jobalerts-noreply@linkedin.com`; IMAP FROM is a substring match), `mailbox` (unset → the server's "All Mail", else INBOX), `lookbackDays` (3), `maxMessages` (50, newest first) |
+| Config | `sources.config`: `senders` (default `jobalerts-noreply@linkedin.com`; IMAP FROM is a substring match; the worker always adds `forwarding-noreply@google.com` for forwarding confirmations), `mailbox` (unset → the server's "All Mail", else INBOX), `lookbackDays` (3), `maxMessages` (50, newest first) |
 | Data quality | Thin by design: title, company, location, workplace type (`(Remote)` / `(Hybrid)` / `(On-site)` suffix), sometimes an annual salary. No posting body — the description is synthesized from the card and says the full posting is on LinkedIn. Exempt from the ADR-016 description gate, like Telegram |
 | `external_id` / `url` | LinkedIn's numeric job id / `https://www.linkedin.com/jobs/view/<id>/` with tracking parameters dropped. `published_at` = date of the earliest email that carried the card |
 | Parsing | Anchored on the job link (`/jobs/view/<id>`) only — no class names or table structure. HTML part first (it has the salary line), plain-text part fills gaps and stands in when the HTML yields nothing. English and Russian interface chrome is filtered out |
-| Alerts | Emails in the window but zero jobs parsed → `empty` (the layout changed). No alert emails in the window → `notModified` (normal: alerts are daily). An IMAP failure → `error` |
+| Alerts | Alert emails in the window but zero jobs parsed → `empty` (the layout changed). No alert emails in the window → `notModified` (normal: alerts are daily; Gmail forwarding confirmations do not count as alerts). An IMAP failure → `error` |
+| Bot users (ADR-027) | `/linkedin` gives every bot user a personal address `<local>+<token>@<domain>` on the same mailbox (`users.alerts_token`, 12 base32 characters, created on first use) and the steps: LinkedIn job alerts with email on; Gmail → Settings → Forwarding and POP/IMAP → add the address; a filter `from:jobalerts-noreply@linkedin.com` → *Forward to* it; other providers need a redirect that keeps the original sender (the FROM search depends on it). The worker reads each message's Delivered-To / X-Original-To / To / Cc; a plus address of the mailbox names the user, and that alert's vacancies are linked to them in `vacancy_recipients`. Mail to the bare address, or to an unknown token, is the owner's. Gmail's forwarding-confirmation email to the address is parsed and its code (and link) sent to the user in the bot, once per code (`users.alerts_confirmation_code`) |
 | Setup | 1. On the LinkedIn account: Jobs → create 3–5 **Job Alerts** (keywords, location, Remote, experience level), email notifications on. 2. Recommended: a **dedicated Gmail** for JobRadar (the app password opens the whole mailbox); on the main Gmail, a filter `from:jobalerts-noreply@linkedin.com` → *Forward to* that address. 3. On the dedicated account: 2-step verification → App passwords → create one. 4. `ALERTS_IMAP_USER` / `ALERTS_IMAP_PASSWORD` in `.env` and in Render. 5. Check the parse: `pnpm --filter @jobradar/api linkedin:alerts:preview` (live mailbox, read-only) or `… --file alert.eml` (a saved email) — prints the jobs, writes nothing. 6. Production: GitHub Actions → `DB (prod)` → `migrate` (migration `0017` + the `linkedin` source row); `GET /health` → `checks.linkedinAlertsConfigured: true` |
 
 ### 10. DOU.ua — RSS — **active (phase 5.4)**
@@ -161,7 +162,7 @@ Both boards share one worker (`ingestion/ua-boards/`). Feeds overlap (a React ro
 
 ### Who receives which source (roadmap 5.4)
 
-`sources.config.ownerOnly: true` keeps a source to the owner: other bot users never get its vacancies (`digest-send.service.ts`, `ownerOnlySource`) and do not see it in `/settings`. Set today on **LinkedIn alerts**, which are the owner's own personal job alerts. Terms re-read on 2026-10-15 for the rest:
+`sources.config.ownerOnly: true` keeps a source from being shared between users: other bot users never get its vacancies (`digest-send.service.ts`, `ownerOnlySource`) unless `vacancy_recipients` addresses a vacancy to them (`addressedToUser`, ADR-027), and do not see it in `/settings`. Set today on **LinkedIn alerts**, which are personal job alerts. Terms re-read on 2026-10-15 for the rest:
 
 | Source | Terms on redistribution | For everyone? |
 |---|---|---|
@@ -171,7 +172,7 @@ Both boards share one worker (`ingestion/ua-boards/`). Feeds overlap (a React ro
 | WeWorkRemotely, HN, ATS boards | Public feeds of employers' own postings | Yes |
 | Telegram channels | Public channel posts, each card is a `t.me` link | Yes |
 | DOU, Djinni | See above | Yes |
-| LinkedIn alerts | The owner's personal alerts | **Owner only** |
+| LinkedIn alerts | Personal alerts: the owner's to the bare mailbox, each user's forwarded to their own address (ADR-027) | **Not shared**: the owner gets the bare-address alerts, each user only the vacancies from their own alerts (listed in their `/settings` once they have an address) |
 
 ### Probed, not added (phase 5.4)
 
@@ -214,7 +215,7 @@ Was the intended primary v1.0 source but never went live: the API geo-403s anony
 
 ### LinkedIn — no automated access to linkedin.com, ever (ADR-003, amended by ADR-021)
 
-Aggressive anti-bot systems, no public API for vacancies, account-ban risk. No crawler, no guest endpoints, no logged-in automation, no secondary accounts. LinkedIn vacancies arrive only through the **job-alert emails** LinkedIn sends the user (source 9 above, ADR-021) and, for other users in phase 5.4, through a personal forwarding address for their own alerts. The browser extension was dropped with the web app (ADR-024).
+Aggressive anti-bot systems, no public API for vacancies, account-ban risk. No crawler, no guest endpoints, no logged-in automation, no secondary accounts. LinkedIn vacancies arrive only through the **job-alert emails** LinkedIn sends the user (source 9 above, ADR-021) and, for other users in phase 5.4, through a personal forwarding address for their own alerts (ADR-027). The browser extension was dropped with the web app (ADR-024).
 
 ## Normalization contract
 

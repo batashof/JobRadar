@@ -23,6 +23,7 @@ const STRINGS = {
       'JobRadar finds remote IT vacancies that fit your resume and sends them here.\n\n' +
       '/start — create your account or reconnect this chat\n' +
       '/settings — delivery, filters, timezone, language, pause\n' +
+      '/linkedin — receive vacancies from your own LinkedIn job alerts\n' +
       '/privacy — what is stored and who sees it\n' +
       '/delete — delete your account and everything in it\n' +
       '/stop — stop messages without deleting anything\n' +
@@ -32,7 +33,7 @@ const STRINGS = {
       'Next step: send your resume here as a PDF file. I will evaluate it and build your profile for picking vacancies.',
     'start.back': 'Welcome back. This chat is connected to your JobRadar account again.',
     'privacy':
-      'What JobRadar stores: your Telegram id, username and chat id, the interface language, and later your resume (the PDF and its text), the profile built from it, the vacancies sent to you and your reactions to them.\n\n' +
+      'What JobRadar stores: your Telegram id, username and chat id, the interface language, and later your resume (the PDF and its text), the profile built from it, the vacancies sent to you and your reactions to them. If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.\n\n' +
       'Who sees it: only JobRadar. To read your resume, its text is sent once to an AI provider that does not train on it. Nothing is sold or shared.\n\n' +
       'How long: until you delete it. /delete removes the account and everything in it at once.',
     'delete.confirm': 'Delete your JobRadar account? Your settings, resume and vacancy history are removed for good.',
@@ -61,6 +62,7 @@ const STRINGS = {
       'JobRadar находит удалённые IT-вакансии под твоё резюме и присылает их сюда.\n\n' +
       '/start — создать аккаунт или снова подключить этот чат\n' +
       '/settings — доставка, фильтры, часовой пояс, язык, пауза\n' +
+      '/linkedin — вакансии из твоих оповещений LinkedIn\n' +
       '/privacy — что хранится и кто это видит\n' +
       '/delete — удалить аккаунт и всё, что в нём\n' +
       '/stop — остановить сообщения, ничего не удаляя\n' +
@@ -70,7 +72,7 @@ const STRINGS = {
       'Следующий шаг: пришли сюда резюме файлом PDF. Я оценю его и соберу профиль для подбора вакансий.',
     'start.back': 'С возвращением. Этот чат снова подключён к твоему аккаунту JobRadar.',
     'privacy':
-      'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, а позже резюме (PDF и его текст), профиль, собранный по нему, отправленные тебе вакансии и твои реакции на них.\n\n' +
+      'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, а позже резюме (PDF и его текст), профиль, собранный по нему, отправленные тебе вакансии и твои реакции на них. Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.\n\n' +
       'Кто это видит: только JobRadar. Чтобы прочитать резюме, его текст один раз отправляется AI-провайдеру, который на нём не обучается. Ничего не продаётся и не передаётся.\n\n' +
       'Сколько хранится: пока ты сам не удалишь. /delete сразу удаляет аккаунт и всё, что в нём.',
     'delete.confirm': 'Удалить аккаунт JobRadar? Настройки, резюме и история вакансий удалятся навсегда.',

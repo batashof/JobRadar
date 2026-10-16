@@ -26,12 +26,13 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [018](018-vacancy-seniority-from-title.md) | A vacancy's seniority comes from its title, not from its prose (amends ADR-012 §3) | Accepted |
 | [019](019-postgres-on-supabase.md) | Production Postgres moves from Neon to Supabase (compute-hour quota exhausted by the always-on API) | Accepted |
 | [020](020-instant-digest-delivery.md) | Instant digest delivery — push new matches after each ingestion, not only on a schedule | Accepted (amended by ADR-022) |
-| [021](021-linkedin-job-alert-emails.md) | LinkedIn vacancies from job-alert emails read over IMAP — no request to linkedin.com (amends ADR-003) | Accepted |
+| [021](021-linkedin-job-alert-emails.md) | LinkedIn vacancies from job-alert emails read over IMAP — no request to linkedin.com (amends ADR-003) | Accepted (amended by ADR-027) |
 | [022](022-digest-sends-every-new-vacancy.md) | The digest sends every new vacancy since the previous send, not a top ten (amends ADR-020) | Accepted |
 | [023](023-ten-minute-ingestion-tick.md) | A 10-minute ingestion tick fired by Supabase pg_cron, with per-source intervals (amends ADR-006, ADR-020 §3) | Accepted |
 | [024](024-telegram-only-product.md) | JobRadar becomes a Telegram-bot product for other job seekers; the web app is retired in 2.0.0 (amends ADR-002, 014, 015, 020) | Accepted |
 | [025](025-llm-only-at-registration.md) | The LLM reads the resume once at registration; vacancies are scored by a deterministic formula (amends ADR-005, 011, 012, 020, 022 for non-owners) | Accepted (amended by ADR-026) |
 | [026](026-formula-gate-precision.md) | The formula's quality gate measures precision against the LLM, not top-20 overlap (amends ADR-025 §9) | Accepted |
+| [027](027-linkedin-forwarding-addresses.md) | Every bot user forwards their own LinkedIn job alerts to a personal plus address (amends ADR-021) | Accepted |
 
 ## Template
 

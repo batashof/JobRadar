@@ -228,7 +228,9 @@ export const SEED_SOURCES: SourceSeed[] = [
       senders: ["jobalerts-noreply@linkedin.com"],
       lookbackDays: 3,
       maxMessages: 50,
-      // The owner's own alerts: never delivered to other bot users (roadmap 5.4).
+      // Not shared between users: the owner gets the alerts sent to the bare
+      // mailbox, and each bot user only the vacancies from the alerts they
+      // forwarded to their own plus address (vacancy_recipients, ADR-027).
       ownerOnly: true,
     },
   },

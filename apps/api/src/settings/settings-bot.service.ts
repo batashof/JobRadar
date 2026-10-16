@@ -32,6 +32,9 @@ import {
 
 const FLOW = 'settings';
 
+/** The LinkedIn alerts source (ADR-021, ADR-027). */
+const LINKEDIN_SLUG = 'linkedin';
+
 /**
  * `/settings` in the chat (roadmap 5.3): every delivery setting the website had,
  * as one message whose buttons edit it in place, plus typed answers for the
@@ -58,7 +61,7 @@ export class SettingsBotService implements OnModuleInit {
   private async showMenu(ctx: BotMessageContext): Promise<void> {
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const screen = renderScreen('main', state, await this.sourceSlugs(ctx.role));
+    const screen = renderScreen('main', state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, screen.text, {
       parseMode: 'HTML',
       keyboard: screen.keyboard,
@@ -67,7 +70,7 @@ export class SettingsBotService implements OnModuleInit {
 
   private async onCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
     const state = await this.load(ctx.userId, ctx.language);
-    const slugs = await this.sourceSlugs(ctx.role);
+    const slugs = await this.sourceSlugs(ctx);
     const decision = decide(state, ctx.parts, slugs);
 
     let next = state;
@@ -104,7 +107,7 @@ export class SettingsBotService implements OnModuleInit {
     await this.save(ctx.userId, patch);
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const screen = renderScreen('main', state, await this.sourceSlugs(ctx.role));
+    const screen = renderScreen('main', state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, `${settingsText(state.language, 'saved')}\n\n${screen.text}`, {
       parseMode: 'HTML',
       keyboard: screen.keyboard,
@@ -163,16 +166,34 @@ export class SettingsBotService implements OnModuleInit {
     await recordEvent(this.db, userId, 'settings_changed', { keys: Object.keys(patch).join(',') });
   }
 
-  /** Sources a user can switch off: the active ones they receive at all. */
-  private async sourceSlugs(role: string): Promise<string[]> {
+  /**
+   * Sources a user can switch off: the active ones they receive at all. An
+   * owner-only source is the owner's, except LinkedIn for a user who has a
+   * personal forwarding address (ADR-027): their own alerts come through it.
+   */
+  private async sourceSlugs(ctx: { userId: string; role: string }): Promise<string[]> {
     const rows = await this.db
       .select({ slug: sources.slug, config: sources.config })
       .from(sources)
       .where(eq(sources.isActive, true))
       .orderBy(asc(sources.slug));
-    const owner = isOwnerRole(role);
+    if (isOwnerRole(ctx.role)) return rows.map((row) => row.slug);
+
+    const ownerOnly = (row: (typeof rows)[number]) =>
+      !!(row.config as { ownerOnly?: boolean } | null)?.ownerOnly;
+    const forwardsLinkedIn =
+      rows.some((row) => row.slug === LINKEDIN_SLUG && ownerOnly(row)) &&
+      (await this.hasAlertsToken(ctx.userId));
     return rows
-      .filter((row) => owner || !(row.config as { ownerOnly?: boolean } | null)?.ownerOnly)
+      .filter((row) => !ownerOnly(row) || (row.slug === LINKEDIN_SLUG && forwardsLinkedIn))
       .map((row) => row.slug);
+  }
+
+  private async hasAlertsToken(userId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ token: users.alertsToken })
+      .from(users)
+      .where(eq(users.id, userId));
+    return !!row?.token;
   }
 }

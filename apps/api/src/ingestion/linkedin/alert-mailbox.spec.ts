@@ -1,6 +1,7 @@
 import { ImapFlow } from 'imapflow';
+import { simpleParser } from 'mailparser';
 
-import { fetchAlertMessages, type AlertMailboxOptions } from './alert-mailbox';
+import { collectRecipients, fetchAlertMessages, type AlertMailboxOptions } from './alert-mailbox';
 
 jest.mock('imapflow', () => ({ ImapFlow: jest.fn() }));
 
@@ -96,5 +97,49 @@ describe('fetchAlertMessages', () => {
     const { client } = fakeClient([[], []]);
     await expect(fetchAlertMessages(OPTIONS)).resolves.toEqual([]);
     expect(client.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('alert recipients (ADR-027)', () => {
+  const FORWARDED = Buffer.from(
+    [
+      'Delivered-To: JobRadar.Alerts+ABC234DEFGHI@gmail.com',
+      'X-Original-To: jobradar.alerts+abc234defghi@gmail.com',
+      'From: LinkedIn Job Alerts <JobAlerts-NoReply@LinkedIn.com>',
+      'To: Jane Doe <jane@example.com>, "Team" <team@example.com>',
+      'Cc: Undisclosed: other@example.com;',
+      'Subject: Senior Frontend Engineer at Acme',
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      'body',
+    ].join('\r\n'),
+  );
+
+  it('collects Delivered-To, X-Original-To, To and Cc, lowercased and de-duplicated', async () => {
+    const parsed = await simpleParser(FORWARDED);
+    expect(collectRecipients(parsed)).toEqual([
+      'jobradar.alerts+abc234defghi@gmail.com',
+      'jane@example.com',
+      'team@example.com',
+      'other@example.com',
+    ]);
+  });
+
+  it('is empty for a message without recipient headers', async () => {
+    const parsed = await simpleParser(Buffer.from('Subject: x\r\n\r\nbody'));
+    expect(collectRecipients(parsed)).toEqual([]);
+  });
+
+  it('puts the sender and the recipients on each fetched message', async () => {
+    const { client } = fakeClient([[7]]);
+    client.fetch.mockImplementation(async function* () {
+      yield { uid: 7, source: FORWARDED, internalDate: new Date() };
+    });
+    const [message] = await fetchAlertMessages({
+      ...OPTIONS,
+      senders: ['jobalerts-noreply@linkedin.com'],
+    });
+    expect(message?.from).toBe('jobalerts-noreply@linkedin.com');
+    expect(message?.recipients).toContain('jobradar.alerts+abc234defghi@gmail.com');
   });
 });

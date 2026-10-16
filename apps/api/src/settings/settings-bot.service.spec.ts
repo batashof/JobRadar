@@ -141,6 +141,25 @@ describe('SettingsBotService', () => {
     expect(await buttons('owner')).toContain('s:src:linkedin');
   });
 
+  it('lists LinkedIn for a user with a personal forwarding address (ADR-027)', async () => {
+    const { callback, queue } = setup();
+    queue(digestSettings, [digestRow]);
+    queue(plannerSettings, [{ timezone: 'Europe/Minsk' }]);
+    queue(sources, [
+      { slug: 'dou', config: {} },
+      { slug: 'linkedin', config: { ownerOnly: true } },
+      { slug: 'private', config: { ownerOnly: true } },
+    ]);
+    queue(users, [{ token: 'abcdefghijkl' }]);
+
+    const result = await callback({ ...press(['s', 'open', 'src']), role: 'user' });
+
+    const keyboard = JSON.stringify(result.editKeyboard);
+    expect(keyboard).toContain('s:src:linkedin');
+    expect(keyboard).toContain('s:src:dou');
+    expect(keyboard).not.toContain('s:src:private');
+  });
+
   it('saves a button press and rewrites the menu in place', async () => {
     const { callback, writes, queue, dialogs } = setup();
     queue(digestSettings, [digestRow]);

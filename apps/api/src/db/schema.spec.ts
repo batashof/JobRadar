@@ -8,6 +8,7 @@ import {
   sources,
   users,
   vacancies,
+  vacancyRecipients,
   workFormatEnum,
 } from './schema';
 
@@ -49,6 +50,19 @@ describe('db schema', () => {
     const { indexes } = getTableConfig(applications);
     const unique = indexes.find((i) => i.config.name === 'applications_user_vacancy_idx');
     expect(unique?.config.unique).toBe(true);
+  });
+
+  it('keys vacancy_recipients on (vacancy, user), both cascading (ADR-027)', () => {
+    const { primaryKeys, foreignKeys, name } = getTableConfig(vacancyRecipients);
+    expect(name).toBe('vacancy_recipients');
+    expect(primaryKeys[0]?.columns.map((c) => c.name)).toEqual(['vacancy_id', 'user_id']);
+    expect(foreignKeys.map((fk) => fk.onDelete)).toEqual(['cascade', 'cascade']);
+  });
+
+  it('keeps the LinkedIn forwarding token unique per user (ADR-027)', () => {
+    const column = getTableConfig(users).columns.find((c) => c.name === 'alerts_token');
+    expect(column?.isUnique).toBe(true);
+    expect(column?.notNull).toBe(false);
   });
 
   it('uses a composite primary key on profile_matches', () => {

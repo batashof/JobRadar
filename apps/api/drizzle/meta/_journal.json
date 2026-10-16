@@ -155,6 +155,13 @@
       "when": 1792101609082,
       "tag": "0021_delivery_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792107733668,
+      "tag": "0022_linkedin_forwarding",
+      "breakpoints": true
     }
   ]
 }
