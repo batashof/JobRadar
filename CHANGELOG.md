@@ -9,6 +9,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.2.0] — 2026-10-16
+
+### Added
+
+- **"📥 Send vacancies now"** in the bot: a button at the bottom of `/settings` and the `/digest` command. It sends every unsent vacancy of the last two weeks that clears the minimum fit, like the web cabinet's manual send, and says so when nothing new clears it. Without a confirmed profile it asks for the resume first.
+
 ## [2.1.0] — 2026-10-16
 
 ### Changed

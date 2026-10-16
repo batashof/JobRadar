@@ -22,6 +22,7 @@ const STRINGS = {
     'help':
       'JobRadar finds remote IT vacancies that fit your resume and sends them here.\n\n' +
       '/start — create your account or reconnect this chat\n' +
+      '/digest — send every new matching vacancy now\n' +
       '/settings — delivery, filters, timezone, language, pause\n' +
       '/applications — your job applications: stages and follow-up reminders\n' +
       '/linkedin — receive vacancies from your own LinkedIn job alerts\n' +
@@ -65,6 +66,7 @@ const STRINGS = {
     'help':
       'JobRadar находит удалённые IT-вакансии под твоё резюме и присылает их сюда.\n\n' +
       '/start — создать аккаунт или снова подключить этот чат\n' +
+      '/digest — прислать все новые подходящие вакансии сейчас\n' +
       '/settings — доставка, фильтры, часовой пояс, язык, пауза\n' +
       '/applications — твои отклики: этапы и напоминания написать компании\n' +
       '/linkedin — вакансии из твоих оповещений LinkedIn\n' +

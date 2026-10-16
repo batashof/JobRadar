@@ -36,6 +36,8 @@ export const DIGEST_ACTION = {
   down: 'w',
   /** "✅ Applied": puts the vacancy on the user's applications (roadmap 5.5). */
   applied: 'a',
+  /** "📥 Send now" (/settings, /digest): every unsent match of the fortnight, on request. */
+  now: 'n',
 } as const;
 
 const TEXT = {
@@ -45,6 +47,9 @@ const TEXT = {
     instantHeader: 'New: {count} vacancies for you',
     instantHeaderOne: 'New: one vacancy for you',
     empty: 'Nothing worth your attention today.',
+    searching: 'Looking for vacancies…',
+    nothingNew: 'Nothing new above your minimum fit. Lower it in /settings to see more.',
+    noProfile: 'Nothing to match on yet: send your resume as a PDF and confirm the profile.',
     apply: 'Apply',
     markApplied: '✅ Applied',
     inApplications: '✅ In applications',
@@ -73,6 +78,9 @@ const TEXT = {
     instantHeader: 'Свежее: {count} вакансий для тебя',
     instantHeaderOne: 'Свежее: одна вакансия для тебя',
     empty: 'Сегодня ничего стоящего.',
+    searching: 'Ищу вакансии…',
+    nothingNew: 'Ничего нового выше твоего минимального соответствия. Понизить его можно в /settings.',
+    noProfile: 'Пока не с чем сравнивать: пришли резюме файлом PDF и подтверди профиль.',
     apply: 'Откликнуться',
     markApplied: '✅ Откликнулся',
     inApplications: '✅ В откликах',

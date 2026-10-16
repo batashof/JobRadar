@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — "Send vacancies now" in the bot (v2.2.0)
+
+- Developer asked for the web cabinet's manual send as a bot button.
+- `DigestSendService` registers `/digest` and handles `d:n` (`DIGEST_ACTION.now`): `sendOnRequest` checks there is a match basis (else asks for the resume), then `sendNow` with the "nothing new above your minimum fit" line for an empty result; it runs after the webhook answers. `/settings` main menu ends with a full-width `d:n` button. Menu and `/help` list `/digest`.
+- **Next step:** none planned; watch how often it is pressed.
+
 ## 2026-10-16 — Formula scoring for the owner too (v2.1.0)
 
 - Developer: score vacancies by a keyword library so the filter always works, use the LLM for the resume only. After the v2.0.2 deploy the first tick was again rate-limited, by the background resume pass.
