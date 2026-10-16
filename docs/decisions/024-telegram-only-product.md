@@ -1,6 +1,6 @@
 # ADR-024: JobRadar becomes a Telegram-bot product for other job seekers; the web app is retired in 2.0.0
 
-- Status: Accepted (§6–7 amended by ADR-028: the web app stays as the author's cabinet in 2.0.0)
+- Status: Accepted (§6–7 amended by ADR-028: the web app stays as the author's cabinet in 2.0.0; §3 amended by ADR-029: the owner's vacancies are scored by the formula too)
 - Date: 2026-10-15
 - Amends ADR-002 (the API keeps its own service; its client changes from Next.js to the Telegram bot), ADR-014 (the interface language follows the Telegram client, not a web setting), ADR-015 and ADR-020 (the bot is no longer a secondary channel next to the web app, it is the only client), and PRODUCT.md (target user and v2 scope)
 

@@ -9,6 +9,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.1.0] — 2026-10-16
+
+### Changed
+
+- **The owner's vacancies are scored by the formula too** (ADR-029). It tags each posting with skills from the technology dictionary and scores them, the title, the grade and freshness against the candidate profile, as it already did for every other user. The owner's profile is the stored one, confirmed or not, or one built from the resume's terms. Delivery no longer depends on a free LLM tier, so a rate limit or an outage can no longer empty a push. Cards carry the formula's note ("Matched: React, TypeScript; missing: GraphQL").
+- The owner's 👍/👎 and hide presses now tune the formula's weights, as they do for other users.
+
+### Removed
+
+- The background LLM pass that scored ten vacancies against the owner's resume every four hours. The web cabinet's on-demand scoring stays.
+- The 2.0.2 batch pacing and deferred-window retry, together with the LLM digest scoring they protected.
+
 ## [2.0.2] — 2026-10-16
 
 ### Fixed

@@ -1,6 +1,6 @@
 # ADR-011: Resume-driven apply assistant (upload, LLM matching, cover letters, email apply via Gmail)
 
-- Status: Accepted
+- Status: Accepted (the background resume ↔ vacancy LLM pass removed by ADR-029)
 - Date: 2026-07-20
 
 ## Context

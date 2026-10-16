@@ -3,7 +3,6 @@ import { Module } from '@nestjs/common';
 import { ApplicationsModule } from '../applications/applications.module';
 import { AuthModule } from '../auth/auth.module';
 import { BotModule } from '../bot/bot.module';
-import { LlmModule } from '../llm/llm.module';
 import { DigestController } from './digest.controller';
 import { DigestScheduler } from './digest.scheduler';
 import { DigestSendService } from './digest-send.service';
@@ -16,7 +15,7 @@ import { DigestService } from './digest.service';
  * cannot be expressed as an external cron without firing constantly.
  */
 @Module({
-  imports: [AuthModule, BotModule, LlmModule, ApplicationsModule],
+  imports: [AuthModule, BotModule, ApplicationsModule],
   controllers: [DigestController],
   providers: [DigestService, DigestSendService, DigestScheduler],
   exports: [DigestService, DigestSendService],

@@ -49,7 +49,7 @@ import {
   vacancies,
   vacancyRecipients,
 } from '../db/schema';
-import { LlmService } from '../llm/llm.service';
+import { fallbackProfile } from '../candidate/analysis';
 import {
   extractResumeTerms,
   lexicalRelevanceSql,
@@ -62,6 +62,7 @@ import {
   applyFeedback,
   type DeliveryPreferences,
   detectVacancySkills,
+  EMPTY_FEEDBACK,
   explainScore,
   type FeedbackKind,
   passesPreferences,
@@ -72,20 +73,12 @@ import {
 import { isQuietTime, resolveDue } from './due';
 import { DIGEST_ACTION, digestText, renderCardParts, renderHeader, renderKeyboard } from './render';
 import {
-  buildBatchPrompt,
   type DigestCandidate,
   dropTooJunior,
-  fallbackScores,
-  parseBatchReply,
   rankScore,
   type ScoredCandidate,
   shortlist,
 } from './select';
-
-/**
- * How many candidates the LLM ranks in one call. Above this the prompt bloats,
- * so a larger window is scored as several calls of this size (ADR-022).
- */
 
 /**
  * `sources.config.ownerOnly`: a source delivered to the owner only (roadmap
@@ -103,48 +96,9 @@ export function addressedToUser(userId: string): SQL {
 }
 
 /**
- * Vacancies per LLM call. Groq's free tier allows 8000 tokens per minute and
- * counts the output budget against it, so one call must stay well under that:
- * thirty cards plus the resume asked for 8100 and Groq refused the request
- * outright (HTTP 413), which silently emptied the owner's pushes for a night.
- */
-export const BATCH_LIMIT = 12;
-
-/**
- * Output budget for that one call. A verdict costs ~75 tokens once its Russian
- * note is written, so a full batch needs ~900; the headroom is for models that
- * reason before answering. Too small a budget cuts the reply off partway.
- */
-const SCORING_MAX_TOKENS = 1500;
-
-/**
- * Pause between two scoring calls of one send, so consecutive batches do not
- * add up past the per-minute token limit. The scheduler skips a tick while a
- * run is still going, so a long window only delays the next tick.
- */
-const BATCH_PACE_MS = 30_000;
-
-/**
- * How long an instant push waits for the LLM before giving up on it. While the
- * model is rate-limited the window is kept and retried every tick; past this
- * age the old behaviour applies (rules order, window consumed), so a provider
- * that stays down cannot freeze delivery for good.
- */
-export const MAX_SCORING_DEFER_HOURS = 6;
-
-/** Thrown by an instant send whose LLM scoring failed: keep the window, retry next tick. */
-export class ScoringDeferredError extends Error {}
-
-/** A Postgres `timestamptz::text` value ("2026-10-16 06:10:00.189+00") as a Date. */
-export function parsePgTimestamp(value: string): Date {
-  return new Date(value.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));
-}
-
-/**
  * How many vacancies one send judges at most, best-ranked first. Comfortably
- * more than a day of intake; it exists so a window left open by a long outage
- * costs a bounded number of LLM calls (CANDIDATE_POOL / BATCH_LIMIT) rather
- * than one per thirty postings on the board. Kept equal to the shared
+ * more than a day of intake; it bounds the work a window left open by a long
+ * outage costs. Kept equal to the shared
  * DIGEST_MAX_ITEMS_LIMIT, so a typed-in cap can never exceed what is judged.
  */
 const CANDIDATE_POOL = DIGEST_MAX_ITEMS_LIMIT;
@@ -193,19 +147,19 @@ interface DigestUser extends DeliveryPreferences {
 }
 
 /**
- * What a send ranks against. The owner's comes from the resume text and is
- * judged by the LLM; everyone else's comes from the confirmed candidate
- * profile and is judged by the formula (ADR-025 §8).
+ * What a send ranks against: a candidate profile judged by the formula, for
+ * every user the owner included (ADR-029). The owner's profile need not be
+ * confirmed and falls back to the resume's terms; the owner also sees
+ * owner-only sources and their cached resume scores still help the pre-rank.
  */
-type MatchBasis =
-  | { kind: 'llm'; terms: ResumeTerms; level: SeniorityLevel | null; resume: { id: string; text: string } | null }
-  | {
-      kind: 'formula';
-      terms: ResumeTerms;
-      level: SeniorityLevel | null;
-      profile: ScoringProfile;
-      weights: FeedbackWeights;
-    };
+interface MatchBasis {
+  owner: boolean;
+  terms: ResumeTerms;
+  level: SeniorityLevel | null;
+  profile: ScoringProfile;
+  weights: FeedbackWeights;
+  resumeId: string | null;
+}
 
 export interface DigestRunResult {
   users: number;
@@ -221,21 +175,17 @@ export interface DigestRunResult {
  * schedule (ADR-015 §7 timezone), the bot channel for delivery, and writes
  * `digest_items` so a vacancy is never pushed twice.
  *
- * Cost discipline (ADR-005): SQL narrows to vacancies that already pass
- * rules-based profile matching and were never sent, then one LLM call per 30
- * of them ranks the window — all of it, since v1.24 (ADR-022). With no LLM key the run still happens, ordered by the
- * rules score — the same llm/fallback shape the planner uses.
+ * No LLM on this path (ADR-029): SQL narrows to unsent vacancies ranked by
+ * resume relevance, and the formula scores every one of them against the
+ * candidate profile — skill tags from the dictionary, grade, title, salary.
  */
 @Injectable()
 export class DigestSendService implements OnModuleInit {
   private readonly logger = new Logger(DigestSendService.name);
-  /** Overridable in tests, which should not wait half a minute per batch. */
-  batchPaceMs = BATCH_PACE_MS;
 
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly bot: BotService,
-    private readonly llm: LlmService,
     private readonly applications: ApplicationsService,
   ) {}
 
@@ -268,9 +218,8 @@ export class DigestSendService implements OnModuleInit {
       .leftJoin(plannerSettings, eq(plannerSettings.userId, digestSettings.userId))
       .leftJoin(candidateProfiles, eq(candidateProfiles.userId, digestSettings.userId))
       .innerJoin(telegramAccounts, eq(telegramAccounts.userId, digestSettings.userId))
-      // The owner is judged by the LLM against the resume (ADR-024 §3); anyone
-      // else by the formula against the candidate profile, which waits for the
-      // user to confirm it (ADR-025 §2, §8).
+      // Everyone is judged by the formula (ADR-029). A user's profile waits for
+      // them to confirm it (ADR-025 §2, §8); the owner's falls back to the resume.
       .where(
         and(
           eq(digestSettings.enabled, true),
@@ -359,7 +308,7 @@ export class DigestSendService implements OnModuleInit {
    * Quiet hours leave the watermark where it is, so the night's arrivals go
    * out as one push when they end. The watermark moves even when nothing
    * clears the floor: those vacancies were judged, and judging them again
-   * every five minutes would spend an LLM call per tick on the same answer.
+   * every five minutes would give the same answer.
    */
   private async runInstant(
     user: Omit<DigestUser, 'minScore'> & {
@@ -375,20 +324,12 @@ export class DigestSendService implements OnModuleInit {
     const window = await this.ingestWindow(user.judgedThrough);
     if (!window) return null;
 
-    let count: number;
-    try {
-      count = await this.sendFor(
-        { ...user, minScore: user.instantMinScore },
-        `instant ${window.until}`,
-        now,
-        { kind: 'instant', window },
-      );
-    } catch (err) {
-      if (!(err instanceof ScoringDeferredError)) throw err;
-      // The watermark stays put: the same window is scored again next tick.
-      this.logger.warn(`instant push deferred for user ${user.userId}: ${err.message}`);
-      return null;
-    }
+    const count = await this.sendFor(
+      { ...user, minScore: user.instantMinScore },
+      `instant ${window.until}`,
+      now,
+      { kind: 'instant', window },
+    );
     await this.db
       .update(digestSettings)
       .set({ judgedThrough: sql`${window.until}::timestamptz`, updatedAt: new Date() })
@@ -480,22 +421,7 @@ export class DigestSendService implements OnModuleInit {
       return 0;
     }
 
-    let scored: ScoredCandidate[];
-    if (basis.kind === 'llm') {
-      const result = await this.score(user.userId, candidates, basis.resume?.text ?? null, language);
-      // The rules order scores far below the LLM, so a push judged by it would
-      // drop everything under the floor and consume the window: retry instead,
-      // while the window is young enough to still be news.
-      if (instant && result.failed && run.window) {
-        const ageHours = (now.getTime() - parsePgTimestamp(run.window.after).getTime()) / 3_600_000;
-        if (ageHours < MAX_SCORING_DEFER_HOURS) {
-          throw new ScoringDeferredError(`LLM scoring failed: ${result.failed}`);
-        }
-      }
-      scored = result.scored;
-    } else {
-      scored = this.scoreByFormula(candidates, basis, language, now);
-    }
+    const scored = this.scoreByFormula(candidates, basis, language, now);
     const picked = shortlist(scored, user.maxItems, user.minScore);
     if (picked.length === 0) {
       // An empty digest is a legitimate outcome and a plausible symptom of a
@@ -621,7 +547,7 @@ export class DigestSendService implements OnModuleInit {
     // Sources whose terms or nature keep them to the owner (the owner's own
     // LinkedIn alerts, roadmap 5.4) never reach anyone else — except the
     // vacancies a user's own forwarded alerts brought in (ADR-027).
-    if (basis.kind === 'formula') {
+    if (!basis.owner) {
       const clause = or(
         isNull(sources.slug),
         sql`not ${ownerOnlySource}`,
@@ -637,7 +563,7 @@ export class DigestSendService implements OnModuleInit {
     }
 
     const relevance = lexicalRelevanceSql(basis.terms, vacancies.title, vacancies.description);
-    const resumeId = basis.kind === 'llm' ? basis.resume?.id : undefined;
+    const resumeId = basis.resumeId;
 
     const rows = await this.db
       .select({
@@ -724,17 +650,8 @@ export class DigestSendService implements OnModuleInit {
 
   /** What this user's send ranks against, or null when there is nothing yet. */
   private async matchBasis(userId: string, role: string): Promise<MatchBasis | null> {
-    if (isOwnerRole(role as UserRole)) {
-      const resume = await this.activeResume(userId);
-      return {
-        kind: 'llm',
-        resume,
-        terms: extractResumeTerms(resume?.text ?? ''),
-        level: resume ? detectSeniority(resume.text) : null,
-      };
-    }
-
-    const [profile] = await this.db
+    const owner = isOwnerRole(role as UserRole);
+    const [stored] = await this.db
       .select({
         role: candidateProfiles.role,
         grade: candidateProfiles.grade,
@@ -744,25 +661,39 @@ export class DigestSendService implements OnModuleInit {
       })
       .from(candidateProfiles)
       .where(eq(candidateProfiles.userId, userId));
-    if (!profile?.confirmedAt) return null;
 
-    const grade = (SENIORITY_LEVELS as readonly string[]).includes(profile.grade ?? '')
-      ? (profile.grade as SeniorityLevel)
-      : null;
-    const scoring: ScoringProfile = { role: profile.role, grade, skills: profile.skills };
+    if (!owner) {
+      if (!stored?.confirmedAt) return null;
+      const profile = scoringProfile(stored);
+      return {
+        owner,
+        profile,
+        weights: stored.weights,
+        terms: profileTerms(profile),
+        level: profile.grade,
+        resumeId: null,
+      };
+    }
+
+    // The owner never went through the bot's confirmation dialog: any stored
+    // profile counts, and without one the resume's own terms stand in for it.
+    const resume = await this.activeResume(userId);
+    if (!stored && !resume) return null;
+    const profile = stored ? scoringProfile(stored) : fallbackProfile(resume?.text ?? '');
     return {
-      kind: 'formula',
-      profile: scoring,
-      weights: profile.weights,
-      terms: profileTerms(scoring),
-      level: grade,
+      owner,
+      profile,
+      weights: stored?.weights ?? EMPTY_FEEDBACK,
+      terms: resume ? extractResumeTerms(resume.text) : profileTerms(profile),
+      level: profile.grade ?? (resume ? detectSeniority(resume.text) : null),
+      resumeId: resume?.id ?? null,
     };
   }
 
   /** ADR-025 §5: the formula for every candidate, with its template explanation. */
   private scoreByFormula(
     candidates: DigestCandidate[],
-    basis: Extract<MatchBasis, { kind: 'formula' }>,
+    basis: MatchBasis,
     language: Language,
     now: Date,
   ): ScoredCandidate[] {
@@ -780,69 +711,6 @@ export class DigestSendService implements OnModuleInit {
       .orderBy(desc(resumes.uploadedAt))
       .limit(1);
     return resume ?? null;
-  }
-
-  /**
-   * Scores every candidate, BATCH_LIMIT per LLM call (ADR-022). Until v1.24
-   * only the best-ranked thirty were ever scored and everything past them was
-   * silently dropped, which — with the cap of ten on top — was why every push
-   * held exactly ten vacancies however many had arrived. The calls run one
-   * after another: free tiers limit tokens per minute, and a parallel burst
-   * would trip that on exactly the busy days that need several calls.
-   */
-  private async score(
-    userId: string,
-    candidates: DigestCandidate[],
-    resumeText: string | null,
-    language: Language,
-  ): Promise<{ scored: ScoredCandidate[]; failed: string | null }> {
-    // No resume or no key is a configuration, not an outage: rules order, no retry.
-    if (!resumeText || !this.llm.isConfigured()) {
-      return { scored: fallbackScores(candidates), failed: null };
-    }
-    const scored: ScoredCandidate[] = [];
-    let failed: string | null = null;
-    for (let start = 0; start < candidates.length; start += BATCH_LIMIT) {
-      if (start > 0 && this.batchPaceMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, this.batchPaceMs));
-      }
-      const batch = candidates.slice(start, start + BATCH_LIMIT);
-      const result = await this.scoreBatch(userId, batch, resumeText, language);
-      if (result) {
-        scored.push(...result);
-      } else {
-        failed ??= `batch ${start / BATCH_LIMIT + 1} of ${Math.ceil(candidates.length / BATCH_LIMIT)}`;
-        scored.push(...fallbackScores(batch));
-      }
-    }
-    return { scored, failed };
-  }
-
-  /** One LLM call for one batch; null when it failed, so the caller can decide. */
-  private async scoreBatch(
-    userId: string,
-    candidates: DigestCandidate[],
-    resumeText: string,
-    language: Language,
-  ): Promise<ScoredCandidate[] | null> {
-    try {
-      const prompt = buildBatchPrompt(candidates, resumeText, language);
-      const reply = await this.llm.complete({
-        ...prompt,
-        maxTokens: SCORING_MAX_TOKENS,
-        temperature: 0.2,
-      });
-      const scored = parseBatchReply(reply.text, candidates);
-      // A reply that parsed to nothing is a failed call, not an empty digest.
-      return scored.length > 0 ? scored : null;
-    } catch (err) {
-      this.logger.warn(
-        `digest scoring failed for user ${userId}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-      return null;
-    }
   }
 
   /** The scheduled digest's "nothing worth your attention" — the user is waiting for it. */
@@ -923,12 +791,12 @@ export class DigestSendService implements OnModuleInit {
   }
 
   /**
-   * Moves the formula's feedback weights for one press (ADR-025 §7). The owner
-   * is judged by the LLM and has no weights; a failure here never fails the
-   * press, which has already been recorded.
+   * Moves the formula's feedback weights for one press (ADR-025 §7). Needs a
+   * stored profile, so an owner judged by the resume fallback learns nothing
+   * until they have one; a failure here never fails the press, which has
+   * already been recorded.
    */
   private async learn(ctx: BotCallbackContext, vacancyId: string, kind: FeedbackKind): Promise<void> {
-    if (isOwnerRole(ctx.role)) return;
     try {
       const [row] = await this.db
         .select({
@@ -970,6 +838,18 @@ const preferenceColumns = {
   minSalaryUsd: digestSettings.minSalaryUsd,
   mutedSources: digestSettings.mutedSources,
 };
+
+/** A stored candidate profile as the formula reads it; an unknown grade reads as none. */
+function scoringProfile(stored: {
+  role: string | null;
+  grade: string | null;
+  skills: CandidateSkill[];
+}): ScoringProfile {
+  const grade = (SENIORITY_LEVELS as readonly string[]).includes(stored.grade ?? '')
+    ? (stored.grade as SeniorityLevel)
+    : null;
+  return { role: stored.role, grade, skills: stored.skills };
+}
 
 function coreSkillNames(skills: CandidateSkill[]): string[] {
   return skills.filter((skill) => skill.weight === 'core').map((skill) => skill.name);
