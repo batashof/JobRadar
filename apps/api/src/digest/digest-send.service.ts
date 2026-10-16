@@ -102,15 +102,43 @@ export function addressedToUser(userId: string): SQL {
   return sql`exists (select 1 from ${vacancyRecipients} where ${vacancyRecipients.vacancyId} = ${vacancies.id} and ${vacancyRecipients.userId} = ${userId})`;
 }
 
-const BATCH_LIMIT = 30;
+/**
+ * Vacancies per LLM call. Groq's free tier allows 8000 tokens per minute and
+ * counts the output budget against it, so one call must stay well under that:
+ * thirty cards plus the resume asked for 8100 and Groq refused the request
+ * outright (HTTP 413), which silently emptied the owner's pushes for a night.
+ */
+export const BATCH_LIMIT = 12;
 
 /**
  * Output budget for that one call. A verdict costs ~75 tokens once its Russian
- * note is written, so a full batch needs ~2300 — 1600 cut the reply off partway
- * through and, before the parser learned to salvage what arrived, cost the whole
- * digest. The headroom above 2300 is for models that reason before answering.
+ * note is written, so a full batch needs ~900; the headroom is for models that
+ * reason before answering. Too small a budget cuts the reply off partway.
  */
-const SCORING_MAX_TOKENS = 3000;
+const SCORING_MAX_TOKENS = 1500;
+
+/**
+ * Pause between two scoring calls of one send, so consecutive batches do not
+ * add up past the per-minute token limit. The scheduler skips a tick while a
+ * run is still going, so a long window only delays the next tick.
+ */
+const BATCH_PACE_MS = 30_000;
+
+/**
+ * How long an instant push waits for the LLM before giving up on it. While the
+ * model is rate-limited the window is kept and retried every tick; past this
+ * age the old behaviour applies (rules order, window consumed), so a provider
+ * that stays down cannot freeze delivery for good.
+ */
+export const MAX_SCORING_DEFER_HOURS = 6;
+
+/** Thrown by an instant send whose LLM scoring failed: keep the window, retry next tick. */
+export class ScoringDeferredError extends Error {}
+
+/** A Postgres `timestamptz::text` value ("2026-10-16 06:10:00.189+00") as a Date. */
+export function parsePgTimestamp(value: string): Date {
+  return new Date(value.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));
+}
 
 /**
  * How many vacancies one send judges at most, best-ranked first. Comfortably
@@ -201,6 +229,8 @@ export interface DigestRunResult {
 @Injectable()
 export class DigestSendService implements OnModuleInit {
   private readonly logger = new Logger(DigestSendService.name);
+  /** Overridable in tests, which should not wait half a minute per batch. */
+  batchPaceMs = BATCH_PACE_MS;
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -345,12 +375,20 @@ export class DigestSendService implements OnModuleInit {
     const window = await this.ingestWindow(user.judgedThrough);
     if (!window) return null;
 
-    const count = await this.sendFor(
-      { ...user, minScore: user.instantMinScore },
-      `instant ${window.until}`,
-      now,
-      { kind: 'instant', window },
-    );
+    let count: number;
+    try {
+      count = await this.sendFor(
+        { ...user, minScore: user.instantMinScore },
+        `instant ${window.until}`,
+        now,
+        { kind: 'instant', window },
+      );
+    } catch (err) {
+      if (!(err instanceof ScoringDeferredError)) throw err;
+      // The watermark stays put: the same window is scored again next tick.
+      this.logger.warn(`instant push deferred for user ${user.userId}: ${err.message}`);
+      return null;
+    }
     await this.db
       .update(digestSettings)
       .set({ judgedThrough: sql`${window.until}::timestamptz`, updatedAt: new Date() })
@@ -442,10 +480,22 @@ export class DigestSendService implements OnModuleInit {
       return 0;
     }
 
-    const scored =
-      basis.kind === 'llm'
-        ? await this.score(user.userId, candidates, basis.resume?.text ?? null, language)
-        : this.scoreByFormula(candidates, basis, language, now);
+    let scored: ScoredCandidate[];
+    if (basis.kind === 'llm') {
+      const result = await this.score(user.userId, candidates, basis.resume?.text ?? null, language);
+      // The rules order scores far below the LLM, so a push judged by it would
+      // drop everything under the floor and consume the window: retry instead,
+      // while the window is young enough to still be news.
+      if (instant && result.failed && run.window) {
+        const ageHours = (now.getTime() - parsePgTimestamp(run.window.after).getTime()) / 3_600_000;
+        if (ageHours < MAX_SCORING_DEFER_HOURS) {
+          throw new ScoringDeferredError(`LLM scoring failed: ${result.failed}`);
+        }
+      }
+      scored = result.scored;
+    } else {
+      scored = this.scoreByFormula(candidates, basis, language, now);
+    }
     const picked = shortlist(scored, user.maxItems, user.minScore);
     if (picked.length === 0) {
       // An empty digest is a legitimate outcome and a plausible symptom of a
@@ -745,26 +795,36 @@ export class DigestSendService implements OnModuleInit {
     candidates: DigestCandidate[],
     resumeText: string | null,
     language: Language,
-  ): Promise<ScoredCandidate[]> {
-    const scored: ScoredCandidate[] = [];
-    for (let start = 0; start < candidates.length; start += BATCH_LIMIT) {
-      const batch = candidates.slice(start, start + BATCH_LIMIT);
-      scored.push(...(await this.scoreBatch(userId, batch, resumeText, language)));
+  ): Promise<{ scored: ScoredCandidate[]; failed: string | null }> {
+    // No resume or no key is a configuration, not an outage: rules order, no retry.
+    if (!resumeText || !this.llm.isConfigured()) {
+      return { scored: fallbackScores(candidates), failed: null };
     }
-    return scored;
+    const scored: ScoredCandidate[] = [];
+    let failed: string | null = null;
+    for (let start = 0; start < candidates.length; start += BATCH_LIMIT) {
+      if (start > 0 && this.batchPaceMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.batchPaceMs));
+      }
+      const batch = candidates.slice(start, start + BATCH_LIMIT);
+      const result = await this.scoreBatch(userId, batch, resumeText, language);
+      if (result) {
+        scored.push(...result);
+      } else {
+        failed ??= `batch ${start / BATCH_LIMIT + 1} of ${Math.ceil(candidates.length / BATCH_LIMIT)}`;
+        scored.push(...fallbackScores(batch));
+      }
+    }
+    return { scored, failed };
   }
 
-  /** One LLM call for one batch; deterministic ordering when it cannot run. */
+  /** One LLM call for one batch; null when it failed, so the caller can decide. */
   private async scoreBatch(
     userId: string,
     candidates: DigestCandidate[],
-    resumeText: string | null,
+    resumeText: string,
     language: Language,
-  ): Promise<ScoredCandidate[]> {
-    if (!resumeText || !this.llm.isConfigured()) {
-      return fallbackScores(candidates);
-    }
-
+  ): Promise<ScoredCandidate[] | null> {
     try {
       const prompt = buildBatchPrompt(candidates, resumeText, language);
       const reply = await this.llm.complete({
@@ -774,14 +834,14 @@ export class DigestSendService implements OnModuleInit {
       });
       const scored = parseBatchReply(reply.text, candidates);
       // A reply that parsed to nothing is a failed call, not an empty digest.
-      return scored.length > 0 ? scored : fallbackScores(candidates);
+      return scored.length > 0 ? scored : null;
     } catch (err) {
       this.logger.warn(
-        `digest scoring fell back to rules for user ${userId}: ${
+        `digest scoring failed for user ${userId}: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
-      return fallbackScores(candidates);
+      return null;
     }
   }
 

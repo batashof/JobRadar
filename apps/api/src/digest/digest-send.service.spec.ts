@@ -11,8 +11,11 @@ import {
   vacancyRecipients,
 } from "../db/schema";
 import {
+  BATCH_LIMIT,
   DigestSendService,
   INSTANT_SETTLE_MINUTES,
+  MAX_SCORING_DEFER_HOURS,
+  parsePgTimestamp,
   ownerOnlySource,
   profileTerms,
 } from "./digest-send.service";
@@ -164,7 +167,12 @@ const service = (
   bot: ReturnType<typeof makeBot>,
   llm: ReturnType<typeof makeLlm>,
   applications: ReturnType<typeof makeApplications> = makeApplications(),
-) => new DigestSendService(db, bot as never, llm as never, applications as never);
+) => {
+  const instance = new DigestSendService(db, bot as never, llm as never, applications as never);
+  // Production waits between scoring calls for the per-minute token limit.
+  instance.batchPaceMs = 0;
+  return instance;
+};
 
 describe("DigestSendService.sendNow", () => {
   it("says so plainly when there is nothing to send", async () => {
@@ -388,10 +396,10 @@ describe("DigestSendService.sendNow", () => {
     expect(writes.filter((w) => w.table === digestItems)).toHaveLength(14);
   });
 
-  it("scores a window larger than one batch with one LLM call per thirty", async () => {
+  it("scores a window larger than one batch with one LLM call per batch", async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [settingsRow({ maxItems: null, minScore: 60 })]);
-    const ids = Array.from({ length: 45 }, (_, i) => `v${i}`);
+    const ids = Array.from({ length: BATCH_LIMIT * 2 + 3 }, (_, i) => `v${i}`);
     queue(vacancies, ids.map((id) => vacancyRow({ id })));
     queue(profileMatches, []);
     queue(resumes, [{ id: "r1", text: "Senior frontend React TypeScript" }]);
@@ -402,12 +410,13 @@ describe("DigestSendService.sendNow", () => {
       );
     const llm = makeLlm("");
     llm.complete
-      .mockResolvedValueOnce({ text: verdicts(30), provider: "groq", model: "m" })
-      .mockResolvedValueOnce({ text: verdicts(15), provider: "groq", model: "m" });
+      .mockResolvedValueOnce({ text: verdicts(BATCH_LIMIT), provider: "groq", model: "m" })
+      .mockResolvedValueOnce({ text: verdicts(BATCH_LIMIT), provider: "groq", model: "m" })
+      .mockResolvedValueOnce({ text: verdicts(3), provider: "groq", model: "m" });
     const bot = makeBot();
 
-    await expect(service(db, bot, llm).sendNow("user-1")).resolves.toBe(45);
-    expect(llm.complete).toHaveBeenCalledTimes(2);
+    await expect(service(db, bot, llm).sendNow("user-1")).resolves.toBe(ids.length);
+    expect(llm.complete).toHaveBeenCalledTimes(3);
     const sent = writes
       .filter((w) => w.table === digestItems)
       .map((w) => (w.values as { vacancyId: string }).vacancyId);
@@ -650,6 +659,41 @@ describe("DigestSendService.run — instant mode (ADR-020)", () => {
     expect(result).toMatchObject({ instant: 1, vacancies: 0 });
     // Judged once is judged: no LLM call per tick on the same window.
     expect(writes.map((w) => w.table)).toEqual([digestSettings]);
+  });
+
+  it("keeps the window and retries when the LLM is rate-limited", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [instant()]);
+    queue(vacancies, [WINDOW], [vacancyRow({ id: "fresh" })]);
+    queue(profileMatches, [ruleRow("fresh", 0.9)]);
+    queue(resumes, [{ id: "r1", text: "Senior frontend React TypeScript" }]);
+    const llm = makeLlm("");
+    llm.complete.mockRejectedValue(new Error("groq: HTTP 429"));
+    const bot = makeBot();
+
+    const result = await service(db, bot, llm).run(NOON);
+
+    // Nothing pushed on the rules order, and the watermark stays for the next tick.
+    expect(bot.sendToUser).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
+    expect(result.instant).toBe(0);
+  });
+
+  it(`gives up waiting after ${MAX_SCORING_DEFER_HOURS} hours and falls back to the rules order`, async () => {
+    const { db, queue, writes } = makeDb();
+    const old = { after: "2026-08-11 05:00:00.000001+00", until: WINDOW.until };
+    queue(digestSettings, [instant({ judgedThrough: old.after })]);
+    queue(vacancies, [old], [vacancyRow({ id: "fresh" })]);
+    queue(profileMatches, [ruleRow("fresh", 0.9)]);
+    queue(resumes, [{ id: "r1", text: "Senior frontend React TypeScript" }]);
+    const llm = makeLlm("");
+    llm.complete.mockRejectedValue(new Error("groq: HTTP 429"));
+    const bot = makeBot();
+
+    const result = await service(db, bot, llm).run(NOON);
+
+    expect(result).toMatchObject({ instant: 1, vacancies: 1 });
+    expect(writes.some((w) => w.table === digestSettings)).toBe(true);
   });
 
   it("stays silent when every new vacancy was already sent or hidden", async () => {
@@ -990,5 +1034,21 @@ describe("DigestSendService — feedback weights (ADR-025 §7)", () => {
     await handlerFor(db)(ctx(["d", "u", "vac-1"], "owner"));
 
     expect(writes.find((w) => w.table === candidateProfiles)).toBeUndefined();
+  });
+});
+
+describe("parsePgTimestamp", () => {
+  it("reads Postgres timestamptz text with microseconds and a short offset", () => {
+    expect(parsePgTimestamp("2026-10-16 06:10:00.189002+00").toISOString()).toBe(
+      "2026-10-16T06:10:00.189Z",
+    );
+    expect(parsePgTimestamp("2026-10-16 09:10:00+03").toISOString()).toBe("2026-10-16T06:10:00.000Z");
+  });
+});
+
+describe("scoring batch size", () => {
+  it("keeps one call well under Groq's 8000 tokens per minute", () => {
+    // ~150 tokens per card, ~2000 for the resume, 1500 for the reply.
+    expect(BATCH_LIMIT * 150 + 2000 + 1500).toBeLessThan(8000 * 0.75);
   });
 });

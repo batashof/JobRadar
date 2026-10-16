@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Owner pushes stopped overnight (v2.0.2)
+
+- Developer: no vacancies since 02:00 Minsk. Ingestion was fine (`DB (prod)` → `check`, `schedule:status`: 202 every 10 min, sources fresh). Render logs: from 23:50 UTC every digest scoring call failed (Groq 413 "Requested 8100" > TPM 8000, then 429; Gemini 429/503); fallback rules scores 0–67 < floor 75, so each instant window was consumed with nothing sent.
+- Fix in `digest-send.service.ts`: `BATCH_LIMIT` 30 → 12, `SCORING_MAX_TOKENS` 3000 → 1500, 30 s between batch calls, and `ScoringDeferredError`: an instant send whose LLM scoring failed keeps the watermark (retry next tick) unless the window is older than `MAX_SCORING_DEFER_HOURS` (6).
+- The vacancies of the lost windows are not in `digest_items`, so a manual send (`POST /digest/run`, the web cabinet's send button) still reaches them.
+- **Next step:** watch the Render log for "instant push deferred" over the next day.
+
 ## 2026-10-16 — Bot UX polish (v2.0.1, roadmap 5.7)
 
 - `bot/command-menu.ts`: public and owner command lists; `BotService.publishMenu` runs on `onApplicationBootstrap` (not awaited, failures only logged): `setMyCommands` default (en), `language_code=ru`, and per owner chat scope. `command-menu.spec.ts` scans the sources for `registerCommand` names and the bot's own command switch, so a new command without a menu entry fails CI.
