@@ -253,9 +253,10 @@ function formatDescription(description: string): string {
 /**
  * The longest prefix of `text` whose escaped form fits `budget`, cut at a line
  * break, a sentence end or a word boundary — never mid-word, and never inside
- * an HTML entity, since the split happens before escaping.
+ * an HTML entity, since the split happens before escaping. Also splits long
+ * LLM output across messages in `/interview`.
  */
-function takeChunk(text: string, budget: number): [chunk: string, rest: string] {
+export function takeChunk(text: string, budget: number): [chunk: string, rest: string] {
   if (budget <= 0) return ['', text];
   if (escapeHtml(text).length <= budget) return [text, ''];
 

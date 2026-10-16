@@ -44,7 +44,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 6. Applications list in the bot (`/applications`): "✅ Applied" on a vacancy card adds it, buttons move it through the stages, and the bot reminds the user to follow up when a company stays silent.
 7. The web app is removed; a static landing page with the privacy policy stays.
 
-The author (`owner` role) keeps the LLM-per-vacancy features: brief, cover letter, LLM digest verdict, Gmail apply, LinkedIn alerts, interview prep, planner.
+The author (`owner` role) keeps the LLM-per-vacancy features: brief, cover letter, LLM digest verdict, Gmail apply, LinkedIn alerts, interview prep, planner (in the bot as `/plan`: compose the day, block actions, close-out). Interview prep moves from the website into the bot as `/interview` (owner only, listed in `/help` for the owner alone): the topic plan with progress, questions by topic with a model answer and a review of a typed answer, and the text mock interview.
 
 ## v1.0 scope (minimum shipped to production)
 

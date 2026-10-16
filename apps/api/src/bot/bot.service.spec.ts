@@ -502,6 +502,28 @@ describe('BotService registration in the bot (ADR-024)', () => {
 
     expect(sentText()).toContain('What JobRadar stores');
   });
+
+  it('lists /interview in /help for the owner only (ADR-024 §3)', async () => {
+    const owner = makeDb();
+    owner.queue(telegramAccounts, [{ userId: 'user-1' }]);
+    owner.queue(users, [{ language: 'en', role: 'owner' }]);
+    fetchMock.mockReturnValue(message());
+    await new BotService(owner.db, config('123:abc'), new BotDialogs(owner.db)).handleUpdate({
+      message: { text: '/help', chat, from: { id: 555 } },
+    });
+    expect(sentText()).toContain('/interview');
+    expect(sentText()).toContain('/settings');
+
+    fetchMock.mockClear();
+    const user = makeDb();
+    user.queue(telegramAccounts, [{ userId: 'user-2' }]);
+    user.queue(users, [{ language: 'en', role: 'user' }]);
+    await new BotService(user.db, config('123:abc'), new BotDialogs(user.db)).handleUpdate({
+      message: { text: '/help', chat, from: { id: 555 } },
+    });
+    expect(sentText()).toContain('/settings');
+    expect(sentText()).not.toContain('/interview');
+  });
 });
 
 describe('BotService account deletion (ADR-024 §8)', () => {

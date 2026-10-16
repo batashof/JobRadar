@@ -29,6 +29,8 @@ const STRINGS = {
       '/delete — delete your account and everything in it\n' +
       '/stop — stop messages without deleting anything\n' +
       '/help — this text',
+    /** Appended to `help` for the owner only (ADR-024 §3). */
+    'help.owner': 'Author tools:\n/interview — interview prep: topic plan, questions by topic, mock interview\n/plan — the day plan: compose, blocks, close the day',
     'start.welcome':
       'Welcome to JobRadar. Your account is created: no email and no password, this chat is your login.\n\n' +
       'Next step: send your resume here as a PDF file. I will evaluate it and build your profile for picking vacancies.',
@@ -69,6 +71,8 @@ const STRINGS = {
       '/delete — удалить аккаунт и всё, что в нём\n' +
       '/stop — остановить сообщения, ничего не удаляя\n' +
       '/help — этот текст',
+    'help.owner':
+      'Инструменты автора:\n/interview — подготовка к собеседованию: план тем, вопросы по темам, пробное собеседование\n/plan — план дня: составить, блоки, закрыть день',
     'start.welcome':
       'Добро пожаловать в JobRadar. Аккаунт создан: без почты и пароля, вход — этот чат.\n\n' +
       'Следующий шаг: пришли сюда резюме файлом PDF. Я оценю его и соберу профиль для подбора вакансий.',

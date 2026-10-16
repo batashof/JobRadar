@@ -18,6 +18,7 @@ import { planBlocks, plannerNudges, users } from '../db/schema';
 import { PlannerService } from './planner.service';
 
 const NS = BOT_CALLBACK_NAMESPACES.nudge;
+const PLAN_NS = BOT_CALLBACK_NAMESPACES.plan;
 
 /** Callback actions, one letter each — `callback_data` is capped at 64 bytes. */
 const ACTION = {
@@ -35,11 +36,12 @@ const TEXT = {
     evening: 'Time for the review — close the day.',
     escalation: 'Still waiting on you.',
     debt: 'You have debt from earlier days. It goes first.',
-    'btn.open': 'Open',
-    'btn.ack': 'Got it',
-    'btn.start': 'Start',
-    'btn.done': 'Done',
-    'btn.skip': 'Skip',
+    'btn.open': '🌐 Open',
+    'btn.plan': '📋 Open plan',
+    'btn.ack': '👌 Got it',
+    'btn.start': '▶️ Start',
+    'btn.done': '✅ Done',
+    'btn.skip': '⏭ Skip',
     'done.ack': 'Noted',
     'done.start': 'Started',
     'done.done': 'Done',
@@ -58,11 +60,12 @@ const TEXT = {
     evening: 'Время разбора — закрой день.',
     escalation: 'Всё ещё ждём тебя.',
     debt: 'Есть долг с прошлых дней. Он идёт первым.',
-    'btn.open': 'Открыть',
-    'btn.ack': 'Понял',
-    'btn.start': 'Начать',
-    'btn.done': 'Готово',
-    'btn.skip': 'Пропустить',
+    'btn.open': '🌐 Открыть',
+    'btn.plan': '📋 Открыть план',
+    'btn.ack': '👌 Понял',
+    'btn.start': '▶️ Начать',
+    'btn.done': '✅ Готово',
+    'btn.skip': '⏭ Пропустить',
     'done.ack': 'Принято',
     'done.start': 'Запущено',
     'done.done': 'Готово',
@@ -173,6 +176,8 @@ export class PlannerBotService implements OnModuleInit {
   }
 
   private keyboard(nudge: NudgeRow, language: Language): InlineKeyboard {
+    // "Open plan" sends `/plan` as a new message, so the nudge keeps its buttons.
+    const plan = { text: t(language, 'btn.plan'), callbackData: `${PLAN_NS}:m` };
     const open = this.webOrigin
       ? [{ text: t(language, 'btn.open'), url: `${this.webOrigin}/app/day` }]
       : [];
@@ -188,11 +193,11 @@ export class PlannerBotService implements OnModuleInit {
               { text: t(language, 'btn.done'), callbackData: `${NS}:${ACTION.done}:${nudge.id}` },
               { text: t(language, 'btn.skip'), callbackData: `${NS}:${ACTION.skip}:${nudge.id}` },
             ];
-      return open.length ? [actions, open] : [actions];
+      return [actions, [plan, ...open]];
     }
 
-    const ack = [{ text: t(language, 'btn.ack'), callbackData: `${NS}:${ACTION.ack}:${nudge.id}` }];
-    return open.length ? [[...ack, ...open]] : [ack];
+    const ack = { text: t(language, 'btn.ack'), callbackData: `${NS}:${ACTION.ack}:${nudge.id}` };
+    return open.length ? [[ack, plan], open] : [[ack, plan]];
   }
 
   // -------------------------------------------------------------------------

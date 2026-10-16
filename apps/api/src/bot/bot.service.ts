@@ -390,10 +390,17 @@ export class BotService {
           return;
         }
         const account = await this.accountByChat(chatId);
-        const language = account
-          ? await this.languageOf(account.userId)
-          : languageFromTelegram(cmd.languageCode);
+        const profile = account ? await this.profileOf(account.userId) : null;
+        const language = profile?.language ?? languageFromTelegram(cmd.languageCode);
         const key = cmd.command === 'help' || cmd.command === 'privacy' ? cmd.command : 'unknown';
+        if (key === 'help' && isOwnerRole(profile?.role)) {
+          // The owner-only tools (ADR-024 §3) are listed to the owner alone.
+          await this.replyTextToChat(
+            chatId,
+            `${botMessage(language, 'help')}\n\n${botMessage(language, 'help.owner')}`,
+          );
+          return;
+        }
         await this.replyToChat(chatId, key, language);
       }
     }
@@ -720,9 +727,14 @@ export class BotService {
     key: Parameters<typeof botMessage>[1],
     language: Language = DEFAULT_BOT_LANGUAGE,
   ): Promise<void> {
+    await this.replyTextToChat(chatId, botMessage(language, key));
+  }
+
+  /** Sends plain text (escaped here) to a chat; best-effort. */
+  private async replyTextToChat(chatId: string, text: string): Promise<void> {
     if (!this.api) return;
     try {
-      await this.api.sendMessage(chatId, escapeHtml(botMessage(language, key)), {
+      await this.api.sendMessage(chatId, escapeHtml(text), {
         parseMode: 'HTML',
       });
     } catch (err) {

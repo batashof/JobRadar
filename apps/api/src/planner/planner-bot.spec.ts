@@ -96,10 +96,11 @@ describe('PlannerBotService.deliver', () => {
     expect(text).toContain('День ещё не принят');
     expect(options.keyboard).toEqual([
       [
-        { text: 'Понял', callbackData: 'n:a:nudge-1' },
-        // Trailing slash on WEB_ORIGIN must not produce a double slash.
-        { text: 'Открыть', url: 'https://job-radar.test/app/day' },
+        { text: '👌 Понял', callbackData: 'n:a:nudge-1' },
+        { text: '📋 Открыть план', callbackData: 'l:m' },
       ],
+      // Trailing slash on WEB_ORIGIN must not produce a double slash.
+      [{ text: '🌐 Открыть', url: 'https://job-radar.test/app/day' }],
     ]);
   });
 
@@ -116,9 +117,10 @@ describe('PlannerBotService.deliver', () => {
     expect(text).toContain('Откликнуться: Acme — 45 мин');
     expect(options.keyboard).toEqual([
       [
-        { text: 'Начать', callbackData: 'n:s:nudge-1' },
-        { text: 'Пропустить', callbackData: 'n:k:nudge-1' },
+        { text: '▶️ Начать', callbackData: 'n:s:nudge-1' },
+        { text: '⏭ Пропустить', callbackData: 'n:k:nudge-1' },
       ],
+      [{ text: '📋 Открыть план', callbackData: 'l:m' }],
     ]);
   });
 
@@ -133,7 +135,7 @@ describe('PlannerBotService.deliver', () => {
 
     const [, text, options] = bot.sendToUser.mock.calls[0];
     expect(text).toContain('Deep work — 55 / 30 min');
-    expect(options.keyboard[0].map((b: { text: string }) => b.text)).toEqual(['Done', 'Skip']);
+    expect(options.keyboard[0].map((b: { text: string }) => b.text)).toEqual(['✅ Done', '⏭ Skip']);
   });
 
   it('marks a repeat so an escalation does not read as a new nudge', async () => {

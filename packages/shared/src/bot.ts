@@ -60,6 +60,14 @@ export const BOT_CALLBACK_NAMESPACES = {
   settings: 's',
   /** /applications: the job-application list, cards and follow-up reminders (roadmap 5.5). */
   applications: 'j',
+  /** /interview: topic plan, questions by topic, mock interview (roadmap 5.5, owner only). */
+  interview: 'i',
+  /**
+   * /plan: the owner's day plan (roadmap 5.5, ADR-015): compose, accept, block
+   * actions, close-out. Separate from `nudge`, whose ids are nudge rows; a
+   * nudge links here with an "Open plan" button.
+   */
+  plan: 'l',
 } as const;
 
 /**
