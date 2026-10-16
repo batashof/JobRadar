@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Release 2.0.0 (roadmap 5.6, ADR-028)
+
+- The developer asked to keep the website for now and ship everything else: ADR-028 amends ADR-024 §6–7, the web app stays as the author's cabinet.
+- `/gmail` (owner) in the bot, namespace `g`; the OAuth callback renders `gmail-callback-page.ts` instead of redirecting to `/app/resume`. "Open in the app" buttons removed from chat-apply and planner nudges (`WEB_ORIGIN` no longer read by the bot code).
+- Public `/privacy` page on the website (en/ru), linked from the bot's `/privacy`. A full landing-page rewrite of `apps/web` was prepared and set aside; its patch is not in the repo.
+- README, PRODUCT, ARCHITECTURE, ROADMAP updated; version 2.0.0.
+- **Next step:** tonight's channel-yield check, then 5.7 bot UX polish; finding testers is the developer's.
+
 ## 2026-10-16 — Author tools in the bot (v1.30.1, roadmap 5.5)
 
 - `/interview` and `/plan`, owner only, on top of the existing `InterviewService` / `PlannerService` (namespaces `i`, `l`). Role-aware `/help` (`help.owner`). Delete in `/plan` drops a block with a recorded reason (ADR-015); a running block cannot be deleted.

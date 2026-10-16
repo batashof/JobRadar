@@ -30,7 +30,7 @@ const STRINGS = {
       '/stop — stop messages without deleting anything\n' +
       '/help — this text',
     /** Appended to `help` for the owner only (ADR-024 §3). */
-    'help.owner': 'Author tools:\n/interview — interview prep: topic plan, questions by topic, mock interview\n/plan — the day plan: compose, blocks, close the day',
+    'help.owner': 'Author tools:\n/interview — interview prep: topic plan, questions by topic, mock interview\n/plan — the day plan: compose, blocks, close the day\n/gmail — connect Gmail for sending applications',
     'start.welcome':
       'Welcome to JobRadar. Your account is created: no email and no password, this chat is your login.\n\n' +
       'Next step: send your resume here as a PDF file. I will evaluate it and build your profile for picking vacancies.',
@@ -38,7 +38,8 @@ const STRINGS = {
     'privacy':
       'What JobRadar stores: your Telegram id, username and chat id, the interface language, and later your resume (the PDF and its text), the profile built from it, the vacancies sent to you, your reactions to them and the applications you track (/applications). If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.\n\n' +
       'Who sees it: only JobRadar. To read your resume, its text is sent once to an AI provider that does not train on it. Nothing is sold or shared.\n\n' +
-      'How long: until you delete it. /delete removes the account and everything in it at once.',
+      'How long: until you delete it. /delete removes the account and everything in it at once.\n\n' +
+      'Full policy: https://job-radar-web-phi.vercel.app/privacy',
     'delete.confirm': 'Delete your JobRadar account? Your settings, resume and vacancy history are removed for good.',
     'delete.yes': 'Delete everything',
     'delete.no': 'Cancel',
@@ -51,7 +52,7 @@ const STRINGS = {
     'text.noDialog': 'Send your resume as a PDF, or /help for the commands.',
     'unknown': 'Unknown command. /help lists what I understand.',
     'callback.stale': 'This message is out of date — open the app.',
-    'callback.failed': 'Could not do that. Try in the app.',
+    'callback.failed': 'Could not do that. Try again later.',
   },
   ru: {
     'link.done': 'Подключено. JobRadar будет писать сюда — напоминания и суточная выжимка.',
@@ -72,7 +73,7 @@ const STRINGS = {
       '/stop — остановить сообщения, ничего не удаляя\n' +
       '/help — этот текст',
     'help.owner':
-      'Инструменты автора:\n/interview — подготовка к собеседованию: план тем, вопросы по темам, пробное собеседование\n/plan — план дня: составить, блоки, закрыть день',
+      'Инструменты автора:\n/interview — подготовка к собеседованию: план тем, вопросы по темам, пробное собеседование\n/plan — план дня: составить, блоки, закрыть день\n/gmail — подключить Gmail для отправки откликов',
     'start.welcome':
       'Добро пожаловать в JobRadar. Аккаунт создан: без почты и пароля, вход — этот чат.\n\n' +
       'Следующий шаг: пришли сюда резюме файлом PDF. Я оценю его и соберу профиль для подбора вакансий.',
@@ -80,7 +81,8 @@ const STRINGS = {
     'privacy':
       'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, а позже резюме (PDF и его текст), профиль, собранный по нему, отправленные тебе вакансии, твои реакции на них и отклики, которые ты отмечаешь (/applications). Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.\n\n' +
       'Кто это видит: только JobRadar. Чтобы прочитать резюме, его текст один раз отправляется AI-провайдеру, который на нём не обучается. Ничего не продаётся и не передаётся.\n\n' +
-      'Сколько хранится: пока ты сам не удалишь. /delete сразу удаляет аккаунт и всё, что в нём.',
+      'Сколько хранится: пока ты сам не удалишь. /delete сразу удаляет аккаунт и всё, что в нём.\n\n' +
+      'Полная политика: https://job-radar-web-phi.vercel.app/privacy',
     'delete.confirm': 'Удалить аккаунт JobRadar? Настройки, резюме и история вакансий удалятся навсегда.',
     'delete.yes': 'Удалить всё',
     'delete.no': 'Отмена',
@@ -93,7 +95,7 @@ const STRINGS = {
     'text.noDialog': 'Пришли резюме в PDF или набери /help, чтобы увидеть команды.',
     'unknown': 'Неизвестная команда. /help покажет, что я понимаю.',
     'callback.stale': 'Сообщение устарело — открой приложение.',
-    'callback.failed': 'Не получилось. Попробуй в приложении.',
+    'callback.failed': 'Не получилось. Попробуй позже.',
   },
 } as const;
 

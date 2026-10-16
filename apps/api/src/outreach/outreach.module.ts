@@ -5,6 +5,7 @@ import { BotModule } from '../bot/bot.module';
 import { LlmModule } from '../llm/llm.module';
 import { ResumesModule } from '../resumes/resumes.module';
 import { ChatApplyService } from './chat-apply.service';
+import { GmailBotService } from './gmail-bot.service';
 import { GmailController } from './gmail.controller';
 import { GmailService } from './gmail.service';
 import { OutreachController } from './outreach.controller';
@@ -19,7 +20,7 @@ import { OutreachService } from './outreach.service';
 @Module({
   imports: [AuthModule, BotModule, LlmModule, ResumesModule],
   controllers: [OutreachController, GmailController],
-  providers: [OutreachService, GmailService, ChatApplyService],
+  providers: [OutreachService, GmailService, ChatApplyService, GmailBotService],
   exports: [OutreachService],
 })
 export class OutreachModule {}

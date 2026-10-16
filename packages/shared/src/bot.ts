@@ -68,6 +68,8 @@ export const BOT_CALLBACK_NAMESPACES = {
    * nudge links here with an "Open plan" button.
    */
   plan: 'l',
+  /** /gmail: connect or disconnect the owner's Gmail for sending applications (2.0.0, owner only). */
+  gmail: 'g',
 } as const;
 
 /**

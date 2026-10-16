@@ -501,6 +501,8 @@ describe('BotService registration in the bot (ADR-024)', () => {
     await bot.handleUpdate({ message: { text: '/privacy', chat, from: { id: 555, language_code: 'en' } } });
 
     expect(sentText()).toContain('What JobRadar stores');
+    // The full policy lives on the landing page (ADR-024 §7).
+    expect(sentText()).toContain('https://job-radar-web-phi.vercel.app/privacy');
   });
 
   it('lists /interview in /help for the owner only (ADR-024 §3)', async () => {

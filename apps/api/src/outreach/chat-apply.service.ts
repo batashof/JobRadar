@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   type ApplyContact,
   BOT_CALLBACK_NAMESPACES,
@@ -38,17 +37,13 @@ import { OutreachService } from './outreach.service';
 @Injectable()
 export class ChatApplyService implements OnModuleInit {
   private readonly logger = new Logger(ChatApplyService.name);
-  private readonly webOrigin: string;
 
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly bot: BotService,
     private readonly outreach: OutreachService,
     private readonly gmail: GmailService,
-    config: ConfigService,
-  ) {
-    this.webOrigin = (config.get<string>('WEB_ORIGIN') ?? '').replace(/\/$/, '');
-  }
+  ) {}
 
   onModuleInit(): void {
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.apply, (ctx) => this.handle(ctx));
@@ -119,19 +114,7 @@ export class ChatApplyService implements OnModuleInit {
     await this.bot.sendToUser(userId, renderLinkApply(lang, coverLetter), {
       parseMode: 'HTML',
       disablePreview: true,
-      keyboard: [
-        [
-          ...(this.webOrigin
-            ? [
-                {
-                  text: applyText(lang, 'openApp'),
-                  url: `${this.webOrigin}/app/vacancies/${vacancyId}`,
-                },
-              ]
-            : []),
-          { text: applyText(lang, 'openPosting'), url: contact?.value ?? vacancy.url },
-        ],
-      ],
+      keyboard: [[{ text: applyText(lang, 'openPosting'), url: contact?.value ?? vacancy.url }]],
     });
   }
 
@@ -145,11 +128,7 @@ export class ChatApplyService implements OnModuleInit {
     // Sending needs a connected Gmail account; say so before spending a draft.
     const status = await this.gmail.statusFor(userId);
     if (!status.connected) {
-      await this.bot.sendToUser(userId, applyText(lang, 'noGmail'), {
-        keyboard: this.webOrigin
-          ? [[{ text: applyText(lang, 'openApp'), url: `${this.webOrigin}/app/vacancies/${vacancyId}` }]]
-          : undefined,
-      });
+      await this.bot.sendToUser(userId, applyText(lang, 'noGmail'));
       return;
     }
 
