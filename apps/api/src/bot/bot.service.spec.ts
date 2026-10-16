@@ -608,6 +608,88 @@ describe('BotService account deletion (ADR-024 §8)', () => {
   });
 });
 
+describe('BotService test mode (owner walks the new-user flow)', () => {
+  const chat = { id: 555, type: 'private' };
+  const press = (data: string) => ({
+    callback_query: { id: 'cb-1', data, message: { message_id: 77, chat: { id: 555 } } },
+  });
+  const body = (call = 0) => JSON.parse(fetchMock.mock.calls[call][1].body as string);
+
+  beforeEach(() => fetchMock.mockReset());
+
+  it('asks the owner before parking the account', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'owner-1' }]);
+    queue(users, [{ language: 'ru', role: 'owner' }]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate({ message: { text: '/testmode', chat } });
+
+    expect(body().text).toContain('Тестовый режим');
+    expect(body().reply_markup.inline_keyboard[0].map((b: { callback_data: string }) => b.callback_data))
+      .toEqual(['u:test:y', 'u:test:n']);
+    expect(writes).toHaveLength(0);
+  });
+
+  it('is an unknown command for everyone else', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'user' }]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate({ message: { text: '/testmode', chat } });
+
+    expect(body().text).toContain('Неизвестная команда');
+    expect(writes).toHaveLength(0);
+  });
+
+  it('parks the owner account and unlinks the chat, deleting nothing', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'owner-1' }]);
+    queue(users, [{ language: 'ru', role: 'owner' }], [{ telegramUserId: '555' }]);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate(press('u:test:y'));
+
+    expect(writes).toEqual([
+      expect.objectContaining({ kind: 'update', table: users, values: expect.objectContaining({ telegramUserId: 'parked:555' }) }),
+      expect.objectContaining({ kind: 'update', table: telegramAccounts, values: expect.objectContaining({ chatId: null }) }),
+    ]);
+    expect(writes.some((w) => w.kind === 'delete')).toBe(false);
+  });
+
+  it('refuses to park anyone but the owner', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'user' }]);
+    fetchMock.mockReturnValue(ok(true));
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate(press('u:test:y'));
+
+    expect(writes).toHaveLength(0);
+  });
+
+  it('brings the parked owner back on /start once the test account is deleted', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, []); // chat unlinked: the test account was deleted
+    queue(users, [], [{ userId: 'owner-1' }], RU_USER); // no account for 555, the parked one, its language
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
+
+    expect(writes).toEqual([
+      expect.objectContaining({ kind: 'update', table: users, values: expect.objectContaining({ telegramUserId: '555' }) }),
+      expect.objectContaining({ kind: 'insert', table: telegramAccounts, values: expect.objectContaining({ userId: 'owner-1', chatId: '555' }) }),
+    ]);
+    expect(body().text).toContain('аккаунту владельца');
+  });
+});
+
 describe('BotService messages: dialogs and documents', () => {
   const chat = { id: 555, type: 'private' };
   const later = new Date(Date.now() + 60_000);
@@ -649,7 +731,7 @@ describe('BotService messages: dialogs and documents', () => {
     await bot.handleUpdate({ message: { text: 'React', chat, from: { id: 555 } } });
 
     expect(handler).not.toHaveBeenCalled();
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('Пришли резюме в PDF');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('Пришли резюме файлом PDF');
   });
 
   it('routes a document to the registered handler with the account context', async () => {

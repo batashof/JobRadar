@@ -9,6 +9,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.3.0] — 2026-10-16
+
+### Added
+
+- **`/resume`** and a "📄 Resume" button in `/settings`: shows the current resume (file name, upload date) and how to add or replace it, with the weekly analysis limit for non-owners. Sending a new PDF replaces the old one.
+- **`/setup`**: a step-by-step onboarding checklist for new users (resume, profile, delivery, filters, LinkedIn alerts) with a button for each step, and a "🧭 Setup" button in `/settings`. After the profile card is confirmed, the bot points to it.
+- **`/testmode`** (owner only): parks the owner account (its Telegram id becomes `parked:<id>`, the chat is unlinked) so `/start` signs up a fresh account, exactly as a new user does. `/delete` in the test account, then `/start`, brings the owner account back. Nothing is deleted.
+
+### Changed
+
+- The welcome message, `/help` and the reply to stray text say how to send a resume (a PDF file, 📎 → File).
+
 ## [2.2.0] — 2026-10-16
 
 ### Added

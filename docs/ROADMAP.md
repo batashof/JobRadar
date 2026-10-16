@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029). Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -192,6 +192,15 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 - [x] "📥 Send vacancies now" in the bot (`/digest`, a button in `/settings`): the web cabinet's manual send, so vacancies missed by a push can be pulled from the chat (v2.2.0).
 
 **Exit criterion:** no LLM outage or rate limit can empty a push.
+
+### 5.9 Onboarding in the bot (v2.3.0) ✅
+
+- [x] `/resume` and a `/settings` button: see, add or replace the resume from the chat.
+- [x] `/setup`: a step-by-step checklist for a new user, a button per step.
+- [x] The welcome, `/help` and stray-text replies say how to send a resume.
+- [x] Owner-only `/testmode`: walk the new-user flow from the owner's own chat and come back without losing data.
+
+**Exit criterion:** a new user can get from `/start` to the first vacancy without reading anything outside the bot.
 
 ### Later (not in 2.0.0)
 

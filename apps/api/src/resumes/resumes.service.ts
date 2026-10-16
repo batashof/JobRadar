@@ -125,12 +125,13 @@ export class ResumesService {
   /** The active resume with its extracted text, for LLM features. Null when none. */
   async getActive(
     userId: string,
-  ): Promise<{ id: string; filename: string; extractedText: string } | null> {
+  ): Promise<{ id: string; filename: string; extractedText: string; uploadedAt: Date } | null> {
     const [row] = await this.db
       .select({
         id: resumes.id,
         filename: resumes.filename,
         extractedText: resumes.extractedText,
+        uploadedAt: resumes.uploadedAt,
       })
       .from(resumes)
       .where(and(eq(resumes.userId, userId), eq(resumes.isActive, true)))

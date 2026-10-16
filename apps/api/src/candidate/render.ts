@@ -52,13 +52,38 @@ const TEXT = {
     retry: '🔄 Analyse again',
     back: '← Back',
     confirmed:
-      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. /settings changes delivery, filters and timezone.',
+      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Next: /setup for work format, salary and timezone.',
     askSkills: 'Send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     badSkills: 'I did not find any skills in that. Send them separated by commas, e.g. React, TypeScript.',
     noProfile: 'Send your resume as a PDF first.',
     pickGrade: 'Pick your grade:',
     pickEnglish: 'Pick your English level:',
     pickRole: 'Pick your role:',
+    resumeNone:
+      '📄 No resume yet.\n\nHow to add it: tap 📎 next to the message field → File → pick your resume as a PDF (up to 5 MB) and send it here. I will read it and build the profile vacancies are picked by.',
+    resumeCurrent: '📄 Your resume: <b>{file}</b>, uploaded {date}.',
+    resumeReplace:
+      'To replace it, send a new PDF here the same way (📎 → File). The profile is rebuilt from the new resume and waits for your confirmation.',
+    resumeLimit: 'Resume analyses: up to {n} per {days} days.',
+    bProfile: '👤 Profile',
+    bSetup: '🧭 Setup',
+    setupTitle: 'Setting up JobRadar',
+    setupResumeDone: 'Resume: {file}',
+    setupResumeTodo: 'Resume: send it here as a PDF file (📎 → File)',
+    setupProfileDone: 'Profile confirmed',
+    setupProfileCheck: 'Profile: check the card and press "✅ All correct"',
+    setupProfileWait: 'Profile: appears after the resume',
+    setupDelivery: 'Delivery: new vacancies arrive as soon as they are posted, silent 22:00–08:00. Switch to a schedule in the settings.',
+    setupFilters: 'Filters: work format, minimum salary, minimum fit, timezone.',
+    setupLinkedin: 'Optional: /linkedin brings vacancies from your own LinkedIn job alerts.',
+    setupHint: 'Go through the buttons below in order.',
+    bResume: '📄 Resume',
+    bDelivery: '📬 Delivery and all settings',
+    bFormat: '💼 Format',
+    bSalary: '💰 Salary',
+    bMinFit: '🎯 Minimum fit',
+    bTimezone: '🌍 Timezone',
+    bSendNow: '📥 Send vacancies now',
   },
   ru: {
     reading: 'Читаю резюме…',
@@ -93,13 +118,38 @@ const TEXT = {
     retry: '🔄 Проанализировать снова',
     back: '← Назад',
     confirmed:
-      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. /settings — доставка, фильтры и часовой пояс.',
+      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Дальше: /setup — формат работы, зарплата и часовой пояс.',
     askSkills: 'Пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     badSkills: 'Не нашёл навыков в сообщении. Пришли их через запятую, например: React, TypeScript.',
     noProfile: 'Сначала пришли резюме в PDF.',
     pickGrade: 'Выбери грейд:',
     pickEnglish: 'Выбери уровень английского:',
     pickRole: 'Выбери роль:',
+    resumeNone:
+      '📄 Резюме ещё не загружено.\n\nКак добавить: нажми 📎 рядом с полем ввода → «Файл» → выбери резюме в PDF (до 5 МБ) и отправь сюда. Я прочитаю его и соберу профиль, по которому подбираются вакансии.',
+    resumeCurrent: '📄 Твоё резюме: <b>{file}</b>, загружено {date}.',
+    resumeReplace:
+      'Чтобы заменить, пришли сюда новый PDF тем же способом (📎 → «Файл»). Профиль соберётся заново по новому резюме и будет ждать твоего подтверждения.',
+    resumeLimit: 'Анализов резюме: до {n} за {days} дней.',
+    bProfile: '👤 Профиль',
+    bSetup: '🧭 Настройка',
+    setupTitle: 'Настройка JobRadar',
+    setupResumeDone: 'Резюме: {file}',
+    setupResumeTodo: 'Резюме: пришли его сюда файлом PDF (📎 → «Файл»)',
+    setupProfileDone: 'Профиль подтверждён',
+    setupProfileCheck: 'Профиль: проверь карточку и нажми «✅ Всё верно»',
+    setupProfileWait: 'Профиль: появится после резюме',
+    setupDelivery: 'Доставка: новые вакансии приходят сразу после публикации, ночью (22:00–08:00) тишина. Переключить на расписание можно в настройках.',
+    setupFilters: 'Фильтры: формат работы, минимальная зарплата, минимальное соответствие, часовой пояс.',
+    setupLinkedin: 'По желанию: /linkedin — вакансии из твоих оповещений LinkedIn.',
+    setupHint: 'Пройди кнопки ниже по порядку.',
+    bResume: '📄 Резюме',
+    bDelivery: '📬 Доставка и все настройки',
+    bFormat: '💼 Формат',
+    bSalary: '💰 Зарплата',
+    bMinFit: '🎯 Мин. соответствие',
+    bTimezone: '🌍 Часовой пояс',
+    bSendNow: '📥 Прислать вакансии сейчас',
   },
 } as const;
 
@@ -232,4 +282,88 @@ export function parseSkillsInput(input: string): CandidateSkill[] {
     })
     .slice(0, CANDIDATE_SKILLS_MAX);
   return names.map((name, index) => ({ name, weight: index < 6 ? 'core' : 'familiar' }));
+}
+
+/** The active resume as /resume and /setup show it. */
+export interface ResumeView {
+  filename: string;
+  uploadedAt: Date;
+}
+
+const btn = (text: string, data: string) => ({ text, callbackData: data });
+
+/**
+ * `/resume` (and "📄 Resume" in /settings): what is uploaded and how to add or
+ * replace it. Telegram has no button that opens the file picker, so the
+ * screen says where the paperclip is.
+ */
+export function resumeScreen(
+  lang: Language,
+  resume: ResumeView | null,
+  options: { hasProfile: boolean; limit?: { n: number; days: number } },
+): { text: string; keyboard: InlineKeyboard } {
+  const parts = resume
+    ? [
+        profileText(lang, 'resumeCurrent', {
+          file: escapeHtml(resume.filename),
+          date: resume.uploadedAt.toISOString().slice(0, 10),
+        }),
+        escapeHtml(profileText(lang, 'resumeReplace')),
+        ...(options.limit ? [escapeHtml(profileText(lang, 'resumeLimit', options.limit))] : []),
+      ]
+    : [escapeHtml(profileText(lang, 'resumeNone'))];
+  const row = [
+    ...(options.hasProfile ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
+    btn(profileText(lang, 'bSetup'), `${NS}:setup`),
+  ];
+  return { text: parts.join('\n\n'), keyboard: [row] };
+}
+
+/**
+ * `/setup`: the new user's checklist (roadmap 5.9). Each line says where the
+ * account stands; the buttons open the resume screen, the profile card and
+ * the /settings screens in place, so one message walks the whole setup.
+ */
+export function setupScreen(
+  lang: Language,
+  state: { resume: ResumeView | null; profile: 'none' | 'unconfirmed' | 'confirmed' },
+): { text: string; keyboard: InlineKeyboard } {
+  const t = (key: ProfileTextKey, vars: Record<string, string | number> = {}) =>
+    escapeHtml(profileText(lang, key, vars));
+  const mark = (done: boolean) => (done ? '✅' : '⬜');
+  const resumeLine = state.resume
+    ? t('setupResumeDone', { file: state.resume.filename })
+    : t('setupResumeTodo');
+  const profileLine =
+    state.profile === 'confirmed'
+      ? t('setupProfileDone')
+      : state.profile === 'unconfirmed'
+        ? t('setupProfileCheck')
+        : t('setupProfileWait');
+  const text = [
+    `<b>${t('setupTitle')}</b>`,
+    '',
+    `1. ${mark(state.resume !== null)} ${resumeLine}`,
+    `2. ${mark(state.profile === 'confirmed')} ${profileLine}`,
+    `3. ${t('setupDelivery')}`,
+    `4. ${t('setupFilters')}`,
+    `5. ${t('setupLinkedin')}`,
+    '',
+    t('setupHint'),
+  ].join('\n');
+
+  const s = BOT_CALLBACK_NAMESPACES.settings;
+  const keyboard: InlineKeyboard = [
+    [
+      btn(profileText(lang, 'bResume'), `${NS}:res`),
+      ...(state.profile !== 'none' ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
+    ],
+    [btn(profileText(lang, 'bDelivery'), `${s}:menu`)],
+    [btn(profileText(lang, 'bFormat'), `${s}:open:fmt`), btn(profileText(lang, 'bSalary'), `${s}:open:sal`)],
+    [btn(profileText(lang, 'bMinFit'), `${s}:open:ms`), btn(profileText(lang, 'bTimezone'), `${s}:open:tz`)],
+    ...(state.profile === 'confirmed'
+      ? [[btn(profileText(lang, 'bSendNow'), `${BOT_CALLBACK_NAMESPACES.digest}:n`)]]
+      : []),
+  ];
+  return { text, keyboard };
 }
