@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Bot UX polish (v2.0.1, roadmap 5.7)
+
+- `bot/command-menu.ts`: public and owner command lists; `BotService.publishMenu` runs on `onApplicationBootstrap` (not awaited, failures only logged): `setMyCommands` default (en), `language_code=ru`, and per owner chat scope. `command-menu.spec.ts` scans the sources for `registerCommand` names and the bot's own command switch, so a new command without a menu entry fails CI.
+- `/settings` main menu two per row with icons; language and delivery-mode buttons show "setting: value". ROADMAP 5.7 wording of the language item corrected (it had the before/after swapped).
+- **Next step:** tonight's channel-yield check (`DB (prod)` → `check`), drop channels with no yield.
+
 ## 2026-10-16 — Release 2.0.0 (roadmap 5.6, ADR-028)
 
 - The developer asked to keep the website for now and ship everything else: ADR-028 amends ADR-024 §6–7, the web app stays as the author's cabinet.

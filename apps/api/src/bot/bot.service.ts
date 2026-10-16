@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import {
@@ -16,6 +16,7 @@ import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
 import { digestSettings, plannerSettings, telegramAccounts, users } from '../db/schema';
 import { BotDialogs, type OpenDialog } from './bot-dialogs';
+import { menuCommands, OWNER_COMMANDS, PUBLIC_COMMANDS } from './command-menu';
 import {
   type ParsedCommand,
   type ParsedDocument,
@@ -114,7 +115,7 @@ export type BotCommandHandler = (ctx: BotMessageContext, argument: string) => Pr
  * never has to import them (which would make the dependency graph circular).
  */
 @Injectable()
-export class BotService {
+export class BotService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BotService.name);
   private readonly handlers = new Map<string, BotCallbackHandler>();
   private readonly dialogHandlers = new Map<string, BotDialogHandler>();
@@ -142,6 +143,42 @@ export class BotService {
 
   isConfigured(): boolean {
     return this.api !== null;
+  }
+
+  /** Every module has registered its commands by now, so the menu can go out. */
+  onApplicationBootstrap(): void {
+    // Not awaited: a slow or failing Telegram call must not hold up startup.
+    void this.publishMenu().catch((err: unknown) => {
+      this.logger.warn(`command menu not published: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
+
+  /**
+   * Telegram's menu button (roadmap 5.7): the public commands per language,
+   * plus the author tools in each owner chat. Idempotent, so every deploy
+   * simply sets it again.
+   */
+  async publishMenu(): Promise<void> {
+    if (!this.api) return;
+    const listed = new Set([...PUBLIC_COMMANDS, ...OWNER_COMMANDS].map(([command]) => command));
+    const missing = [...this.commandHandlers.keys()].filter((command) => !listed.has(command));
+    if (missing.length > 0) {
+      this.logger.warn(`commands missing from the menu: ${missing.map((c) => `/${c}`).join(', ')}`);
+    }
+
+    await this.api.setMyCommands(menuCommands('en'));
+    await this.api.setMyCommands(menuCommands('ru'), { languageCode: 'ru' });
+
+    const owners = await this.db
+      .select({ chatId: telegramAccounts.chatId, language: users.language })
+      .from(telegramAccounts)
+      .innerJoin(users, eq(users.id, telegramAccounts.userId))
+      .where(and(eq(users.role, 'owner'), isNotNull(telegramAccounts.chatId)));
+    for (const owner of owners) {
+      if (!owner.chatId) continue;
+      const lang = owner.language === 'ru' ? 'ru' : 'en';
+      await this.api.setMyCommands(menuCommands(lang, true), { chatId: owner.chatId });
+    }
   }
 
   /**

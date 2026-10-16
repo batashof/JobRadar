@@ -26,6 +26,9 @@ describe('profileCard', () => {
   it('offers confirm, edit and re-analysis buttons under the profile namespace', () => {
     const data = profileCard('en', profile).keyboard.flat().map((b) => b.callbackData);
     expect(data).toEqual(['p:ok', 'p:r', 'p:g', 'p:e', 'p:s', 'p:retry']);
+    // Edit buttons say they edit (roadmap 5.7), not just name a field.
+    const texts = profileCard('ru', profile).keyboard.flat().map((b) => b.text);
+    expect(texts).toEqual(expect.arrayContaining(['✏️ Роль', '✏️ Грейд', '✏️ Английский', '✏️ Навыки']));
   });
 
   it('warns when the profile came from the fallback, not the analysis', () => {
