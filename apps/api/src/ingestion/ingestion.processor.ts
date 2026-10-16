@@ -2,14 +2,12 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import type { Job } from 'bullmq';
-import type { ResumeMatchRunResult } from '@jobradar/shared';
 import { eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { sources } from '../db/schema';
 import { DedupService, type DedupResult } from '../dedup/dedup.service';
 import { MatchingService, type MatchRunResult } from '../matching/matching.service';
-import { ResumeMatchingService } from '../matching/resume-matching.service';
 import { HhIngestService, type IngestResult } from './hh/hh.service';
 import { HimalayasIngestService } from './himalayas/himalayas.service';
 import { HnIngestService } from './hn/hn.service';
@@ -26,14 +24,6 @@ import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
 import { isSourceDue } from './schedule';
 
 /**
- * The LLM résumé pass (ADR-011) keeps the old 4-hour cadence although matching
- * now runs every 10 minutes (ADR-023): each pass spends up to 10 LLM calls on
- * the backlog, and 144 passes a day would exhaust the free provider quotas the
- * digest also depends on (ADR-005).
- */
-export const RESUME_SCORING_INTERVAL_MS = 4 * 60 * 60 * 1000;
-
-/**
  * Idle-polling budget on Upstash (ADR-001, ADR-007). A BullMQ worker blocks on
  * Redis waiting for a job and re-issues that command every `drainDelay`, and
  * runs a stalled-job sweep every `stalledInterval` — both count against the
@@ -48,13 +38,11 @@ type JobOutcome =
   | IngestResult
   | DedupResult
   | MatchRunResult
-  | (MatchRunResult & { resumeMatching: ResumeMatchRunResult })
   | { skipped: string };
 
 @Processor(INGESTION_QUEUE, IDLE_POLL_OPTIONS)
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
-  private lastResumeScoringAt = 0;
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -72,7 +60,6 @@ export class IngestionProcessor extends WorkerHost {
     private readonly uaBoards: UaBoardsIngestService,
     private readonly dedup: DedupService,
     private readonly matching: MatchingService,
-    private readonly resumeMatching: ResumeMatchingService,
   ) {
     super();
   }
@@ -82,19 +69,10 @@ export class IngestionProcessor extends WorkerHost {
       return this.dedup.run();
     }
     if (job.data.kind === 'match') {
-      const result = await this.matching.rematchAll();
-      // LLM pass rides the same job: budget-capped, cached, and a no-op
-      // without an LLM key — never fails the rules-based matching (ADR-011).
-      // In-memory gate: a restart only brings the next pass forward.
-      if (Date.now() - this.lastResumeScoringAt < RESUME_SCORING_INTERVAL_MS) return result;
-      this.lastResumeScoringAt = Date.now();
-      try {
-        const resumeRun = await this.resumeMatching.scorePending();
-        return { ...result, resumeMatching: resumeRun };
-      } catch (err) {
-        this.logger.warn(`resume matching failed (non-fatal): ${String(err)}`);
-        return result;
-      }
+      // Rules only. The background LLM résumé pass (ADR-011) is gone since
+      // ADR-029: vacancies are scored by the formula, and the LLM is spent on
+      // resumes alone. The web cabinet can still score on demand.
+      return this.matching.rematchAll();
     }
 
     const source = await this.db.query.sources.findFirst({

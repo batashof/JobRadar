@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Formula scoring for the owner too (v2.1.0)
+
+- Developer: score vacancies by a keyword library so the filter always works, use the LLM for the resume only. After the v2.0.2 deploy the first tick was again rate-limited, by the background resume pass.
+- `DigestSendService`: one `MatchBasis` shape; the owner's comes from `candidate_profiles` (no confirmation needed) or `fallbackProfile(resume)`, keeps owner-only sources and the cached resume scores for the pre-rank. LLM batch scoring, pacing and `ScoringDeferredError` removed; `select.ts` loses the batch prompt and reply parser; `DigestModule` no longer imports `LlmModule`. Owner presses now move the feedback weights.
+- `IngestionProcessor` `match` job is rules-only: the 4-hourly `ResumeMatchingService.scorePending` call is gone (`POST /matches/resume-score` stays).
+- Decisions: ADR-029 (amends ADR-011, ADR-024 §3, ADR-025 §8).
+- **Next step:** watch the owner's pushes; fix formula misses in the dictionary (ADR-026 §3).
+
 ## 2026-10-16 — Owner pushes stopped overnight (v2.0.2)
 
 - Developer: no vacancies since 02:00 Minsk. Ingestion was fine (`DB (prod)` → `check`, `schedule:status`: 202 every 10 min, sources fresh). Render logs: from 23:50 UTC every digest scoring call failed (Groq 413 "Requested 8100" > TPM 8000, then 429; Gemini 429/503); fallback rules scores 0–67 < floor 75, so each instant window was consumed with nothing sent.

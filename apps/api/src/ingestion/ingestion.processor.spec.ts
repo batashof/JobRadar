@@ -23,9 +23,6 @@ describe('IngestionProcessor error handling', () => {
 
   const makeProcessor = (
     worker: { ingest: jest.Mock },
-    resumeMatching = {
-      scorePending: jest.fn().mockResolvedValue({ scored: 0, remaining: 0 }),
-    },
     uaBoards = { ingestDou: jest.fn(), ingestDjinni: jest.fn() },
   ) => {
     const where = jest.fn().mockResolvedValue(undefined);
@@ -52,7 +49,6 @@ describe('IngestionProcessor error handling', () => {
       uaBoards as never,
       { run: jest.fn() } as never, // dedup
       { rematchAll: jest.fn().mockResolvedValue({ profiles: 1 }) } as never, // matching
-      resumeMatching as never,
     );
     return { processor, set, db };
   };
@@ -90,7 +86,7 @@ describe('IngestionProcessor error handling', () => {
       ingestDou: jest.fn().mockResolvedValue({ fetched: 2, upserted: 2 }),
       ingestDjinni: jest.fn().mockResolvedValue({ fetched: 3, upserted: 3 }),
     };
-    const { processor, db } = makeProcessor({ ingest: jest.fn() }, undefined, uaBoards);
+    const { processor, db } = makeProcessor({ ingest: jest.fn() }, uaBoards);
     db.query.sources.findFirst
       .mockResolvedValueOnce({ ...activeSource, slug: 'dou' })
       .mockResolvedValueOnce({ ...activeSource, slug: 'djinni' });
@@ -119,9 +115,8 @@ describe('IngestionProcessor error handling', () => {
 });
 
 describe('IngestionProcessor match job', () => {
-  it('runs the LLM résumé pass at most once per 4 hours, matching every time', async () => {
+  it('runs rules matching every time and never an LLM pass (ADR-029)', async () => {
     const rematchAll = jest.fn().mockResolvedValue({ profiles: 1 });
-    const scorePending = jest.fn().mockResolvedValue({ scored: 3, remaining: 0 });
     const noop = { ingest: jest.fn() };
     const processor = new IngestionProcessor(
       {} as never,
@@ -139,18 +134,13 @@ describe('IngestionProcessor match job', () => {
       {} as never, // uaBoards
       { run: jest.fn() } as never,
       { rematchAll } as never,
-      { scorePending } as never,
     );
 
     const first = await processor.process(job({ kind: 'match' }));
     const second = await processor.process(job({ kind: 'match' }));
 
     expect(rematchAll).toHaveBeenCalledTimes(2);
-    expect(scorePending).toHaveBeenCalledTimes(1);
-    expect(first).toEqual({
-      profiles: 1,
-      resumeMatching: { scored: 3, remaining: 0 },
-    });
+    expect(first).toEqual({ profiles: 1 });
     expect(second).toEqual({ profiles: 1 });
   });
 });

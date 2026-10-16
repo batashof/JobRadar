@@ -1,9 +1,6 @@
 import {
-  buildBatchPrompt,
   type DigestCandidate,
   dropTooJunior,
-  fallbackScores,
-  parseBatchReply,
   rankScore,
   type ScoredCandidate,
   shortlist,
@@ -121,25 +118,6 @@ describe('dropTooJunior', () => {
   });
 });
 
-describe('fallbackScores', () => {
-  it('scales the rules score to the same percentage scale', () => {
-    expect(fallbackScores([candidate({ ruleScore: 0.755 })])[0]).toMatchObject({
-      score: 76,
-      note: '',
-    });
-  });
-
-  it('clamps a score outside 0..1', () => {
-    expect(fallbackScores([candidate({ ruleScore: 1.4 })])[0]?.score).toBe(100);
-    expect(fallbackScores([candidate({ ruleScore: -0.2 })])[0]?.score).toBe(0);
-  });
-
-  it('uses the cached resume score when there is no search profile', () => {
-    const [scored] = fallbackScores([candidate({ ruleScore: 0, resumeScore: 0.92 })]);
-    expect(scored?.score).toBe(92);
-  });
-});
-
 describe('rankScore', () => {
   it('takes the best of the signals', () => {
     expect(rankScore({ ruleScore: 0.3, resumeScore: 0.9, lexScore: 0.5 })).toBe(0.9);
@@ -159,111 +137,5 @@ describe('rankScore', () => {
   it('clamps into 0..1', () => {
     expect(rankScore({ ruleScore: 1.4, resumeScore: 0, lexScore: 0 })).toBe(1);
     expect(rankScore({ ruleScore: -0.5, resumeScore: -0.2, lexScore: -1 })).toBe(0);
-  });
-});
-
-describe('buildBatchPrompt', () => {
-  it('numbers the cards so the reply can be joined back on', () => {
-    const { user } = buildBatchPrompt(
-      [candidate({ id: 'a' }), candidate({ id: 'b', title: 'Backend Engineer' })],
-      'my resume',
-      'ru',
-    );
-    expect(user).toContain('#0');
-    expect(user).toContain('#1');
-    expect(user).toContain('Backend Engineer');
-  });
-
-  it('asks for notes in the account language', () => {
-    expect(buildBatchPrompt([candidate()], 'r', 'ru').user).toContain('Russian');
-    expect(buildBatchPrompt([candidate()], 'r', 'en').user).toContain('English');
-  });
-
-  it('caps what it sends, so a long description cannot blow up the prompt', () => {
-    const { user } = buildBatchPrompt(
-      [candidate({ description: 'x'.repeat(5000) })],
-      'y'.repeat(20_000),
-      'ru',
-    );
-    expect(user.length).toBeLessThan(6000);
-  });
-
-  it('omits salary when the vacancy has none', () => {
-    const { user } = buildBatchPrompt(
-      [candidate({ salaryMin: null, salaryMax: null, salaryCurrency: null })],
-      'r',
-      'ru',
-    );
-    expect(user).not.toContain('salary:');
-  });
-});
-
-describe('parseBatchReply', () => {
-  const candidates = [candidate({ id: 'a' }), candidate({ id: 'b' })];
-
-  it('joins scores back onto the candidates by index', () => {
-    const parsed = parseBatchReply('[{"i":1,"score":88,"note":"Точное совпадение стека"}]', candidates);
-    expect(parsed).toHaveLength(1);
-    expect(parsed[0]).toMatchObject({ id: 'b', score: 88, note: 'Точное совпадение стека' });
-  });
-
-  it('digs the array out of prose or a code fence', () => {
-    expect(
-      parseBatchReply('```json\n[{"i":0,"score":70}]\n```', candidates)[0]?.id,
-    ).toBe('a');
-    expect(parseBatchReply('Here you go: [{"i":0,"score":70}] — done', candidates)[0]?.id).toBe('a');
-  });
-
-  it('drops indexes the model invented', () => {
-    // A hallucinated vacancy in a digest is worse than a shorter digest.
-    expect(parseBatchReply('[{"i":7,"score":99}]', candidates)).toEqual([]);
-  });
-
-  it('clamps and rounds the score', () => {
-    expect(parseBatchReply('[{"i":0,"score":140}]', candidates)[0]?.score).toBe(100);
-    expect(parseBatchReply('[{"i":0,"score":-5}]', candidates)[0]?.score).toBe(0);
-    expect(parseBatchReply('[{"i":0,"score":72.6}]', candidates)[0]?.score).toBe(73);
-  });
-
-  it('keeps the first verdict when an index repeats', () => {
-    const parsed = parseBatchReply('[{"i":0,"score":80},{"i":0,"score":10}]', candidates);
-    expect(parsed).toHaveLength(1);
-    expect(parsed[0]?.score).toBe(80);
-  });
-
-  it('returns nothing on garbage, so the caller can fall back', () => {
-    expect(parseBatchReply('sorry, I cannot help with that', candidates)).toEqual([]);
-    expect(parseBatchReply('[{"i":0,', candidates)).toEqual([]);
-    expect(parseBatchReply('', candidates)).toEqual([]);
-  });
-
-  it('keeps the verdicts that arrived when the reply was cut off mid-object', () => {
-    // What the output cap actually produces: a full stop partway through the
-    // last note, and no closing bracket. Losing the whole batch over that is
-    // what emptied the digest for three days.
-    const truncated =
-      '[{"i":0,"score":85,"note":"Стек совпадает"},\n {"i":1,"score":74,"note":"Совпад';
-    const parsed = parseBatchReply(truncated, candidates);
-    expect(parsed.map((item) => item.id)).toEqual(['a']);
-    expect(parsed[0]?.score).toBe(85);
-  });
-
-  it('accepts a lone verdict that never got wrapped in an array', () => {
-    expect(parseBatchReply('{"i":0,"score":80}', candidates)[0]?.score).toBe(80);
-  });
-
-  it('is not confused by braces or quotes inside a note', () => {
-    const reply = '[{"i":0,"score":80,"note":"React {SSR}, \\"Next.js\\" — точное совпадение"}]';
-    expect(parseBatchReply(reply, candidates)[0]?.note).toBe(
-      'React {SSR}, "Next.js" — точное совпадение',
-    );
-  });
-
-  it('skips entries without a usable score', () => {
-    expect(parseBatchReply('[{"i":0,"note":"nice"},{"i":1,"score":60}]', candidates)).toHaveLength(1);
-  });
-
-  it('tolerates a missing note', () => {
-    expect(parseBatchReply('[{"i":0,"score":60}]', candidates)[0]?.note).toBe('');
   });
 });

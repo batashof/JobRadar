@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029). Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -184,6 +184,13 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 - [x] **Button texts say what they do.** The language button showed the other language's name ("English" / "Русский"); it now names the setting and its value, "🌐 Язык: Русский" / "🌐 Language: English", and the delivery-mode button reads "📬 Доставка: сразу". Reviewed the other buttons: the profile card's edit buttons get ✏️ ("✏️ Роль"); the rest already name an action.
 
 **Exit criterion:** every command is reachable from the menu, and no `/settings` button text is cut or ambiguous on a phone.
+
+### 5.8 Delivery without the LLM (v2.1.0) ✅
+
+- [x] The owner's vacancies are scored by the formula like everyone else's: the stored candidate profile, or one built from the resume's terms (ADR-029).
+- [x] The background LLM resume ↔ vacancy pass is removed; the LLM reads resumes and serves owner-only on-demand features.
+
+**Exit criterion:** no LLM outage or rate limit can empty a push.
 
 ### Later (not in 2.0.0)
 
