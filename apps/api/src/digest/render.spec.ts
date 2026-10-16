@@ -1,5 +1,5 @@
 import type { ScoredCandidate } from "./select";
-import { renderCardParts, renderHeader, renderKeyboard } from "./render";
+import { applyLabel, renderCardParts, renderHeader, renderKeyboard } from "./render";
 
 const item = (over: Partial<ScoredCandidate> = {}): ScoredCandidate => ({
   id: "11111111-2222-3333-4444-555555555555",
@@ -51,10 +51,46 @@ describe("renderCardParts", () => {
     const [card] = renderCardParts(item(), "ru");
     expect(card).toContain("<b>Senior Frontend Engineer</b>");
     expect(card).toContain("Acme");
-    expect(card).toContain("84% соответствие");
-    expect(card).toContain("5000–7000 USD");
-    expect(card).toContain("Remote (EU)");
+    expect(card).toContain("<b>84%</b> соответствие");
+    expect(card).toContain("💰 5000–7000 USD");
+    expect(card).toContain("📍 Remote (EU)");
     expect(card).toContain("<i>Стек совпадает почти полностью</i>");
+  });
+
+  it("lays the head out as icon rows: date by the company, location, format, salary, fit", () => {
+    const [card] = renderCardParts(
+      item({
+        publishedAt: new Date("2026-10-16T11:30:00Z"),
+        fit: { matched: ["React", "TypeScript"], related: ["Vue"], missing: ["GraphQL"], grade: "match" },
+      }),
+      "ru",
+      "Europe/Minsk",
+    );
+    const lines = card!.split("\n");
+    expect(lines.slice(0, 7)).toEqual([
+      "💼 <b>Senior Frontend Engineer</b>",
+      "🏢 Acme  ·  🗓 16.10.2026, 14:30",
+      "📍 Remote (EU)",
+      "🌍 Удалённо  ·  ⏱ Полная занятость",
+      "💰 5000–7000 USD  ·  🎚 Senior ✅",
+      "",
+      "🟢 <b>84%</b> соответствие",
+    ]);
+    expect(lines.slice(7, 10)).toEqual(["✅ React, TypeScript", "🟡 Vue", "❌ GraphQL"]);
+    // The breakdown replaces the old "matched: …; missing: …" line.
+    expect(card).not.toContain("Стек совпадает");
+    expect(card).not.toContain("опубликовано");
+  });
+
+  it("drops empty match rows and colours the fit by score", () => {
+    const [card] = renderCardParts(
+      item({ score: 55, fit: { matched: [], related: [], missing: ["Go"], grade: "far" } }),
+      "en",
+    );
+    expect(card).toContain("🟠 <b>55%</b> fit");
+    expect(card).toContain("🎚 Senior ❌");
+    expect(card).not.toContain("✅ ");
+    expect(card).toContain("❌ Go");
   });
 
   it("carries the posting itself, not just the headline", () => {
@@ -73,11 +109,10 @@ describe("renderCardParts", () => {
       "ru",
       "Europe/Moscow",
     );
-    expect(card).toContain("Удалённо");
-    expect(card).toContain("Полная занятость");
-    expect(card).toContain("опубликовано");
-    expect(card).toContain("remoteok");
-    expect(card).toContain("Контакт: jobs@acme.test");
+    expect(card).toContain("🌍 Удалённо");
+    expect(card).toContain("⏱ Полная занятость");
+    expect(card).toContain("🗓 10.08.2026, 03:00");
+    expect(card).toContain("📨 Контакт: jobs@acme.test");
   });
 
   it("keeps a whole posting in one message when it fits", () => {
@@ -196,7 +231,8 @@ describe("renderCardParts", () => {
       "ru",
     );
     expect(card).not.toContain("USD");
-    expect(card).toContain("84% соответствие");
+    expect(card).not.toContain("💰");
+    expect(card).toContain("<b>84%</b> соответствие");
   });
 
   it("omits the note when the model gave none", () => {
@@ -211,16 +247,16 @@ describe("renderCardParts", () => {
 describe("renderKeyboard", () => {
   const applied = "d:a:11111111-2222-3333-4444-555555555555";
 
-  it("offers one row: Apply, linking the original posting, and ✅ Applied", () => {
+  it("offers one row: Apply via the board, linking the original posting, and ✅ Applied", () => {
     expect(renderKeyboard(item(), "ru")).toEqual([
       [
-        { text: "Откликнуться", url: "https://acme.test/jobs/1" },
+        { text: "Откликнуться через RemoteOK", url: "https://acme.test/jobs/1" },
         { text: "✅ Откликнулся", callbackData: applied },
       ],
     ]);
     expect(renderKeyboard(item(), "en")).toEqual([
       [
-        { text: "Apply", url: "https://acme.test/jobs/1" },
+        { text: "Apply via RemoteOK", url: "https://acme.test/jobs/1" },
         { text: "✅ Applied", callbackData: applied },
       ],
     ]);
@@ -242,5 +278,15 @@ describe("renderKeyboard", () => {
 
   it("fits Telegram's 64-byte callback limit", () => {
     expect(Buffer.byteLength(applied)).toBeLessThanOrEqual(64);
+  });
+});
+
+describe("applyLabel", () => {
+  it("names the board the posting came from", () => {
+    expect(applyLabel("dou", "ru")).toBe("Откликнуться через DOU");
+    expect(applyLabel("djinni", "en")).toBe("Apply via Djinni");
+    expect(applyLabel("ats", "ru")).toBe("Откликнуться через сайт компании");
+    expect(applyLabel("newboard", "en")).toBe("Apply via Newboard");
+    expect(applyLabel(null, "ru")).toBe("Откликнуться");
   });
 });

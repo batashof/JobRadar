@@ -379,6 +379,67 @@ export interface DeliveryPreferences {
   employmentTypes: EmploymentType[];
   /** Monthly, in USD; null = no floor. */
   minSalaryUsd: number | null;
+  /** Places a non-remote posting must be in; empty = anywhere (v2.5.0). */
+  locations: string[];
+}
+
+/**
+ * Russian and English spellings of the places users of a Belarus-born bot
+ * search in most, so "Минск" finds "Minsk, Belarus" and back. Anything else
+ * matches as typed; a user can add both spellings.
+ */
+const LOCATION_ALIASES: string[][] = [
+  ['минск', 'minsk'],
+  ['беларусь', 'belarus'],
+  ['польша', 'poland', 'polska'],
+  ['варшава', 'warsaw', 'warszawa'],
+  ['краков', 'krakow', 'kraków'],
+  ['вроцлав', 'wroclaw', 'wrocław'],
+  ['грузия', 'georgia'],
+  ['тбилиси', 'tbilisi'],
+  ['литва', 'lithuania'],
+  ['вильнюс', 'vilnius'],
+  ['латвия', 'latvia'],
+  ['рига', 'riga'],
+  ['украина', 'ukraine'],
+  ['киев', 'kyiv', 'kiev'],
+  ['львов', 'lviv'],
+  ['казахстан', 'kazakhstan'],
+  ['алматы', 'almaty'],
+  ['армения', 'armenia'],
+  ['ереван', 'yerevan'],
+  ['сербия', 'serbia'],
+  ['белград', 'belgrade'],
+  ['кипр', 'cyprus'],
+  ['германия', 'germany', 'deutschland'],
+  ['берлин', 'berlin'],
+  ['европа', 'europe', 'eu'],
+  ['россия', 'russia'],
+  ['москва', 'moscow'],
+];
+
+/** Every spelling one typed place stands for, lower-cased. */
+function locationSpellings(place: string): string[] {
+  const key = place.trim().toLowerCase();
+  if (!key) return [];
+  return LOCATION_ALIASES.find((group) => group.includes(key)) ?? [key];
+}
+
+/**
+ * Whether a posting's location matches any wanted place. A remote posting
+ * needs no particular place, and an unknown location is not evidence against
+ * a posting, so both pass; only a stated location naming none of the places
+ * is dropped.
+ */
+export function matchesLocation(
+  wanted: string[],
+  vacancy: { location: string | null; workFormat: WorkFormat | null },
+): boolean {
+  if (wanted.length === 0 || vacancy.workFormat === 'remote' || !vacancy.location?.trim()) return true;
+  const text = vacancy.location.toLowerCase();
+  return wanted.some((place) =>
+    locationSpellings(place).some((spelling) => phrasePattern(spelling).test(text)),
+  );
 }
 
 /**
@@ -401,8 +462,12 @@ export function passesPreferences(
     salaryMin: number | null;
     salaryMax: number | null;
     salaryCurrency: string | null;
+    location?: string | null;
   },
 ): boolean {
+  if (!matchesLocation(prefs.locations ?? [], { location: vacancy.location ?? null, workFormat: vacancy.workFormat })) {
+    return false;
+  }
   if (prefs.workFormats.length > 0 && vacancy.workFormat && !prefs.workFormats.includes(vacancy.workFormat)) {
     return false;
   }

@@ -87,6 +87,16 @@ export interface ScoredCandidate extends DigestCandidate {
   score: number;
   /** One short line on why it fits, in the account language; may be empty. */
   note: string;
+  /** The formula's breakdown, which the card draws as icon rows; absent for an LLM score. */
+  fit?: CardFit;
+}
+
+/** What the formula found, for the card's ✅ / 🟡 / ❌ rows (v2.5.0). */
+export interface CardFit {
+  matched: string[];
+  related: string[];
+  missing: string[];
+  grade: 'match' | 'above' | 'below' | 'far' | 'unknown';
 }
 
 /**

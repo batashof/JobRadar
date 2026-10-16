@@ -9,6 +9,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.5.0] — 2026-10-16
+
+### Added
+
+- **Location filter** in `/filters` (📍 Location): cities or countries an on-site or hybrid vacancy must be in. Several places can be added and each one removed with a tap. Common Russian and English spellings match each other ("Минск" finds "Minsk, Belarus"). Remote vacancies and vacancies with no stated location always pass. Migration `0024_location_filter`.
+
+### Changed
+
+- **The vacancy card is laid out as icon rows**:
+  - the title;
+  - the company followed by the publication date and time in digits (🗓 16.10.2026, 14:30);
+  - the location on its own line;
+  - the work format and employment type on one line;
+  - salary and grade;
+  - the fit as a coloured dot with the percentage;
+  - matched (✅), adjacent (🟡) and missing (❌) skills on separate rows.
+
+  The words "published", "matched", "related" and "missing" are gone.
+- The Apply button names the board: "Apply via DOU", or "via the company site" for career-site postings.
+
 ## [2.4.0] — 2026-10-16
 
 ### Changed

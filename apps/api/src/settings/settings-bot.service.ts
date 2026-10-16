@@ -115,13 +115,14 @@ export class SettingsBotService implements OnModuleInit {
       if (skills.length === 0) return this.badInput(ctx);
       await this.saveProfile(ctx.userId, { skills });
     } else {
-      const patch = step ? parseTyped(step, text) : null;
+      const current = step === 'loc' ? await this.load(ctx.userId, ctx.language) : undefined;
+      const patch = step ? parseTyped(step, text, current) : null;
       if (!patch) return this.badInput(ctx);
       await this.save(ctx.userId, patch);
     }
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const home: Screen = step === 'sal' || step === 'sk' ? 'flt' : 'main';
+    const home: Screen = step === 'loc' ? 'loc' : step === 'sal' || step === 'sk' ? 'flt' : 'main';
     const screen = renderScreen(home, state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, `${settingsText(state.language, 'saved')}\n\n${screen.text}`, {
       parseMode: 'HTML',
@@ -159,6 +160,7 @@ export class SettingsBotService implements OnModuleInit {
       employmentTypes: digest?.employmentTypes ?? [],
       minSalaryUsd: digest?.minSalaryUsd ?? null,
       mutedSources: digest?.mutedSources ?? [],
+      locations: digest?.locations ?? [],
       timezone: planner?.timezone ?? defaultTimezone(language),
       language,
       profile: profile

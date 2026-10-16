@@ -35,6 +35,7 @@ import { GRADE_LABELS } from '../candidate/render';
  *   s:t:<HHMM-HHMM> / s:q:<HHMM-HHMM>   set times from a preset
  *   s:tz:<i>                            timezone preset by index
  *   s:role:<family> / s:grade:<level>   edit the candidate profile
+ *   s:loc:<i> / s:loc:clear             drop one wanted place / all of them
  *   s:type:<step>                       ask for a typed value
  */
 
@@ -60,6 +61,8 @@ export interface SettingsState {
   employmentTypes: EmploymentType[];
   minSalaryUsd: number | null;
   mutedSources: string[];
+  /** Places an on-site or hybrid vacancy must be in; empty = anywhere. */
+  locations: string[];
   timezone: string;
   language: Language;
   /** Null until a resume has been analysed. */
@@ -70,16 +73,20 @@ export type SettingsPatch = Partial<Omit<SettingsState, 'profile'>>;
 export type ProfilePatch = Partial<Pick<ProfileFilters, 'role' | 'grade'>>;
 
 export const SCREENS = [
-  'main', 'fmt', 'emp', 'src', 'ms', 'cap', 'sal', 't', 'q', 'tz', 'flt', 'role', 'grade',
+  'main', 'fmt', 'emp', 'src', 'ms', 'cap', 'sal', 't', 'q', 'tz', 'flt', 'role', 'grade', 'loc',
 ] as const;
 export type Screen = (typeof SCREENS)[number];
 
 /** The `/filters` screens: their "back" leads to the filters, not the settings. */
-const FILTER_SCREENS: readonly Screen[] = ['flt', 'fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade'];
+const FILTER_SCREENS: readonly Screen[] = ['flt', 'fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc'];
+
+/** At most this many wanted places, each at most LOCATION_MAX_LENGTH characters. */
+export const LOCATIONS_MAX = 10;
+const LOCATION_MAX_LENGTH = 40;
 
 /** Settings that can be typed in, besides the preset buttons. */
 /** `sk` (skills) edits the candidate profile; the service parses it, not `parseTyped`. */
-export const TYPE_STEPS = ['t', 'q', 'tz', 'sal', 'sk'] as const;
+export const TYPE_STEPS = ['t', 'q', 'tz', 'sal', 'sk', 'loc'] as const;
 export type TypeStep = (typeof TYPE_STEPS)[number];
 
 export const SCORE_PRESETS = [40, 50, 60, 70, 80, 90];
@@ -202,6 +209,12 @@ export function decide(state: SettingsState, parts: string[], sourceSlugs: strin
       if (!Number.isInteger(number) || !zone) return { screen: 'tz' };
       return { patch: { timezone: zone }, screen: 'main' };
     }
+    case 'loc': {
+      if (arg === 'clear') return { patch: { locations: [] }, screen: 'loc' };
+      const place = state.locations[number];
+      if (!Number.isInteger(number) || place === undefined) return { screen: 'loc' };
+      return { patch: { locations: state.locations.filter((_, i) => i !== number) }, screen: 'loc' };
+    }
     case 'role':
       if (!state.profile) return { screen: 'flt' };
       if (!arg || !ROLE_TITLES[arg]) return { screen: 'role' };
@@ -244,8 +257,29 @@ export function normalizeTimezone(raw: string): string | null {
 }
 
 /** The patch for a typed answer, or null when it does not parse. */
-export function parseTyped(step: TypeStep, text: string): SettingsPatch | null {
+export function parseTyped(
+  step: TypeStep,
+  text: string,
+  current: Pick<SettingsState, 'locations'> = { locations: [] },
+): SettingsPatch | null {
   switch (step) {
+    case 'loc': {
+      // "Minsk, Poland" adds both; a place already listed is not added twice.
+      const added = text
+        .split(/[,;\n]+/)
+        .map((place) => place.trim().replace(/\s+/g, ' '))
+        .filter((place) => place.length > 0 && place.length <= LOCATION_MAX_LENGTH);
+      if (added.length === 0) return null;
+      const seen = new Set(current.locations.map((place) => place.toLowerCase()));
+      const merged = [...current.locations];
+      for (const place of added) {
+        if (!seen.has(place.toLowerCase())) {
+          seen.add(place.toLowerCase());
+          merged.push(place);
+        }
+      }
+      return { locations: merged.slice(0, LOCATIONS_MAX) };
+    }
     case 't': {
       const parts = text.split(/[,;\s]+/).filter(Boolean);
       const times = parts.map(normalizeTime);
@@ -317,6 +351,13 @@ const TEXT = {
     any: 'any',
     none: 'none',
     sourcesOff: 'Sources off',
+    locations: 'Location',
+    anywhere: 'anywhere',
+    bLocation: '📍 Location',
+    bAddPlace: '➕ Add a place',
+    bClearPlaces: '🗑 Clear',
+    locHint:
+      'Places an on-site or hybrid vacancy must be in. Remote vacancies and those that do not say where always arrive. Tap a place to remove it.',
     language: 'Language',
     status: 'Status',
     active: 'active',
@@ -354,6 +395,7 @@ const TEXT = {
       tz: 'Type an IANA timezone, e.g. <code>Europe/Lisbon</code>',
       sal: 'Type the monthly minimum in USD, e.g. <code>3000</code>; 0 removes it',
       sk: 'Send your skills separated by commas, the main ones first, e.g. <code>React, TypeScript, Next.js</code>',
+      loc: 'Type cities or countries separated by commas, e.g. <code>Minsk, Poland</code>',
     },
     badInput: 'Did not understand that. Try again, or /settings to go back.',
     saved: 'Saved.',
@@ -395,6 +437,13 @@ const TEXT = {
     any: 'любой',
     none: 'нет',
     sourcesOff: 'Выключенные источники',
+    locations: 'Локация',
+    anywhere: 'любая',
+    bLocation: '📍 Локация',
+    bAddPlace: '➕ Добавить место',
+    bClearPlaces: '🗑 Очистить',
+    locHint:
+      'Где должна быть вакансия в офисе или гибрид. Удалённые и те, где место не указано, приходят всегда. Нажми на место, чтобы убрать его.',
     language: 'Язык',
     status: 'Статус',
     active: 'активно',
@@ -432,6 +481,7 @@ const TEXT = {
       tz: 'Напиши часовой пояс IANA, например <code>Europe/Lisbon</code>',
       sal: 'Напиши минимум в месяц в USD, например <code>3000</code>; 0 — убрать',
       sk: 'Пришли навыки через запятую, основные первыми, например <code>React, TypeScript, Next.js</code>',
+      loc: 'Напиши города или страны через запятую, например <code>Минск, Польша</code>',
     },
     badInput: 'Не понял. Попробуй ещё раз или набери /settings, чтобы вернуться.',
     saved: 'Сохранено.',
@@ -512,6 +562,7 @@ function filtersSummary(state: SettingsState, lang: Language): string {
     `<b>${t.manual}</b>`,
     `${t.minScore}: ${floor}%`,
     `${t.format}: ${formats}`,
+    `${t.locations}: ${escapeHtml(state.locations.join(', ')) || t.anywhere}`,
     `${t.employment}: ${employment}`,
     `${t.salary}: ${state.minSalaryUsd ? `$${state.minSalaryUsd}${t.perMonth}` : t.none}`,
     `${t.sourcesOff}: ${escapeHtml(state.mutedSources.join(', ')) || t.none}`,
@@ -537,6 +588,8 @@ export function renderScreen(
   const t = TEXT[lang];
 
   if (typeStep) {
+    // A typed place returns to the places list; the other filter answers to the filters.
+    if (typeStep === 'loc') return { text: t.ask.loc, keyboard: [[button(t.back, 'open:loc')]] };
     const home: Screen = typeStep === 'sal' || typeStep === 'sk' ? 'flt' : 'main';
     return { text: t.ask[typeStep], keyboard: [back(lang, home)] };
   }
@@ -678,6 +731,21 @@ export function renderScreen(
           back(lang, screen),
         ],
       };
+    case 'loc':
+      return {
+        text: t.locHint,
+        keyboard: [
+          ...rows(
+            state.locations.map((place, index) => button(`✖️ ${place}`, `loc:${index}`)),
+            2,
+          ),
+          [
+            ...(state.locations.length < LOCATIONS_MAX ? [button(t.bAddPlace, 'type:loc')] : []),
+            ...(state.locations.length > 0 ? [button(t.bClearPlaces, 'loc:clear')] : []),
+          ],
+          back(lang, screen),
+        ],
+      };
     case 'flt':
       return {
         text: filtersSummary(state, lang),
@@ -689,7 +757,8 @@ export function renderScreen(
               ]
             : [[{ text: t.bResumeUpload, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:res` }]]),
           [button(t.bScore, 'open:ms'), button(t.bFormat, 'open:fmt')],
-          [button(t.bEmployment, 'open:emp'), button(t.bSalary, 'open:sal')],
+          [button(t.bLocation, 'open:loc'), button(t.bEmployment, 'open:emp')],
+          [button(t.bSalary, 'open:sal')],
           [button(t.bSources, 'open:src'), button(t.bSettings, 'menu')],
         ],
       };

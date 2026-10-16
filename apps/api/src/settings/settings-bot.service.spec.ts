@@ -275,6 +275,17 @@ describe('SettingsBotService', () => {
     expect(bot.sendToUser.mock.calls[0][1]).toContain('Не понял');
   });
 
+  it('adds typed places to the ones already wanted', async () => {
+    const { typed, writes, bot, queue } = setup();
+    queue(digestSettings, [{ ...digestRow, locations: ['Минск'] }], [{ ...digestRow, locations: ['Минск', 'Польша'] }]);
+
+    await typed(msg, 'Польша', { step: 'loc' });
+
+    expect(writes[0]).toMatchObject({ table: digestSettings, set: { locations: ['Минск', 'Польша'] } });
+    expect(bot.sendToUser.mock.calls[0][1]).toContain('Сохранено.');
+    expect(JSON.stringify(bot.sendToUser.mock.calls[0][2].keyboard)).toContain('s:loc:1');
+  });
+
   it('keeps the dialog open on an answer it cannot read', async () => {
     const { typed, writes, bot, dialogs } = setup();
 

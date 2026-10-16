@@ -736,7 +736,12 @@ export class DigestSendService implements OnModuleInit {
   ): ScoredCandidate[] {
     return candidates.map((candidate) => {
       const result = scoreVacancy(basis.profile, candidate, { now, weights: basis.weights });
-      return { ...candidate, score: result.score, note: explainScore(result, language) };
+      return {
+        ...candidate,
+        score: result.score,
+        note: explainScore(result, language),
+        fit: { matched: result.matched, related: result.related, missing: result.missing, grade: result.grade },
+      };
     });
   }
 
@@ -824,7 +829,7 @@ export class DigestSendService implements OnModuleInit {
           alert: digestText(ctx.language, 'addedToApplications'),
           // Only the buttons change: the card text stays as it was sent.
           editKeyboard: renderKeyboard(
-            { id: vacancyId, url: item.vacancy.url },
+            { id: vacancyId, url: item.vacancy.url, sourceSlug: item.vacancy.source },
             ctx.language,
             true,
           ),
@@ -882,6 +887,7 @@ const preferenceColumns = {
   employmentTypes: digestSettings.employmentTypes,
   minSalaryUsd: digestSettings.minSalaryUsd,
   mutedSources: digestSettings.mutedSources,
+  locations: digestSettings.locations,
 };
 
 /** A stored candidate profile as the formula reads it; an unknown grade reads as none. */

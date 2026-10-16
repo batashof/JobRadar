@@ -215,7 +215,7 @@ describe("DigestSendService.sendNow", () => {
     // Header + one card; the off-stack role is below the floor and never sent.
     expect(bot.sendToUser).toHaveBeenCalledTimes(2);
     expect(bot.sendToUser.mock.calls[1][1]).toContain("100%");
-    expect(bot.sendToUser.mock.calls[1][1]).toContain("Matched: React, TypeScript");
+    expect(bot.sendToUser.mock.calls[1][1]).toContain("✅ React, TypeScript");
     expect(writes[0]?.values).toMatchObject({ vacancyId: "fit", score: 100 });
   });
 
@@ -766,7 +766,9 @@ describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]?.values).toMatchObject({ vacancyId: "fit" });
     const card = bot.sendToUser.mock.calls[1][1] as string;
-    expect(card).toContain("Matched: React, TypeScript; missing: GraphQL; grade: Senior ✓");
+    expect(card).toContain("✅ React, TypeScript");
+    expect(card).toContain("❌ GraphQL");
+    expect(card).toContain("🎚 Senior ✅");
   });
 
   it("never offers a non-owner the owner's own sources", async () => {

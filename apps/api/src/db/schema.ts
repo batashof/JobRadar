@@ -726,6 +726,8 @@ export const digestSettings = pgTable('digest_settings', {
   minSalaryUsd: integer('min_salary_usd'),
   // Source slugs the user switched off.
   mutedSources: text('muted_sources').array().notNull().default(sql`'{}'::text[]`),
+  // Places a non-remote vacancy must be in (v2.5.0): "Minsk", "Poland"; empty = anywhere.
+  locations: text('locations').array().notNull().default(sql`'{}'::text[]`),
   // Delivery bookkeeping for both modes: the latest `vacancies.ingested_at`
   // already judged, so each push covers only what arrived since the previous
   // one (ADR-020, ADR-022). Null = look back a day. String mode keeps Postgres'
