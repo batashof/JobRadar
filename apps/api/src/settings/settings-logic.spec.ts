@@ -4,6 +4,7 @@ import {
   normalizeTimezone,
   parseTyped,
   renderScreen,
+  SCREENS,
   type SettingsState,
   TIMEZONE_PRESETS,
 } from './settings-logic';
@@ -23,8 +24,20 @@ const state = (over: Partial<SettingsState> = {}): SettingsState => ({
   mutedSources: [],
   timezone: 'Europe/Moscow',
   language: 'ru',
+  profile: null,
   ...over,
 });
+
+const PROFILE = {
+  role: 'Frontend Developer',
+  grade: 'senior',
+  skills: [
+    { name: 'React', weight: 'core' as const },
+    { name: 'GraphQL', weight: 'familiar' as const },
+    { name: 'TypeScript', weight: 'core' as const },
+  ],
+  confirmed: true,
+};
 
 const SLUGS = ['hh', 'remoteok', 'telegram'];
 
@@ -57,6 +70,27 @@ describe('decide', () => {
     expect(decide(state(), ['s', 'cap', '7'], SLUGS).patch).toBeUndefined();
     expect(decide(state(), ['s', 'tz', '99'], SLUGS).patch).toBeUndefined();
     expect(decide(state(), ['s', 'nonsense'], SLUGS)).toEqual({ screen: 'main' });
+  });
+
+  it('returns to the filters after a filter is picked', () => {
+    expect(decide(state(), ['s', 'ms', '80'], SLUGS).screen).toBe('flt');
+    expect(decide(state(), ['s', 'sal', '2500'], SLUGS).screen).toBe('flt');
+    expect(decide(state(), ['s', 'cap', '5'], SLUGS).screen).toBe('main');
+  });
+
+  it('edits the resume profile from the filters', () => {
+    const s = state({ profile: PROFILE });
+    expect(decide(s, ['s', 'role', 'backend'], SLUGS)).toEqual({
+      profilePatch: { role: 'Backend Developer' },
+      screen: 'flt',
+    });
+    expect(decide(s, ['s', 'grade', 'middle'], SLUGS)).toEqual({ profilePatch: { grade: 'middle' }, screen: 'flt' });
+    expect(decide(s, ['s', 'grade', 'wizard'], SLUGS)).toEqual({ screen: 'grade' });
+    expect(decide(s, ['s', 'role', 'nonsense'], SLUGS)).toEqual({ screen: 'role' });
+    expect(decide(s, ['s', 'type', 'sk'], SLUGS)).toEqual({ screen: 'flt', typeStep: 'sk' });
+    // No profile yet: nothing to edit, back to the filters (which ask for the resume).
+    expect(decide(state(), ['s', 'grade', 'middle'], SLUGS)).toEqual({ screen: 'flt' });
+    expect(decide(state(), ['s', 'type', 'sk'], SLUGS)).toEqual({ screen: 'flt' });
   });
 
   it('sets the floor of the mode in use', () => {
@@ -119,20 +153,80 @@ describe('parseTyped', () => {
 });
 
 describe('renderScreen', () => {
-  it('summarises everything on the main screen', () => {
+  it('keeps "when" on the settings screen and points to /filters for "which"', () => {
     const { text, keyboard } = renderScreen(
       'main',
       state({ workFormats: ['remote'], minSalaryUsd: 3000, mutedSources: ['hh'] }),
       SLUGS,
     );
+    expect(text).toContain('Настройки</b>: когда присылать');
     expect(text).toContain('Доставка: сразу после публикации, тишина 22:00–08:00');
+    expect(text).toContain('/filters');
+    expect(text).not.toContain('Формат');
+    expect(text).not.toContain('Минимальное совпадение');
+    expect(data(keyboard)).toEqual(
+      expect.arrayContaining(['s:mode', 's:open:t', 's:open:tz', 's:pause', 's:lang', 's:open:flt', 'p:res']),
+    );
+    for (const gone of ['s:open:ms', 's:open:fmt', 's:open:emp', 's:open:sal', 's:open:src', 'p:setup']) {
+      expect(data(keyboard)).not.toContain(gone);
+    }
+  });
+
+  it('shows the hard filters and the resume profile on the filters screen', () => {
+    const { text, keyboard } = renderScreen(
+      'flt',
+      state({ workFormats: ['remote'], minSalaryUsd: 3000, mutedSources: ['hh'], profile: PROFILE }),
+      SLUGS,
+    );
+    expect(text).toContain('Фильтры</b>: какие вакансии присылать');
+    expect(text).toContain('Роль: Frontend Developer');
+    expect(text).toContain('Грейд: Senior');
+    // Main skills first.
+    expect(text).toContain('Навыки: React, TypeScript, GraphQL');
     expect(text).toContain('Минимальное совпадение: 75%');
     expect(text).toContain('Формат: Удалённо');
     expect(text).toContain('$3000/мес');
     expect(text).toContain('Выключенные источники: hh');
+    expect(text).not.toContain('не подтверждён');
     expect(data(keyboard)).toEqual(
-      expect.arrayContaining(['s:mode', 's:open:t', 's:open:tz', 's:pause', 's:lang', 's:open:src']),
+      expect.arrayContaining([
+        's:open:role', 's:open:grade', 's:type:sk', 's:open:ms', 's:open:fmt', 's:open:emp', 's:open:sal',
+        's:open:src', 's:menu',
+      ]),
     );
+  });
+
+  it('asks for the resume on the filters screen when there is no profile yet', () => {
+    const { text, keyboard } = renderScreen('flt', state(), SLUGS);
+    expect(text).toContain('пришли его файлом PDF');
+    expect(data(keyboard)).toContain('p:res');
+    expect(data(keyboard)).not.toContain('s:open:role');
+  });
+
+  it('says an unconfirmed profile sends nothing yet', () => {
+    const { text } = renderScreen('flt', state({ profile: { ...PROFILE, confirmed: false } }), SLUGS);
+    expect(text).toContain('Профиль ещё не подтверждён');
+  });
+
+  it('leads back from a filter screen to the filters, from a delivery screen to the settings', () => {
+    for (const screen of ['fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade'] as const) {
+      expect(renderScreen(screen, state({ profile: PROFILE }), SLUGS).keyboard.at(-1)).toEqual([
+        { text: '← Назад', callbackData: 's:open:flt' },
+      ]);
+    }
+    for (const screen of ['cap', 't', 'q', 'tz'] as const) {
+      expect(renderScreen(screen, state(), SLUGS).keyboard.at(-1)?.[0]?.callbackData).toBe('s:menu');
+    }
+    expect(data(renderScreen('flt', state(), SLUGS, 'sk').keyboard)).toEqual(['s:open:flt']);
+    expect(data(renderScreen('sal', state(), SLUGS, 'sal').keyboard)).toEqual(['s:open:flt']);
+  });
+
+  it('marks the current role and grade in their pickers', () => {
+    const s = state({ profile: PROFILE });
+    expect(renderScreen('grade', s, SLUGS).keyboard.flat().find((b) => b.callbackData === 's:grade:senior')?.text).toBe(
+      '✅ Senior',
+    );
+    expect(data(renderScreen('role', s, SLUGS).keyboard)).toContain('s:role:frontend');
   });
 
   it('shows scheduled times and the paused state in English', () => {
@@ -166,8 +260,8 @@ describe('renderScreen', () => {
 
   it('marks the selected options and keeps every callback within 64 bytes', () => {
     const s = state({ workFormats: ['hybrid'], mutedSources: ['telegram'] });
-    for (const screen of ['main', 'fmt', 'emp', 'src', 'ms', 'cap', 'sal', 't', 'q', 'tz'] as const) {
-      const { keyboard } = renderScreen(screen, s, SLUGS);
+    for (const screen of SCREENS) {
+      const { keyboard } = renderScreen(screen, { ...s, profile: PROFILE }, SLUGS);
       for (const value of data(keyboard)) expect(Buffer.byteLength(value)).toBeLessThanOrEqual(64);
     }
     expect(renderScreen('fmt', s, SLUGS).keyboard[0]?.find((b) => b.callbackData === 's:fmt:hybrid')?.text).toBe(

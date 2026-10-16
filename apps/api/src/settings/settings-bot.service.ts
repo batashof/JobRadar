@@ -16,13 +16,17 @@ import {
   BotService,
   defaultTimezone,
 } from '../bot/bot.service';
+import { CandidateService } from '../candidate/candidate.service';
+import { parseSkillsInput } from '../candidate/render';
 import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
 import { digestSettings, plannerSettings, sources, users } from '../db/schema';
 import {
   decide,
   parseTyped,
+  type ProfilePatch,
   renderScreen,
+  type Screen,
   type SettingsPatch,
   type SettingsState,
   settingsText,
@@ -36,9 +40,11 @@ const FLOW = 'settings';
 const LINKEDIN_SLUG = 'linkedin';
 
 /**
- * `/settings` in the chat (roadmap 5.3): every delivery setting the website had,
- * as one message whose buttons edit it in place, plus typed answers for the
- * values that do not fit on a button (times, quiet hours, timezone, salary).
+ * `/settings` and `/filters` in the chat (roadmap 5.3, 5.10): every delivery
+ * setting the website had, as one message whose buttons edit it in place, plus
+ * typed answers for the values that do not fit on a button (times, quiet
+ * hours, timezone, salary, skills). `/filters` also edits the candidate
+ * profile's role, grade and skills, which the resume analysis filled in.
  *
  * Settings live where they always did: `digest_settings` for delivery and the
  * hard filters, `planner_settings.timezone` for the one timezone per user
@@ -50,18 +56,20 @@ export class SettingsBotService implements OnModuleInit {
     @Inject(DB) private readonly db: Database,
     private readonly bot: BotService,
     private readonly dialogs: BotDialogs,
+    private readonly profiles: CandidateService,
   ) {}
 
   onModuleInit(): void {
-    this.bot.registerCommand('settings', (ctx) => this.showMenu(ctx));
+    this.bot.registerCommand('settings', (ctx) => this.showMenu(ctx, 'main'));
+    this.bot.registerCommand('filters', (ctx) => this.showMenu(ctx, 'flt'));
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.settings, (ctx) => this.onCallback(ctx));
     this.bot.registerDialog(FLOW, (ctx, text, dialog) => this.onTyped(ctx, text, dialog));
   }
 
-  private async showMenu(ctx: BotMessageContext): Promise<void> {
+  private async showMenu(ctx: BotMessageContext, which: Screen): Promise<void> {
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const screen = renderScreen('main', state, await this.sourceSlugs(ctx));
+    const screen = renderScreen(which, state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, screen.text, {
       parseMode: 'HTML',
       keyboard: screen.keyboard,
@@ -77,6 +85,10 @@ export class SettingsBotService implements OnModuleInit {
     if (decision.patch) {
       next = { ...state, ...decision.patch };
       await this.save(ctx.userId, decision.patch);
+    }
+    if (decision.profilePatch && next.profile) {
+      next = { ...next, profile: { ...next.profile, ...decision.profilePatch } };
+      await this.saveProfile(ctx.userId, decision.profilePatch);
     }
     if (decision.typeStep) {
       await this.dialogs.open(ctx.chatId, {
@@ -98,20 +110,28 @@ export class SettingsBotService implements OnModuleInit {
     const step = (TYPE_STEPS as readonly string[]).includes(dialog.step)
       ? (dialog.step as TypeStep)
       : null;
-    const patch = step ? parseTyped(step, text) : null;
-    if (!patch) {
-      // The dialog stays open: the next message is another try.
-      await this.bot.sendToUser(ctx.userId, settingsText(ctx.language, 'badInput'));
-      return;
+    if (step === 'sk') {
+      const skills = parseSkillsInput(text);
+      if (skills.length === 0) return this.badInput(ctx);
+      await this.saveProfile(ctx.userId, { skills });
+    } else {
+      const patch = step ? parseTyped(step, text) : null;
+      if (!patch) return this.badInput(ctx);
+      await this.save(ctx.userId, patch);
     }
-    await this.save(ctx.userId, patch);
     await this.dialogs.close(ctx.chatId);
     const state = await this.load(ctx.userId, ctx.language);
-    const screen = renderScreen('main', state, await this.sourceSlugs(ctx));
+    const home: Screen = step === 'sal' || step === 'sk' ? 'flt' : 'main';
+    const screen = renderScreen(home, state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, `${settingsText(state.language, 'saved')}\n\n${screen.text}`, {
       parseMode: 'HTML',
       keyboard: screen.keyboard,
     });
+  }
+
+  private async badInput(ctx: BotMessageContext): Promise<void> {
+    // The dialog stays open: the next message is another try.
+    await this.bot.sendToUser(ctx.userId, settingsText(ctx.language, 'badInput'));
   }
 
   /** The current settings; defaults where a row is missing (an account older than 5.3). */
@@ -124,6 +144,7 @@ export class SettingsBotService implements OnModuleInit {
       .select({ timezone: plannerSettings.timezone })
       .from(plannerSettings)
       .where(eq(plannerSettings.userId, userId));
+    const profile = await this.profiles.get(userId);
 
     return {
       enabled: digest?.enabled ?? DIGEST_DEFAULTS.enabled,
@@ -140,6 +161,14 @@ export class SettingsBotService implements OnModuleInit {
       mutedSources: digest?.mutedSources ?? [],
       timezone: planner?.timezone ?? defaultTimezone(language),
       language,
+      profile: profile
+        ? {
+            role: profile.role,
+            grade: profile.grade,
+            skills: profile.skills,
+            confirmed: profile.confirmedAt !== null,
+          }
+        : null,
     };
   }
 
@@ -164,6 +193,16 @@ export class SettingsBotService implements OnModuleInit {
       await this.db.update(users).set({ language, updatedAt: now }).where(eq(users.id, userId));
     }
     await recordEvent(this.db, userId, 'settings_changed', { keys: Object.keys(patch).join(',') });
+  }
+
+  /** A role, grade or skills edit from /filters, on the candidate profile. */
+  private async saveProfile(
+    userId: string,
+    patch: ProfilePatch | { skills: ReturnType<typeof parseSkillsInput> },
+  ): Promise<void> {
+    await this.profiles.update(userId, patch);
+    const keys = Object.keys(patch).map((key) => `profile.${key}`);
+    await recordEvent(this.db, userId, 'settings_changed', { keys: keys.join(',') });
   }
 
   /**
