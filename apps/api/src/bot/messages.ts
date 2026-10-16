@@ -22,10 +22,11 @@ const STRINGS = {
     'help':
       'JobRadar finds remote IT vacancies that fit your resume and sends them here.\n\n' +
       '/start — create your account or reconnect this chat\n' +
-      '/setup — step-by-step setup for a start\n' +
+      '/setup — first steps: a checklist for a start\n' +
       '/resume — your resume: add or replace it\n' +
       '/digest — send every new matching vacancy now\n' +
-      '/settings — delivery, filters, timezone, language, pause\n' +
+      '/filters — which vacancies to send: role, grade, skills, salary, format\n' +
+      '/settings — when to send: delivery, timezone, language, pause\n' +
       '/applications — your job applications: stages and follow-up reminders\n' +
       '/linkedin — receive vacancies from your own LinkedIn job alerts\n' +
       '/privacy — what is stored and who sees it\n' +
@@ -76,10 +77,11 @@ const STRINGS = {
     'help':
       'JobRadar находит удалённые IT-вакансии под твоё резюме и присылает их сюда.\n\n' +
       '/start — создать аккаунт или снова подключить этот чат\n' +
-      '/setup — пошаговая настройка для начала\n' +
+      '/setup — первые шаги: чек-лист для начала\n' +
       '/resume — твоё резюме: добавить или заменить\n' +
       '/digest — прислать все новые подходящие вакансии сейчас\n' +
-      '/settings — доставка, фильтры, часовой пояс, язык, пауза\n' +
+      '/filters — какие вакансии присылать: роль, грейд, навыки, зарплата, формат\n' +
+      '/settings — когда присылать: доставка, часовой пояс, язык, пауза\n' +
       '/applications — твои отклики: этапы и напоминания написать компании\n' +
       '/linkedin — вакансии из твоих оповещений LinkedIn\n' +
       '/privacy — что хранится и кто это видит\n' +

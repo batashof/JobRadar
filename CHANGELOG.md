@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.4.0] — 2026-10-16
+
+### Changed
+
+- **Settings and filters are two separate screens.** `/settings` is now only about *when* vacancies arrive: delivery mode, send times, quiet hours, timezone, per send, language, pause. The new **`/filters`** (also a "🎯 Filters" button in `/settings`) covers *which* vacancies arrive. The role, grade and skills the resume analysis filled in are shown there and can be edited in place. Minimum fit, work format, employment, minimum salary and sources moved there from `/settings`.
+- `/setup` is called "🧭 First steps", so the menu no longer shows a "Setup" inside "Settings". Its checklist links to Filters and Settings.
+
 ## [2.3.0] — 2026-10-16
 
 ### Added

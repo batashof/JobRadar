@@ -74,7 +74,14 @@ const digestRow = {
   mutedSources: [],
 };
 
-function setup() {
+const profileRow = {
+  role: 'Frontend Developer',
+  grade: 'senior',
+  skills: [{ name: 'React', weight: 'core' }],
+  confirmedAt: new Date('2026-10-16T00:00:00Z'),
+};
+
+function setup(profile: typeof profileRow | null = null) {
   const { db, writes, queue } = makeDb();
   const bot = {
     registerCommand: jest.fn(),
@@ -83,7 +90,8 @@ function setup() {
     sendToUser: jest.fn().mockResolvedValue('1'),
   };
   const dialogs = { open: jest.fn(), close: jest.fn() };
-  const service = new SettingsBotService(db, bot as never, dialogs as never);
+  const profiles = { get: jest.fn().mockResolvedValue(profile), update: jest.fn() };
+  const service = new SettingsBotService(db, bot as never, dialogs as never, profiles as never);
   service.onModuleInit();
   const command = bot.registerCommand.mock.calls[0][1] as (c: BotMessageContext) => Promise<void>;
   const callback = bot.registerCallback.mock.calls[0][1] as (
@@ -94,7 +102,8 @@ function setup() {
     text: string,
     dialog: { step: string },
   ) => Promise<void>;
-  return { service, bot, dialogs, writes, queue, command, callback, typed };
+  const command2 = bot.registerCommand.mock.calls[1][1] as (c: BotMessageContext) => Promise<void>;
+  return { service, bot, dialogs, profiles, writes, queue, command, filters: command2, callback, typed };
 }
 
 const msg: BotMessageContext = { userId: 'user-1', chatId: '555', language: 'ru', role: 'user' };
@@ -104,6 +113,7 @@ describe('SettingsBotService', () => {
   it('registers /settings, its buttons and its typed answers', () => {
     const { bot } = setup();
     expect(bot.registerCommand).toHaveBeenCalledWith('settings', expect.any(Function));
+    expect(bot.registerCommand).toHaveBeenCalledWith('filters', expect.any(Function));
     expect(bot.registerCallback).toHaveBeenCalledWith('s', expect.any(Function));
     expect(bot.registerDialog).toHaveBeenCalledWith('settings', expect.any(Function));
   });
@@ -209,6 +219,60 @@ describe('SettingsBotService', () => {
     expect(writes[0]).toMatchObject({ table: plannerSettings, set: { timezone: 'Europe/Lisbon' } });
     expect(dialogs.close).toHaveBeenCalledWith('555');
     expect(bot.sendToUser.mock.calls[0][1]).toContain('Сохранено.');
+  });
+
+  it('shows the filters with the profile from the resume on /filters', async () => {
+    const { filters, bot, queue } = setup(profileRow);
+    queue(digestSettings, [{ ...digestRow, minSalaryUsd: 3000 }]);
+
+    await filters(msg);
+
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('Роль: Frontend Developer');
+    expect(text).toContain('Навыки: React');
+    expect(text).toContain('$3000/мес');
+    expect(JSON.stringify(options.keyboard)).toContain('s:open:role');
+  });
+
+  it('edits the profile grade from the filters and shows them again', async () => {
+    const { callback, profiles, writes, queue } = setup(profileRow);
+    queue(digestSettings, [digestRow]);
+
+    const result = await callback(press(['s', 'grade', 'middle']));
+
+    expect(profiles.update).toHaveBeenCalledWith('user-1', { grade: 'middle' });
+    expect(writes.some((w) => w.table === digestSettings)).toBe(false);
+    expect(writes.find((w) => w.table === events)?.values).toMatchObject({
+      name: 'settings_changed',
+      props: { keys: 'profile.grade' },
+    });
+    expect(result.editText).toContain('Грейд: Middle');
+  });
+
+  it('saves typed skills on the profile, main ones first', async () => {
+    const { typed, profiles, dialogs, bot } = setup(profileRow);
+
+    await typed(msg, 'Vue, Nuxt; Pinia', { step: 'sk' });
+
+    expect(profiles.update).toHaveBeenCalledWith('user-1', {
+      skills: [
+        { name: 'Vue', weight: 'core' },
+        { name: 'Nuxt', weight: 'core' },
+        { name: 'Pinia', weight: 'core' },
+      ],
+    });
+    expect(dialogs.close).toHaveBeenCalledWith('555');
+    expect(bot.sendToUser.mock.calls[0][1]).toContain('Фильтры');
+  });
+
+  it('keeps the skills dialog open on an empty answer', async () => {
+    const { typed, profiles, dialogs, bot } = setup(profileRow);
+
+    await typed(msg, ' , ; ', { step: 'sk' });
+
+    expect(profiles.update).not.toHaveBeenCalled();
+    expect(dialogs.close).not.toHaveBeenCalled();
+    expect(bot.sendToUser.mock.calls[0][1]).toContain('Не понял');
   });
 
   it('keeps the dialog open on an answer it cannot read', async () => {

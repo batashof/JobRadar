@@ -15,10 +15,11 @@ type Descriptions = Record<Language, string>;
  */
 export const PUBLIC_COMMANDS: readonly [string, Descriptions][] = [
   ['start', { en: 'Create your account or reconnect this chat', ru: 'Создать аккаунт или подключить чат' }],
-  ['setup', { en: 'Step-by-step setup for a start', ru: 'Пошаговая настройка для начала' }],
+  ['setup', { en: 'First steps: a checklist for a start', ru: 'Первые шаги: чек-лист для начала' }],
   ['resume', { en: 'Add or replace your resume', ru: 'Добавить или заменить резюме' }],
   ['digest', { en: 'Send matching vacancies now', ru: 'Прислать подходящие вакансии сейчас' }],
-  ['settings', { en: 'Delivery, filters, timezone, language, pause', ru: 'Доставка, фильтры, часовой пояс, язык, пауза' }],
+  ['filters', { en: 'Which vacancies to send: role, skills, salary, format', ru: 'Какие вакансии присылать: роль, навыки, зарплата, формат' }],
+  ['settings', { en: 'When to send: delivery, timezone, language, pause', ru: 'Когда присылать: доставка, часовой пояс, язык, пауза' }],
   ['applications', { en: 'Your applications and reminders', ru: 'Твои отклики и напоминания' }],
   ['linkedin', { en: 'Vacancies from your LinkedIn alerts', ru: 'Вакансии из оповещений LinkedIn' }],
   ['privacy', { en: 'What is stored and who sees it', ru: 'Что хранится и кто это видит' }],

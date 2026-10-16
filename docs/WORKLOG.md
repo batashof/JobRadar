@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — /filters split from /settings (v2.4.0)
+
+- Developer: "settings inside settings" in the menu is confusing; wants Settings and Filters apart, with the filters filled from the resume and editable by hand.
+- `settings-logic.ts`: new screens `flt`, `role`, `grade` and typed step `sk`; `SettingsState.profile` (role, grade, skills, confirmed) is loaded through `CandidateService`. Picks of min fit and salary return to `flt`, and filter screens lead back to `flt`. `/settings` keeps the delivery lines plus a "🎯 Filters" button. `SettingsBotService` registers `/filters`, writes profile edits through `CandidateService.update` and logs them as `settings_changed` with `profile.*` keys. `SettingsModule` imports `CandidateModule`.
+- `/setup` became "🧭 First steps"; its checklist buttons are Filters and Settings. The menu and `/help` list `/filters`.
+- **Next step:** the developer walks the flow with `/testmode`.
+
 ## 2026-10-16 — Resume button, /setup onboarding, owner /testmode (v2.3.0)
 
 - Developer: the bot never said how to add a resume; wants a button to add or replace it, a setup command for new users, and to walk the sign-up flow as a new user.

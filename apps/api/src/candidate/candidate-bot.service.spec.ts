@@ -296,9 +296,10 @@ describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
 
     const [, text, options] = bot.sendToUser.mock.calls[0];
     expect(text).toContain('1. ⬜ Резюме: пришли его сюда файлом PDF');
+    expect(text).toContain('Первые шаги в JobRadar');
     expect(text).toContain('2. ⬜ Профиль: появится после резюме');
     const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
-    expect(data).toEqual(['p:res', 's:menu', 's:open:fmt', 's:open:sal', 's:open:ms', 's:open:tz']);
+    expect(data).toEqual(['p:res', 's:open:flt', 's:menu']);
   });
 
   it('ticks the done steps and offers the first send once the profile is confirmed', async () => {

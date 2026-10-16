@@ -52,7 +52,7 @@ const TEXT = {
     retry: '🔄 Analyse again',
     back: '← Back',
     confirmed:
-      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Next: /setup for work format, salary and timezone.',
+      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Next: /filters for which vacancies to receive, /settings for when.',
     askSkills: 'Send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     badSkills: 'I did not find any skills in that. Send them separated by commas, e.g. React, TypeScript.',
     noProfile: 'Send your resume as a PDF first.',
@@ -66,23 +66,20 @@ const TEXT = {
       'To replace it, send a new PDF here the same way (📎 → File). The profile is rebuilt from the new resume and waits for your confirmation.',
     resumeLimit: 'Resume analyses: up to {n} per {days} days.',
     bProfile: '👤 Profile',
-    bSetup: '🧭 Setup',
-    setupTitle: 'Setting up JobRadar',
+    bSetup: '🧭 First steps',
+    setupTitle: 'First steps in JobRadar',
     setupResumeDone: 'Resume: {file}',
     setupResumeTodo: 'Resume: send it here as a PDF file (📎 → File)',
     setupProfileDone: 'Profile confirmed',
     setupProfileCheck: 'Profile: check the card and press "✅ All correct"',
     setupProfileWait: 'Profile: appears after the resume',
-    setupDelivery: 'Delivery: new vacancies arrive as soon as they are posted, silent 22:00–08:00. Switch to a schedule in the settings.',
-    setupFilters: 'Filters: work format, minimum salary, minimum fit, timezone.',
+    setupDelivery: 'Delivery: new vacancies arrive as soon as they are posted, silent 22:00–08:00. Change it in ⚙️ Settings.',
+    setupFilters: 'Filters: role, grade and skills come from the resume; work format, salary and minimum fit are up to you. All in 🎯 Filters.',
     setupLinkedin: 'Optional: /linkedin brings vacancies from your own LinkedIn job alerts.',
     setupHint: 'Go through the buttons below in order.',
     bResume: '📄 Resume',
-    bDelivery: '📬 Delivery and all settings',
-    bFormat: '💼 Format',
-    bSalary: '💰 Salary',
-    bMinFit: '🎯 Minimum fit',
-    bTimezone: '🌍 Timezone',
+    bSettings: '⚙️ Settings',
+    bFilters: '🎯 Filters',
     bSendNow: '📥 Send vacancies now',
   },
   ru: {
@@ -118,7 +115,7 @@ const TEXT = {
     retry: '🔄 Проанализировать снова',
     back: '← Назад',
     confirmed:
-      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Дальше: /setup — формат работы, зарплата и часовой пояс.',
+      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Дальше: /filters — какие вакансии присылать, /settings — когда.',
     askSkills: 'Пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     badSkills: 'Не нашёл навыков в сообщении. Пришли их через запятую, например: React, TypeScript.',
     noProfile: 'Сначала пришли резюме в PDF.',
@@ -132,23 +129,20 @@ const TEXT = {
       'Чтобы заменить, пришли сюда новый PDF тем же способом (📎 → «Файл»). Профиль соберётся заново по новому резюме и будет ждать твоего подтверждения.',
     resumeLimit: 'Анализов резюме: до {n} за {days} дней.',
     bProfile: '👤 Профиль',
-    bSetup: '🧭 Настройка',
-    setupTitle: 'Настройка JobRadar',
+    bSetup: '🧭 Первые шаги',
+    setupTitle: 'Первые шаги в JobRadar',
     setupResumeDone: 'Резюме: {file}',
     setupResumeTodo: 'Резюме: пришли его сюда файлом PDF (📎 → «Файл»)',
     setupProfileDone: 'Профиль подтверждён',
     setupProfileCheck: 'Профиль: проверь карточку и нажми «✅ Всё верно»',
     setupProfileWait: 'Профиль: появится после резюме',
-    setupDelivery: 'Доставка: новые вакансии приходят сразу после публикации, ночью (22:00–08:00) тишина. Переключить на расписание можно в настройках.',
-    setupFilters: 'Фильтры: формат работы, минимальная зарплата, минимальное соответствие, часовой пояс.',
+    setupDelivery: 'Доставка: новые вакансии приходят сразу после публикации, ночью (22:00–08:00) тишина. Поменять можно в ⚙️ Настройках.',
+    setupFilters: 'Фильтры: роль, грейд и навыки берутся из резюме; формат работы, зарплата и минимальное совпадение — по желанию. Всё в 🎯 Фильтрах.',
     setupLinkedin: 'По желанию: /linkedin — вакансии из твоих оповещений LinkedIn.',
     setupHint: 'Пройди кнопки ниже по порядку.',
     bResume: '📄 Резюме',
-    bDelivery: '📬 Доставка и все настройки',
-    bFormat: '💼 Формат',
-    bSalary: '💰 Зарплата',
-    bMinFit: '🎯 Мин. соответствие',
-    bTimezone: '🌍 Часовой пояс',
+    bSettings: '⚙️ Настройки',
+    bFilters: '🎯 Фильтры',
     bSendNow: '📥 Прислать вакансии сейчас',
   },
 } as const;
@@ -165,7 +159,7 @@ export function profileText(
   return text;
 }
 
-const GRADE_LABELS: Record<string, { en: string; ru: string }> = {
+export const GRADE_LABELS: Record<string, { en: string; ru: string }> = {
   intern: { en: 'Intern', ru: 'Стажёр' },
   junior: { en: 'Junior', ru: 'Junior' },
   middle: { en: 'Middle', ru: 'Middle' },
@@ -321,8 +315,8 @@ export function resumeScreen(
 
 /**
  * `/setup`: the new user's checklist (roadmap 5.9). Each line says where the
- * account stands; the buttons open the resume screen, the profile card and
- * the /settings screens in place, so one message walks the whole setup.
+ * account stands; the buttons open the resume screen, the profile card,
+ * /filters and /settings, so one message walks the whole setup.
  */
 export function setupScreen(
   lang: Language,
@@ -358,9 +352,7 @@ export function setupScreen(
       btn(profileText(lang, 'bResume'), `${NS}:res`),
       ...(state.profile !== 'none' ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
     ],
-    [btn(profileText(lang, 'bDelivery'), `${s}:menu`)],
-    [btn(profileText(lang, 'bFormat'), `${s}:open:fmt`), btn(profileText(lang, 'bSalary'), `${s}:open:sal`)],
-    [btn(profileText(lang, 'bMinFit'), `${s}:open:ms`), btn(profileText(lang, 'bTimezone'), `${s}:open:tz`)],
+    [btn(profileText(lang, 'bFilters'), `${s}:open:flt`), btn(profileText(lang, 'bSettings'), `${s}:menu`)],
     ...(state.profile === 'confirmed'
       ? [[btn(profileText(lang, 'bSendNow'), `${BOT_CALLBACK_NAMESPACES.digest}:n`)]]
       : []),
