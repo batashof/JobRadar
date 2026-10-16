@@ -157,6 +157,13 @@ describe('renderScreen', () => {
     expect(keyboard.flat().find((b) => b.callbackData === 's:mode')?.text).toBe('📬 Доставка: сразу');
   });
 
+  it('ends the main menu with a full-width "send now" button for the digest module', () => {
+    const { keyboard } = renderScreen('main', state(), SLUGS);
+    expect(keyboard.at(-1)).toEqual([{ text: '📥 Прислать вакансии сейчас', callbackData: 'd:n' }]);
+    const en = renderScreen('main', state({ language: 'en' }), SLUGS).keyboard;
+    expect(en.at(-1)?.[0]?.text).toBe('📥 Send vacancies now');
+  });
+
   it('marks the selected options and keeps every callback within 64 bytes', () => {
     const s = state({ workFormats: ['hybrid'], mutedSources: ['telegram'] });
     for (const screen of ['main', 'fmt', 'emp', 'src', 'ms', 'cap', 'sal', 't', 'q', 'tz'] as const) {

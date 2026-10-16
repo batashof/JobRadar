@@ -270,6 +270,7 @@ const TEXT = {
     bSalary: '💰 Salary',
     bSources: '📡 Sources',
     bLanguage: '🌐 Language: English',
+    bSendNow: '📥 Send vacancies now',
     bPause: '⏸ Pause',
     bResume: '▶️ Resume',
     back: '← Back',
@@ -328,6 +329,7 @@ const TEXT = {
     bSalary: '💰 Зарплата',
     bSources: '📡 Источники',
     bLanguage: '🌐 Язык: Русский',
+    bSendNow: '📥 Прислать вакансии сейчас',
     bPause: '⏸ Пауза',
     bResume: '▶️ Возобновить',
     back: '← Назад',
@@ -360,6 +362,8 @@ export function settingsText(lang: Language, key: 'badInput' | 'saved'): string 
 }
 
 const ns = BOT_CALLBACK_NAMESPACES.settings;
+/** `DIGEST_ACTION.now` in digest/render.ts, spelled here to keep this file free of the digest module. */
+export const SEND_NOW_ACTION = 'n';
 const button = (text: string, data: string) => ({ text, callbackData: `${ns}:${data}` });
 const back = (lang: Language) => [button(TEXT[lang].back, 'menu')];
 const mark = (on: boolean) => (on ? '✅ ' : '');
@@ -538,6 +542,8 @@ export function renderScreen(
           [button(t.bFormat, 'open:fmt'), button(t.bEmployment, 'open:emp')],
           [button(t.bSalary, 'open:sal'), button(t.bSources, 'open:src')],
           [button(t.bLanguage, 'lang'), button(state.enabled ? t.bPause : t.bResume, 'pause')],
+          // Handled by the digest module (`d:n`), which owns sending.
+          [{ text: t.bSendNow, callbackData: `${BOT_CALLBACK_NAMESPACES.digest}:${SEND_NOW_ACTION}` }],
         ],
       };
   }

@@ -191,6 +191,31 @@ export class DigestSendService implements OnModuleInit {
 
   onModuleInit(): void {
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.digest, (ctx) => this.handleCallback(ctx));
+    this.bot.registerCommand('digest', async (ctx) => {
+      this.startOnRequest(ctx.userId, ctx.role, ctx.language);
+    });
+  }
+
+  /**
+   * "Send me what you have" from the chat (/digest, or the button in
+   * /settings): the same manual send as the web cabinet's. It runs after the
+   * webhook has answered, since a long list is paced at one message a second.
+   */
+  private startOnRequest(userId: string, role: UserRole, language: Language): void {
+    void this.sendOnRequest(userId, role, language).catch((err: unknown) => {
+      this.logger.error(
+        `manual send failed for user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  }
+
+  /** Exposed for tests; the bot entry points go through `startOnRequest`. */
+  async sendOnRequest(userId: string, role: UserRole, language: Language): Promise<number> {
+    if (!(await this.matchBasis(userId, role))) {
+      await this.bot.sendToUser(userId, digestText(language, 'noProfile'));
+      return 0;
+    }
+    return this.sendNow(userId, new Date(), 'nothingNew');
   }
 
   /** Every user whose schedule has come round. One bad user never stops the rest. */
@@ -364,8 +389,16 @@ export class DigestSendService implements OnModuleInit {
     return row?.until ? { after: row.after, until: row.until } : null;
   }
 
-  /** Runs one user's digest immediately, ignoring the schedule (manual trigger). */
-  async sendNow(userId: string, now = new Date()): Promise<number> {
+  /**
+   * Runs one user's digest immediately, ignoring the schedule (manual trigger).
+   * `emptyKey` is what an empty result says: the web's send keeps the
+   * scheduled digest's wording, the bot's button says nothing is new.
+   */
+  async sendNow(
+    userId: string,
+    now = new Date(),
+    emptyKey: 'empty' | 'nothingNew' = 'empty',
+  ): Promise<number> {
     const [row] = await this.db
       .select({
         userId: digestSettings.userId,
@@ -389,7 +422,7 @@ export class DigestSendService implements OnModuleInit {
       { ...row, timezone: row.timezone ?? PLANNER_DEFAULTS.timezone },
       `manual ${now.toISOString()}`,
       now,
-      { kind: 'manual' },
+      { kind: 'manual', emptyKey },
     );
   }
 
@@ -406,7 +439,11 @@ export class DigestSendService implements OnModuleInit {
      * no window and weighs the whole unsent fortnight; instant mode answers an
      * empty result with silence instead of "nothing today".
      */
-    run: { kind: 'digest' | 'instant' | 'manual'; window?: IngestWindow },
+    run: {
+      kind: 'digest' | 'instant' | 'manual';
+      window?: IngestWindow;
+      emptyKey?: 'empty' | 'nothingNew';
+    },
   ): Promise<number> {
     const instant = run.kind === 'instant';
     const language: Language = user.language === 'en' ? 'en' : 'ru';
@@ -417,7 +454,7 @@ export class DigestSendService implements OnModuleInit {
       await this.collectCandidates(user.userId, now, basis, user.mutedSources, run.window)
     ).filter((candidate) => passesPreferences(user, candidate));
     if (candidates.length === 0) {
-      if (!instant) await this.sendEmpty(user.userId, language);
+      if (!instant) await this.sendEmpty(user.userId, language, run.emptyKey);
       return 0;
     }
 
@@ -435,7 +472,7 @@ export class DigestSendService implements OnModuleInit {
       );
       // Several empty pushes a day would be pure noise; a scheduled digest
       // says so once, because the user is waiting for it at that hour.
-      if (!instant) await this.sendEmpty(user.userId, language);
+      if (!instant) await this.sendEmpty(user.userId, language, run.emptyKey);
       return 0;
     }
 
@@ -714,8 +751,12 @@ export class DigestSendService implements OnModuleInit {
   }
 
   /** The scheduled digest's "nothing worth your attention" — the user is waiting for it. */
-  private async sendEmpty(userId: string, language: string): Promise<number> {
-    await this.bot.sendToUser(userId, digestText(language === 'en' ? 'en' : 'ru', 'empty'));
+  private async sendEmpty(
+    userId: string,
+    language: string,
+    key: 'empty' | 'nothingNew' = 'empty',
+  ): Promise<number> {
+    await this.bot.sendToUser(userId, digestText(language === 'en' ? 'en' : 'ru', key));
     return 0;
   }
 
@@ -741,6 +782,10 @@ export class DigestSendService implements OnModuleInit {
 
   private async handleCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
     const [, action, vacancyId] = ctx.parts;
+    if (action === DIGEST_ACTION.now) {
+      this.startOnRequest(ctx.userId, ctx.role, ctx.language);
+      return { alert: digestText(ctx.language, 'searching') };
+    }
     if (!action || !vacancyId) return {};
 
     switch (action) {

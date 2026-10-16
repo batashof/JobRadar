@@ -189,6 +189,7 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 
 - [x] The owner's vacancies are scored by the formula like everyone else's: the stored candidate profile, or one built from the resume's terms (ADR-029).
 - [x] The background LLM resume ↔ vacancy pass is removed; the LLM reads resumes and serves owner-only on-demand features.
+- [x] "📥 Send vacancies now" in the bot (`/digest`, a button in `/settings`): the web cabinet's manual send, so vacancies missed by a push can be pulled from the chat (v2.2.0).
 
 **Exit criterion:** no LLM outage or rate limit can empty a push.
 

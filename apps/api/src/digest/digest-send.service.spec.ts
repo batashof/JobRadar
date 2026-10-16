@@ -103,6 +103,7 @@ const makeBot = () => ({
   isConfigured: () => true,
   sendToUser: jest.fn().mockResolvedValue("900"),
   registerCallback: jest.fn(),
+  registerCommand: jest.fn(),
 });
 
 /**
@@ -586,7 +587,25 @@ describe("DigestSendService buttons", () => {
       "d",
       expect.any(Function),
     );
+    expect(bot.registerCommand).toHaveBeenCalledWith("digest", expect.any(Function));
   });
+
+  it("answers the send-now button at once and sends the cards after", async () => {
+    const { db, queue, writes } = ownerDb();
+    queue(digestSettings, [settingsRow()]);
+    queue(vacancies, [vacancyRow({ id: "fit" })]);
+    const bot = makeBot();
+
+    const result = await handlerFor(db, bot)(ctx(["d", "n"]));
+
+    expect(result).toEqual({ alert: "Ищу вакансии…" });
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(writes.find((w) => w.table === digestItems)?.values).toMatchObject({
+      vacancyId: "fit",
+    });
+  });
+
 
   it("hides a vacancy and rewrites its card", async () => {
     const { db, writes } = makeDb();
@@ -671,6 +690,41 @@ describe("DigestSendService buttons", () => {
     const bot = makeBot();
     await handlerFor(db, bot)(ctx(["d"]));
     expect(writes).toHaveLength(0);
+  });
+});
+
+describe("DigestSendService.sendOnRequest (/digest, the send-now button)", () => {
+  it("sends every unsent match, like the web's manual send", async () => {
+    const { db, queue, writes } = ownerDb();
+    queue(digestSettings, [settingsRow()]);
+    queue(vacancies, [vacancyRow({ id: "fit" }), vacancyRow({ id: "backend", ...OFF_STACK })]);
+    const bot = makeBot();
+
+    await expect(service(db, bot).sendOnRequest("user-1", "owner", "ru")).resolves.toBe(1);
+    expect(writes.filter((w) => w.table === digestItems)).toHaveLength(1);
+  });
+
+  it("says nothing new clears the floor instead of the scheduled digest's line", async () => {
+    const { db, queue } = ownerDb();
+    queue(digestSettings, [settingsRow()]);
+    queue(vacancies, [vacancyRow({ id: "backend", ...OFF_STACK })]);
+    const bot = makeBot();
+
+    await expect(service(db, bot).sendOnRequest("user-1", "owner", "ru")).resolves.toBe(0);
+    expect(bot.sendToUser).toHaveBeenCalledTimes(1);
+    expect(bot.sendToUser.mock.calls[0][1]).toContain("Ничего нового выше твоего минимального соответствия");
+  });
+
+  it("asks for a resume when there is nothing to match on yet", async () => {
+    const { db, queue } = makeDb();
+    queue(candidateProfiles, [{ role: null, grade: null, skills: [], weights: {}, confirmedAt: null }]);
+    const bot = makeBot();
+
+    await expect(service(db, bot).sendOnRequest("user-1", "user", "en")).resolves.toBe(0);
+    expect(bot.sendToUser).toHaveBeenCalledWith(
+      "user-1",
+      "Nothing to match on yet: send your resume as a PDF and confirm the profile.",
+    );
   });
 });
 

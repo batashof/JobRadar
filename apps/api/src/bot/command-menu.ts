@@ -15,6 +15,7 @@ type Descriptions = Record<Language, string>;
  */
 export const PUBLIC_COMMANDS: readonly [string, Descriptions][] = [
   ['start', { en: 'Create your account or reconnect this chat', ru: 'Создать аккаунт или подключить чат' }],
+  ['digest', { en: 'Send matching vacancies now', ru: 'Прислать подходящие вакансии сейчас' }],
   ['settings', { en: 'Delivery, filters, timezone, language, pause', ru: 'Доставка, фильтры, часовой пояс, язык, пауза' }],
   ['applications', { en: 'Your applications and reminders', ru: 'Твои отклики и напоминания' }],
   ['linkedin', { en: 'Vacancies from your LinkedIn alerts', ru: 'Вакансии из оповещений LinkedIn' }],
