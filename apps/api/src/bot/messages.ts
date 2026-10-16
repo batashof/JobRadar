@@ -22,6 +22,8 @@ const STRINGS = {
     'help':
       'JobRadar finds remote IT vacancies that fit your resume and sends them here.\n\n' +
       '/start — create your account or reconnect this chat\n' +
+      '/setup — step-by-step setup for a start\n' +
+      '/resume — your resume: add or replace it\n' +
       '/digest — send every new matching vacancy now\n' +
       '/settings — delivery, filters, timezone, language, pause\n' +
       '/applications — your job applications: stages and follow-up reminders\n' +
@@ -31,10 +33,11 @@ const STRINGS = {
       '/stop — stop messages without deleting anything\n' +
       '/help — this text',
     /** Appended to `help` for the owner only (ADR-024 §3). */
-    'help.owner': 'Author tools:\n/interview — interview prep: topic plan, questions by topic, mock interview\n/plan — the day plan: compose, blocks, close the day\n/gmail — connect Gmail for sending applications',
+    'help.owner': 'Author tools:\n/interview — interview prep: topic plan, questions by topic, mock interview\n/plan — the day plan: compose, blocks, close the day\n/gmail — connect Gmail for sending applications\n/testmode — go through sign-up as a new user, then come back',
     'start.welcome':
       'Welcome to JobRadar. Your account is created: no email and no password, this chat is your login.\n\n' +
-      'Next step: send your resume here as a PDF file. I will evaluate it and build your profile for picking vacancies.',
+      'Next step: send your resume here as a PDF file (📎 → File). I will evaluate it and build your profile for picking vacancies.\n\n' +
+      '/setup walks you through the rest step by step.',
     'start.back': 'Welcome back. This chat is connected to your JobRadar account again.',
     'privacy':
       'What JobRadar stores: your Telegram id, username and chat id, the interface language, and later your resume (the PDF and its text), the profile built from it, the vacancies sent to you, your reactions to them and the applications you track (/applications). If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.\n\n' +
@@ -46,11 +49,18 @@ const STRINGS = {
     'delete.no': 'Cancel',
     'delete.done': 'Your account and everything in it are deleted. /start creates a new one.',
     'delete.cancelled': 'Nothing was deleted.',
+    'testmode.confirm':
+      'Test mode: this chat is unlinked from your owner account, and /start then creates a fresh empty account, exactly as a new user gets. Nothing of yours is deleted, but your own vacancies stop arriving while the test runs. Way back: /delete in the test account, then /start.',
+    'testmode.yes': 'Start the test',
+    'testmode.no': 'Cancel',
+    'testmode.cancelled': 'Test mode not started.',
+    'testmode.on': 'Done. This chat is no longer linked to the owner account. Send /start to sign up as a new user. Way back: /delete, then /start.',
+    'testmode.off': 'Welcome back. This chat is linked to the owner account again; your vacancies arrive here as before.',
     'delete.owner': 'The owner account cannot be deleted from the chat.',
     'delete.notLinked': 'This chat has no JobRadar account.',
     'callback.ownerOnly': 'Available to the JobRadar owner only.',
     'text.noAccount': 'Press /start first to create your JobRadar account.',
-    'text.noDialog': 'Send your resume as a PDF, or /help for the commands.',
+    'text.noDialog': 'Send your resume as a PDF file (📎 → File), or /help for the commands.',
     'unknown': 'Unknown command. /help lists what I understand.',
     'callback.stale': 'This message is out of date — open the app.',
     'callback.failed': 'Could not do that. Try again later.',
@@ -66,6 +76,8 @@ const STRINGS = {
     'help':
       'JobRadar находит удалённые IT-вакансии под твоё резюме и присылает их сюда.\n\n' +
       '/start — создать аккаунт или снова подключить этот чат\n' +
+      '/setup — пошаговая настройка для начала\n' +
+      '/resume — твоё резюме: добавить или заменить\n' +
       '/digest — прислать все новые подходящие вакансии сейчас\n' +
       '/settings — доставка, фильтры, часовой пояс, язык, пауза\n' +
       '/applications — твои отклики: этапы и напоминания написать компании\n' +
@@ -75,10 +87,11 @@ const STRINGS = {
       '/stop — остановить сообщения, ничего не удаляя\n' +
       '/help — этот текст',
     'help.owner':
-      'Инструменты автора:\n/interview — подготовка к собеседованию: план тем, вопросы по темам, пробное собеседование\n/plan — план дня: составить, блоки, закрыть день\n/gmail — подключить Gmail для отправки откликов',
+      'Инструменты автора:\n/interview — подготовка к собеседованию: план тем, вопросы по темам, пробное собеседование\n/plan — план дня: составить, блоки, закрыть день\n/gmail — подключить Gmail для отправки откликов\n/testmode — пройти регистрацию как новый пользователь и вернуться',
     'start.welcome':
       'Добро пожаловать в JobRadar. Аккаунт создан: без почты и пароля, вход — этот чат.\n\n' +
-      'Следующий шаг: пришли сюда резюме файлом PDF. Я оценю его и соберу профиль для подбора вакансий.',
+      'Следующий шаг: пришли сюда резюме файлом PDF (📎 → Файл). Я оценю его и соберу профиль для подбора вакансий.\n\n' +
+      '/setup проведёт по остальным шагам.',
     'start.back': 'С возвращением. Этот чат снова подключён к твоему аккаунту JobRadar.',
     'privacy':
       'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, а позже резюме (PDF и его текст), профиль, собранный по нему, отправленные тебе вакансии, твои реакции на них и отклики, которые ты отмечаешь (/applications). Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.\n\n' +
@@ -90,11 +103,18 @@ const STRINGS = {
     'delete.no': 'Отмена',
     'delete.done': 'Аккаунт и всё, что в нём, удалены. /start создаст новый.',
     'delete.cancelled': 'Ничего не удалено.',
+    'testmode.confirm':
+      'Тестовый режим: этот чат отвяжется от аккаунта владельца, и /start создаст новый пустой аккаунт, ровно как у нового пользователя. Твои данные не удаляются, но пока идёт тест, вакансии на основной аккаунт не приходят. Вернуться: /delete в тестовом аккаунте, затем /start.',
+    'testmode.yes': 'Начать тест',
+    'testmode.no': 'Отмена',
+    'testmode.cancelled': 'Тестовый режим не включён.',
+    'testmode.on': 'Готово. Этот чат больше не привязан к аккаунту владельца. Отправь /start, чтобы зарегистрироваться как новый пользователь. Вернуться: /delete, затем /start.',
+    'testmode.off': 'С возвращением. Чат снова привязан к аккаунту владельца, вакансии приходят как раньше.',
     'delete.owner': 'Аккаунт владельца нельзя удалить из чата.',
     'delete.notLinked': 'У этого чата нет аккаунта JobRadar.',
     'callback.ownerOnly': 'Доступно только владельцу JobRadar.',
     'text.noAccount': 'Сначала нажми /start, чтобы создать аккаунт JobRadar.',
-    'text.noDialog': 'Пришли резюме в PDF или набери /help, чтобы увидеть команды.',
+    'text.noDialog': 'Пришли резюме файлом PDF (📎 → Файл) или набери /help, чтобы увидеть команды.',
     'unknown': 'Неизвестная команда. /help покажет, что я понимаю.',
     'callback.stale': 'Сообщение устарело — открой приложение.',
     'callback.failed': 'Не получилось. Попробуй позже.',

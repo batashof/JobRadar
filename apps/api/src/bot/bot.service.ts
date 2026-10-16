@@ -413,6 +413,9 @@ export class BotService implements OnApplicationBootstrap {
       case 'delete':
         await this.askDelete(chatId);
         return;
+      case 'testmode':
+        await this.askTestMode(chatId);
+        return;
       case 'help':
       case 'privacy':
       default: {
@@ -472,6 +475,13 @@ export class BotService implements OnApplicationBootstrap {
       telegramUserOwnerId: telegramUser?.userId ?? null,
       now,
     });
+
+    // Test mode's way back: the owner account parked by /testmode returns to
+    // its Telegram user once the test account is gone (the plain /start that
+    // would otherwise register yet another account).
+    if (outcome.kind === 'register' && fromId && (await this.unparkOwner(fromId, chatId, username, now))) {
+      return;
+    }
 
     switch (outcome.kind) {
       case 'greet':
@@ -627,6 +637,7 @@ export class BotService implements OnApplicationBootstrap {
 
   private async handleAccountCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
     const [, action, answer] = ctx.parts;
+    if (action === 'test') return this.confirmTestMode(ctx, answer === 'y');
     if (action !== 'del') return {};
 
     if (answer !== 'y') {
@@ -641,6 +652,81 @@ export class BotService implements OnApplicationBootstrap {
     // Every table keyed to a user cascades on delete (schema.ts).
     await this.db.delete(users).where(eq(users.id, ctx.userId));
     return { editText: escapeHtml(botMessage(ctx.language, 'delete.done')), editKeyboard: null };
+  }
+
+  // -------------------------------------------------------------------------
+  // Test mode: the owner walks the new-user flow from their own Telegram
+  // -------------------------------------------------------------------------
+
+  /** `/testmode`, owner only: asks before parking the owner account. */
+  private async askTestMode(chatId: string): Promise<void> {
+    if (!this.api) return;
+    const account = await this.accountByChat(chatId);
+    const profile = account ? await this.profileOf(account.userId) : null;
+    if (!account || !profile || !isOwnerRole(profile.role)) {
+      await this.replyToChat(chatId, 'unknown', profile?.language);
+      return;
+    }
+    const ns = BOT_CALLBACK_NAMESPACES.account;
+    try {
+      await this.api.sendMessage(chatId, escapeHtml(botMessage(profile.language, 'testmode.confirm')), {
+        parseMode: 'HTML',
+        keyboard: [
+          [
+            { text: botMessage(profile.language, 'testmode.yes'), callbackData: `${ns}:test:y` },
+            { text: botMessage(profile.language, 'testmode.no'), callbackData: `${ns}:test:n` },
+          ],
+        ],
+      });
+    } catch (err) {
+      this.logger.warn(
+        `test-mode prompt to chat ${chatId} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Parks the owner account: its Telegram user id gets a `parked:` prefix and
+   * the chat is unlinked, so the next plain /start registers a fresh account
+   * exactly as a stranger's would. Nothing of the owner's is deleted; the
+   * owner's own deliveries pause until the way back (`unparkOwner`).
+   */
+  private async confirmTestMode(ctx: BotCallbackContext, yes: boolean): Promise<BotCallbackResult> {
+    if (!yes) {
+      return { editText: escapeHtml(botMessage(ctx.language, 'testmode.cancelled')), editKeyboard: null };
+    }
+    if (!isOwnerRole(ctx.role)) return { alert: botMessage(ctx.language, 'callback.ownerOnly') };
+    const [row] = await this.db
+      .select({ telegramUserId: users.telegramUserId })
+      .from(users)
+      .where(eq(users.id, ctx.userId));
+    // In a private chat the chat id is the user id, which covers an owner
+    // linked from the web before `telegram_user_id` existed.
+    const telegramUserId = row?.telegramUserId ?? ctx.chatId;
+    await this.db
+      .update(users)
+      .set({ telegramUserId: parkedTelegramUserId(telegramUserId), updatedAt: new Date() })
+      .where(eq(users.id, ctx.userId));
+    await this.unlink(ctx.userId);
+    return { editText: escapeHtml(botMessage(ctx.language, 'testmode.on')), editKeyboard: null };
+  }
+
+  /** Re-attaches a parked owner account to its Telegram user; false when there is none. */
+  private async unparkOwner(
+    fromId: string,
+    chatId: string,
+    username: string | null,
+    now: Date,
+  ): Promise<boolean> {
+    const parked = await this.accountByTelegramUser(parkedTelegramUserId(fromId));
+    if (!parked) return false;
+    await this.db
+      .update(users)
+      .set({ telegramUserId: fromId, updatedAt: now })
+      .where(eq(users.id, parked.userId));
+    await this.attachChat(parked.userId, chatId, username, now);
+    await this.replyToChat(chatId, 'testmode.off', await this.languageOf(parked.userId));
+    return true;
   }
 
   private async stopFromChat(chatId: string): Promise<void> {
@@ -793,4 +879,9 @@ export class BotService implements OnApplicationBootstrap {
       return null;
     }
   }
+}
+
+/** Where /testmode keeps the owner's Telegram user id while a test account uses it. */
+export function parkedTelegramUserId(telegramUserId: string): string {
+  return `parked:${telegramUserId}`;
 }

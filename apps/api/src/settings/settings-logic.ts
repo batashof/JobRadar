@@ -271,6 +271,8 @@ const TEXT = {
     bSources: '📡 Sources',
     bLanguage: '🌐 Language: English',
     bSendNow: '📥 Send vacancies now',
+    bResumeUpload: '📄 Resume',
+    bSetup: '🧭 Setup',
     bPause: '⏸ Pause',
     bResume: '▶️ Resume',
     back: '← Back',
@@ -330,6 +332,8 @@ const TEXT = {
     bSources: '📡 Источники',
     bLanguage: '🌐 Язык: Русский',
     bSendNow: '📥 Прислать вакансии сейчас',
+    bResumeUpload: '📄 Резюме',
+    bSetup: '🧭 Настройка',
     bPause: '⏸ Пауза',
     bResume: '▶️ Возобновить',
     back: '← Назад',
@@ -542,6 +546,11 @@ export function renderScreen(
           [button(t.bFormat, 'open:fmt'), button(t.bEmployment, 'open:emp')],
           [button(t.bSalary, 'open:sal'), button(t.bSources, 'open:src')],
           [button(t.bLanguage, 'lang'), button(state.enabled ? t.bPause : t.bResume, 'pause')],
+          // Handled by the candidate module (`p:res`, `p:setup`), which owns the resume.
+          [
+            { text: t.bResumeUpload, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:res` },
+            { text: t.bSetup, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:setup` },
+          ],
           // Handled by the digest module (`d:n`), which owns sending.
           [{ text: t.bSendNow, callbackData: `${BOT_CALLBACK_NAMESPACES.digest}:${SEND_NOW_ACTION}` }],
         ],

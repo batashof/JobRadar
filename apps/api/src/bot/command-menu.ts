@@ -15,6 +15,8 @@ type Descriptions = Record<Language, string>;
  */
 export const PUBLIC_COMMANDS: readonly [string, Descriptions][] = [
   ['start', { en: 'Create your account or reconnect this chat', ru: 'Создать аккаунт или подключить чат' }],
+  ['setup', { en: 'Step-by-step setup for a start', ru: 'Пошаговая настройка для начала' }],
+  ['resume', { en: 'Add or replace your resume', ru: 'Добавить или заменить резюме' }],
   ['digest', { en: 'Send matching vacancies now', ru: 'Прислать подходящие вакансии сейчас' }],
   ['settings', { en: 'Delivery, filters, timezone, language, pause', ru: 'Доставка, фильтры, часовой пояс, язык, пауза' }],
   ['applications', { en: 'Your applications and reminders', ru: 'Твои отклики и напоминания' }],
@@ -30,6 +32,7 @@ export const OWNER_COMMANDS: readonly [string, Descriptions][] = [
   ['interview', { en: 'Interview prep', ru: 'Подготовка к собеседованию' }],
   ['plan', { en: 'The day plan', ru: 'План дня' }],
   ['gmail', { en: 'Connect Gmail', ru: 'Подключить Gmail' }],
+  ['testmode', { en: 'Sign up as a new user, then come back', ru: 'Пройти регистрацию как новый пользователь' }],
 ];
 
 /** The menu for one language; the owner's adds the author tools before /help. */

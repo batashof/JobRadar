@@ -37,6 +37,8 @@ import {
   profileCard,
   profileText,
   type ProfileTextKey,
+  resumeScreen,
+  setupScreen,
 } from './render';
 
 /** The dialog flow name this service owns in `bot_dialogs`. */
@@ -83,6 +85,40 @@ export class CandidateBotService implements OnModuleInit {
     this.bot.registerDocumentHandler((ctx, doc) => this.onDocument(ctx, doc));
     this.bot.registerDialog(FLOW, (ctx, text) => this.onSkillsText(ctx, text));
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.profile, (ctx) => this.onCallback(ctx));
+    this.bot.registerCommand('resume', (ctx) => this.showResume(ctx));
+    this.bot.registerCommand('setup', (ctx) => this.showSetup(ctx));
+  }
+
+  // -------------------------------------------------------------------------
+  // /resume and /setup (roadmap 5.9)
+  // -------------------------------------------------------------------------
+
+  /** What is uploaded, and how to add or replace it. */
+  async showResume(ctx: { userId: string; language: BotMessageContext['language']; role: string }): Promise<void> {
+    const [resume, profile] = await Promise.all([
+      this.resumes.getActive(ctx.userId),
+      this.profiles.get(ctx.userId),
+    ]);
+    const screen = resumeScreen(ctx.language, resume, {
+      hasProfile: profile !== null,
+      limit: isOwnerRole(ctx.role)
+        ? undefined
+        : { n: RESUME_ANALYSES_PER_WINDOW, days: RESUME_ANALYSIS_WINDOW_DAYS },
+    });
+    await this.bot.sendToUser(ctx.userId, screen.text, { parseMode: 'HTML', keyboard: screen.keyboard });
+  }
+
+  /** The step-by-step checklist for a new account. */
+  async showSetup(ctx: { userId: string; language: BotMessageContext['language'] }): Promise<void> {
+    const [resume, profile] = await Promise.all([
+      this.resumes.getActive(ctx.userId),
+      this.profiles.get(ctx.userId),
+    ]);
+    const screen = setupScreen(ctx.language, {
+      resume,
+      profile: !profile ? 'none' : profile.confirmedAt ? 'confirmed' : 'unconfirmed',
+    });
+    await this.bot.sendToUser(ctx.userId, screen.text, { parseMode: 'HTML', keyboard: screen.keyboard });
   }
 
   // -------------------------------------------------------------------------
@@ -212,6 +248,15 @@ export class CandidateBotService implements OnModuleInit {
 
   async onCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
     const [, action, value] = ctx.parts;
+    // These two need no profile: they are how a new user gets one.
+    if (action === 'res') {
+      await this.showResume(ctx);
+      return {};
+    }
+    if (action === 'setup') {
+      await this.showSetup(ctx);
+      return {};
+    }
     const profile = await this.profiles.get(ctx.userId);
     if (!profile) return { alert: profileText(ctx.language, 'noProfile') };
 

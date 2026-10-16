@@ -50,7 +50,7 @@ describe('command menu', () => {
   it('adds the author tools before /help for the owner only', () => {
     expect(menuCommands('en').map((c) => c.command)).not.toContain('plan');
     const owner = menuCommands('ru', true).map((c) => c.command);
-    expect(owner.slice(-4)).toEqual(['interview', 'plan', 'gmail', 'help']);
+    expect(owner.slice(-5)).toEqual(['interview', 'plan', 'gmail', 'testmode', 'help']);
     expect(menuCommands('ru')[0]).toEqual({
       command: 'start',
       description: 'Создать аккаунт или подключить чат',

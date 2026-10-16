@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Resume button, /setup onboarding, owner /testmode (v2.3.0)
+
+- Developer: the bot never said how to add a resume; wants a button to add or replace it, a setup command for new users, and to walk the sign-up flow as a new user.
+- `candidate/`: `/resume` (`resumeScreen`, `p:res`) and `/setup` (`setupScreen`, `p:setup`: resume, profile, delivery, filters, LinkedIn checklist with `s:open:*` buttons, `d:n` once confirmed). `/settings` main menu gets "📄 Resume" and "🧭 Setup". Welcome, `/help`, stray-text replies and the confirmed-profile message point to the PDF upload and `/setup`.
+- `bot/`: owner-only `/testmode` (`u:test:y/n`) parks the owner (`telegram_user_id` → `parked:<id>`, chat unlinked); `/start` from a Telegram id with no account but a parked row restores the owner. No migration.
+- **Next step:** developer walks the new-user flow; bot avatar set through BotFather (`/setuserpic`), the Bot API cannot set it.
+
 ## 2026-10-16 — "Send vacancies now" in the bot (v2.2.0)
 
 - Developer asked for the web cabinet's manual send as a bot button.

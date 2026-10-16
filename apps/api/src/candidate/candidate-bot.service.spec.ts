@@ -50,6 +50,7 @@ function setup(options: { role?: 'owner' | 'user'; analyses?: number; llm?: 'ok'
     registerDocumentHandler: jest.fn(),
     registerDialog: jest.fn(),
     registerCallback: jest.fn(),
+    registerCommand: jest.fn(),
     downloadFile: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4')),
     sendToUser: jest.fn().mockResolvedValue('1'),
   };
@@ -64,7 +65,12 @@ function setup(options: { role?: 'owner' | 'user'; analyses?: number; llm?: 'ok'
     upload: jest.fn().mockResolvedValue({ id: 'resume-1' }),
     getActive: jest
       .fn()
-      .mockResolvedValue({ id: 'resume-1', filename: 'cv.pdf', extractedText: 'Senior Frontend, React, TypeScript' }),
+      .mockResolvedValue({
+        id: 'resume-1',
+        filename: 'cv.pdf',
+        extractedText: 'Senior Frontend, React, TypeScript',
+        uploadedAt: new Date('2026-10-16T08:00:00Z'),
+      }),
   };
   const profiles = {
     get: jest.fn().mockResolvedValue(storedProfile),
@@ -97,6 +103,8 @@ describe('CandidateBotService — upload', () => {
     expect(bot.registerDocumentHandler).toHaveBeenCalled();
     expect(bot.registerDialog).toHaveBeenCalledWith('profile', expect.any(Function));
     expect(bot.registerCallback).toHaveBeenCalledWith('p', expect.any(Function));
+    expect(bot.registerCommand).toHaveBeenCalledWith('resume', expect.any(Function));
+    expect(bot.registerCommand).toHaveBeenCalledWith('setup', expect.any(Function));
   });
 
   it('refuses a file that is not a PDF, and one over 5 MB, without downloading', async () => {
@@ -243,5 +251,67 @@ describe('CandidateBotService — confirmation and edits', () => {
     expect(await service.onCallback(press(ctx, ['p', 'ok']))).toEqual({
       alert: 'Сначала пришли резюме в PDF.',
     });
+  });
+});
+
+describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
+  const press = (parts: string[]): BotCallbackContext => ({
+    userId: 'user-1',
+    chatId: '555',
+    messageId: 7,
+    parts,
+    language: 'ru',
+    role: 'user',
+  });
+
+  it('shows the uploaded resume, how to replace it and the analysis limit', async () => {
+    const { service, bot, ctx } = setup();
+    await service.showResume(ctx);
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('<b>cv.pdf</b>, загружено 2026-10-16');
+    expect(text).toContain('Чтобы заменить, пришли сюда новый PDF');
+    expect(text).toContain('до 3 за');
+    expect(options.keyboard[0].map((b: { callbackData: string }) => b.callbackData)).toEqual(['p:card', 'p:setup']);
+  });
+
+  it('says where the paperclip is when there is no resume yet, even without a profile', async () => {
+    const { service, bot, resumes, profiles } = setup();
+    resumes.getActive.mockResolvedValue(null);
+    profiles.get.mockResolvedValue(null);
+
+    await expect(service.onCallback(press(['p', 'res']))).resolves.toEqual({});
+
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('Резюме ещё не загружено');
+    expect(text).toContain('📎');
+    expect(options.keyboard[0].map((b: { callbackData: string }) => b.callbackData)).toEqual(['p:setup']);
+  });
+
+  it('walks a brand-new account through setup from step one', async () => {
+    const { service, bot, resumes, profiles, ctx } = setup();
+    resumes.getActive.mockResolvedValue(null);
+    profiles.get.mockResolvedValue(null);
+
+    await service.showSetup(ctx);
+
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('1. ⬜ Резюме: пришли его сюда файлом PDF');
+    expect(text).toContain('2. ⬜ Профиль: появится после резюме');
+    const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
+    expect(data).toEqual(['p:res', 's:menu', 's:open:fmt', 's:open:sal', 's:open:ms', 's:open:tz']);
+  });
+
+  it('ticks the done steps and offers the first send once the profile is confirmed', async () => {
+    const { service, bot, profiles } = setup();
+    profiles.get.mockResolvedValue({ ...storedProfile, confirmedAt: new Date() });
+
+    await expect(service.onCallback(press(['p', 'setup']))).resolves.toEqual({});
+
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('1. ✅ Резюме: cv.pdf');
+    expect(text).toContain('2. ✅ Профиль подтверждён');
+    const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
+    expect(data).toContain('p:card');
+    expect(data.at(-1)).toBe('d:n');
   });
 });
