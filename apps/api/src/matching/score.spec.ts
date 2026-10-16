@@ -7,6 +7,7 @@ import {
   explainScore,
   FAR_GRADE_CAP,
   FEEDBACK_MAX_POINTS,
+  matchesLocation,
   passesPreferences,
   roleFamily,
   type ScoringProfile,
@@ -231,7 +232,7 @@ describe('applyFeedback', () => {
 });
 
 describe('passesPreferences', () => {
-  const none = { workFormats: [], employmentTypes: [], minSalaryUsd: null };
+  const none = { workFormats: [], employmentTypes: [], minSalaryUsd: null, locations: [] };
   const posting = {
     workFormat: 'onsite' as const,
     employmentType: 'full_time' as const,
@@ -257,5 +258,27 @@ describe('passesPreferences', () => {
     expect(passesPreferences(prefs, { ...posting, salaryMax: 60000, salaryCurrency: 'USD' })).toBe(true);
     expect(passesPreferences(prefs, { ...posting, salaryMax: 36000, salaryCurrency: 'USD' })).toBe(false);
     expect(passesPreferences(prefs, { ...posting, salaryMax: 1000, salaryCurrency: 'EUR' })).toBe(true);
+  });
+
+  it('keeps on-site postings in a wanted place, in either spelling', () => {
+    const prefs = { ...none, locations: ['Минск', 'Poland'] };
+    expect(passesPreferences(prefs, { ...posting, location: 'Minsk, Belarus' })).toBe(true);
+    expect(passesPreferences(prefs, { ...posting, location: 'Варшава, Польша' })).toBe(true);
+    expect(passesPreferences(prefs, { ...posting, location: 'Berlin, Germany' })).toBe(false);
+  });
+
+  it('lets remote postings and unknown locations through the location filter', () => {
+    const prefs = { ...none, locations: ['Минск'] };
+    expect(passesPreferences(prefs, { ...posting, workFormat: 'remote', location: 'USA only' })).toBe(true);
+    expect(passesPreferences(prefs, { ...posting, location: null })).toBe(true);
+    expect(passesPreferences(prefs, { ...posting, location: '  ' })).toBe(true);
+  });
+});
+
+describe('matchesLocation', () => {
+  it('matches whole words only', () => {
+    expect(matchesLocation(['Riga'], { location: 'Rigaer Strasse, Berlin', workFormat: 'onsite' })).toBe(false);
+    expect(matchesLocation(['riga'], { location: 'Riga, Latvia', workFormat: 'hybrid' })).toBe(true);
+    expect(matchesLocation(['Лиссабон'], { location: 'Лиссабон', workFormat: null })).toBe(true);
   });
 });

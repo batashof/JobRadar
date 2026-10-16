@@ -2,6 +2,14 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-16 — Vacancy card redesign and location filter (v2.5.0)
+
+- Developer asked for the date beside the company, numeric date and time, the source on the Apply button, icons instead of "matched / related / missing" on separate rows, location and format on their own lines, some colour, and a location filter (the search is not remote-only).
+- `digest/render.ts`: new `renderHead` (icon rows; Telegram has no right alignment or coloured text, so the date follows the company after a separator and 🟢/🟡/🟠 dots carry the colour), `formatDate` as `dd.mm.yyyy, HH:mm` in the user's timezone, `applyLabel` ("Откликнуться через DOU"). `ScoredCandidate.fit` carries the formula's matched/related/missing/grade; the note stays as a fallback.
+- `matching/score.ts`: `matchesLocation` with a small ru/en alias table; `passesPreferences` applies it (remote and unknown locations pass). `digest_settings.locations` (migration `0024_location_filter`). `/filters` gets a 📍 Location screen (`s:loc:<i>`, `s:loc:clear`, typed `loc`).
+- The format filter (remote / hybrid / office) already existed in `/filters`.
+- **Next step:** apply the migration with `DB (prod)` → `migrate` right after the merge.
+
 ## 2026-10-16 — /filters split from /settings (v2.4.0)
 
 - Developer: "settings inside settings" in the menu is confusing; wants Settings and Filters apart, with the filters filled from the resume and editable by hand.

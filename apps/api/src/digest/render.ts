@@ -1,7 +1,7 @@
 import { BOT_CALLBACK_NAMESPACES, type Language } from '@jobradar/shared';
 
 import { escapeHtml, type InlineKeyboard } from '../bot/telegram-api';
-import type { ScoredCandidate } from './select';
+import type { CardFit, ScoredCandidate } from './select';
 
 /** Message text and keyboards for the digest, kept pure and testable. */
 
@@ -48,9 +48,12 @@ const TEXT = {
     instantHeaderOne: 'New: one vacancy for you',
     empty: 'Nothing worth your attention today.',
     searching: 'Looking for vacancies…',
-    nothingNew: 'Nothing new above your minimum fit. Lower it in /settings to see more.',
+    nothingNew: 'Nothing new above your minimum fit. Lower it in /filters to see more.',
     noProfile: 'Nothing to match on yet: send your resume as a PDF and confirm the profile.',
     apply: 'Apply',
+    applyVia: 'Apply via {source}',
+    companySite: 'the company site',
+    grade: 'Grade',
     markApplied: '✅ Applied',
     inApplications: '✅ In applications',
     addedToApplications: 'Added to your applications — /applications',
@@ -61,7 +64,6 @@ const TEXT = {
     liked: 'Noted: more like this.',
     disliked: 'Noted: fewer like this.',
     fit: 'fit',
-    published: 'published',
     contact: 'Contact',
     continued: 'continued',
     truncated: 'The posting goes on — the full text is behind "Details".',
@@ -79,9 +81,12 @@ const TEXT = {
     instantHeaderOne: 'Свежее: одна вакансия для тебя',
     empty: 'Сегодня ничего стоящего.',
     searching: 'Ищу вакансии…',
-    nothingNew: 'Ничего нового выше твоего минимального соответствия. Понизить его можно в /settings.',
+    nothingNew: 'Ничего нового выше твоего минимального соответствия. Понизить его можно в /filters.',
     noProfile: 'Пока не с чем сравнивать: пришли резюме файлом PDF и подтверди профиль.',
     apply: 'Откликнуться',
+    applyVia: 'Откликнуться через {source}',
+    companySite: 'сайт компании',
+    grade: 'Грейд',
     markApplied: '✅ Откликнулся',
     inApplications: '✅ В откликах',
     addedToApplications: 'Добавлено в отклики — /applications',
@@ -92,7 +97,6 @@ const TEXT = {
     liked: 'Принято: больше такого.',
     disliked: 'Принято: меньше такого.',
     fit: 'соответствие',
-    published: 'опубликовано',
     contact: 'Контакт',
     continued: 'продолжение',
     truncated: 'Описание длиннее — полный текст по кнопке «Подробнее».',
@@ -190,12 +194,12 @@ export function renderCardParts(
  * the callback button.
  */
 export function renderKeyboard(
-  item: Pick<ScoredCandidate, 'id' | 'url'>,
+  item: Pick<ScoredCandidate, 'id' | 'url'> & { sourceSlug?: string | null },
   lang: Language,
   applied = false,
 ): InlineKeyboard {
   const row: InlineKeyboard[number] = [];
-  if (item.url) row.push({ text: digestText(lang, 'apply'), url: item.url });
+  if (item.url) row.push({ text: applyLabel(item.sourceSlug ?? null, lang), url: item.url });
   row.push({
     text: digestText(lang, applied ? 'inApplications' : 'markApplied'),
     callbackData: `${BOT_CALLBACK_NAMESPACES.digest}:${DIGEST_ACTION.applied}:${item.id}`,
@@ -204,45 +208,107 @@ export function renderKeyboard(
 }
 
 /**
- * Everything about the vacancy except its text: the headline, the two fact
- * lines, how to reach the company, and the model's verdict. Fields are cut to
- * lengths that keep the head comfortably inside one message whatever a scraped
- * posting puts in them.
+ * Board names for the Apply button ("Apply via DOU"), by source slug. A slug
+ * not listed is shown capitalised; `ats` covers the companies' own career
+ * sites (Greenhouse, Lever, SmartRecruiters…), so it reads as "the company site".
+ */
+const SOURCE_NAMES: Record<string, string> = {
+  dou: 'DOU',
+  djinni: 'Djinni',
+  linkedin: 'LinkedIn',
+  remoteok: 'RemoteOK',
+  remotive: 'Remotive',
+  weworkremotely: 'We Work Remotely',
+  himalayas: 'Himalayas',
+  jobicy: 'Jobicy',
+  hn: 'Hacker News',
+  telegram: 'Telegram',
+  hh: 'hh.ru',
+};
+
+export function applyLabel(sourceSlug: string | null, lang: Language): string {
+  if (!sourceSlug) return digestText(lang, 'apply');
+  const name =
+    sourceSlug === 'ats'
+      ? digestText(lang, 'companySite')
+      : (SOURCE_NAMES[sourceSlug] ?? sourceSlug[0]!.toUpperCase() + sourceSlug.slice(1));
+  return digestText(lang, 'applyVia').replace('{source}', name);
+}
+
+const FORMAT_ICON = { remote: '🌍', hybrid: '🔀', onsite: '🏙' } as const;
+const GRADE_ICON: Record<CardFit['grade'], string> = {
+  match: '✅',
+  above: '⬆️',
+  below: '⬇️',
+  far: '❌',
+  unknown: '',
+};
+
+/** 🟢 / 🟡 / 🟠 by fit: Telegram has no coloured text, so the dot carries the colour. */
+function fitDot(score: number): string {
+  if (score >= 80) return '🟢';
+  if (score >= 60) return '🟡';
+  return '🟠';
+}
+
+/**
+ * Everything about the vacancy except its text (v2.5.0 layout): the title;
+ * the company with the publication date and time; the location; the format
+ * and employment; salary and grade; the fit with what matched (✅), what is
+ * adjacent (🟡) and what is missing (❌), each on its own row; the contact.
+ * Telegram cannot align text right or colour it, so the date follows the
+ * company after a separator and emoji carry the colour. Fields are cut to
+ * lengths that keep the head inside one message whatever a posting holds.
  */
 function renderHead(item: ScoredCandidate, lang: Language, timezone: string): string {
-  const lines = [
-    `<b>${escapeHtml(cut(item.title, 150))}</b>`,
-    escapeHtml(cut(item.company, 80)),
-  ];
+  const lines = [`💼 <b>${escapeHtml(cut(item.title, 150))}</b>`];
 
-  const facts = [
-    `${item.score}% ${digestText(lang, 'fit')}`,
-    salary(item),
-    item.location ? cut(item.location, 80) : null,
-    item.seniority,
-  ].filter((value): value is string => Boolean(value));
-  lines.push(facts.map(escapeHtml).join(' · '));
+  const date = item.publishedAt ? `🗓 ${formatDate(item.publishedAt, timezone)}` : null;
+  lines.push([`🏢 ${escapeHtml(cut(item.company, 80))}`, date].filter(Boolean).join('  ·  '));
 
-  const meta = [
-    item.workFormat ? digestText(lang, `format.${item.workFormat}`) : null,
-    item.employmentType ? digestText(lang, `employment.${item.employmentType}`) : null,
-    item.publishedAt
-      ? `${digestText(lang, 'published')} ${formatDate(item.publishedAt, lang, timezone)}`
-      : null,
-    item.sourceSlug,
+  if (item.location?.trim()) lines.push(`📍 ${escapeHtml(cut(item.location.trim(), 80))}`);
+
+  const kind = [
+    item.workFormat ? `${FORMAT_ICON[item.workFormat]} ${digestText(lang, `format.${item.workFormat}`)}` : null,
+    item.employmentType ? `⏱ ${digestText(lang, `employment.${item.employmentType}`)}` : null,
   ].filter((value): value is string => Boolean(value));
-  if (meta.length > 0) lines.push(meta.map(escapeHtml).join(' · '));
+  if (kind.length > 0) lines.push(escapeHtml(kind.join('  ·  ')));
+
+  const pay = salary(item);
+  const grade = item.seniority
+    ? `🎚 ${capitalise(item.seniority)}${item.fit && GRADE_ICON[item.fit.grade] ? ` ${GRADE_ICON[item.fit.grade]}` : ''}`
+    : null;
+  const money = [pay ? `💰 ${pay}` : null, grade].filter((value): value is string => Boolean(value));
+  if (money.length > 0) lines.push(escapeHtml(money.join('  ·  ')));
+
+  lines.push('', `${fitDot(item.score)} <b>${item.score}%</b> ${escapeHtml(digestText(lang, 'fit'))}`);
+  if (item.fit) {
+    const row = (icon: string, names: string[]) =>
+      names.length > 0 ? `${icon} ${escapeHtml(names.join(', '))}` : null;
+    lines.push(
+      ...[
+        row('✅', item.fit.matched.slice(0, 6)),
+        row('🟡', item.fit.related.slice(0, 4)),
+        row('❌', item.fit.missing),
+      ].filter((value): value is string => Boolean(value)),
+    );
+  } else if (item.note) {
+    lines.push(`<i>${escapeHtml(item.note)}</i>`);
+  }
 
   // ADR-011 pulls the application contact out of the description; surfacing it
   // here saves reading for the one line that says where to write.
   if (item.applyContact?.value) {
     lines.push(
-      `${escapeHtml(digestText(lang, 'contact'))}: ${escapeHtml(cut(item.applyContact.value, 120))}`,
+      '',
+      `📨 ${escapeHtml(digestText(lang, 'contact'))}: ${escapeHtml(cut(item.applyContact.value, 120))}`,
     );
   }
-
-  if (item.note) lines.push('', `<i>${escapeHtml(item.note)}</i>`);
   return lines.join('\n');
+}
+
+function capitalise(text: string): string {
+  return text ? text[0]!.toUpperCase() + text.slice(1) : text;
 }
 
 /**
@@ -296,21 +362,28 @@ function lastBreak(text: string): number | null {
   return null;
 }
 
-function formatDate(date: Date, lang: Language, timezone: string): string {
-  const options: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: timezone,
+/** "16.10.2026, 14:30" in the user's timezone: digits only, the same in both languages. */
+function formatDate(date: Date, timezone: string): string {
+  const parts = (zone: string) => {
+    const values: Record<string, string> = {};
+    for (const part of new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: zone,
+    }).formatToParts(date)) {
+      values[part.type] = part.value;
+    }
+    return `${values.day}.${values.month}.${values.year}, ${values.hour}:${values.minute}`;
   };
   try {
-    return new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-GB', options).format(date);
+    return parts(timezone);
   } catch {
     // A stored timezone Intl does not know must not cost the whole card.
-    return new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-GB', {
-      ...options,
-      timeZone: 'UTC',
-    }).format(date);
+    return parts('UTC');
   }
 }
 

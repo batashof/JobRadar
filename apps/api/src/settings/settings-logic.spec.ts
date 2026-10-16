@@ -3,6 +3,7 @@ import {
   decide,
   normalizeTimezone,
   parseTyped,
+  LOCATIONS_MAX,
   renderScreen,
   SCREENS,
   type SettingsState,
@@ -22,6 +23,7 @@ const state = (over: Partial<SettingsState> = {}): SettingsState => ({
   employmentTypes: [],
   minSalaryUsd: null,
   mutedSources: [],
+  locations: [],
   timezone: 'Europe/Moscow',
   language: 'ru',
   profile: null,
@@ -93,6 +95,14 @@ describe('decide', () => {
     expect(decide(state(), ['s', 'type', 'sk'], SLUGS)).toEqual({ screen: 'flt' });
   });
 
+  it('removes one wanted place, or all of them', () => {
+    const s = state({ locations: ['Минск', 'Польша', 'Тбилиси'] });
+    expect(decide(s, ['s', 'loc', '1'], SLUGS)).toEqual({ patch: { locations: ['Минск', 'Тбилиси'] }, screen: 'loc' });
+    expect(decide(s, ['s', 'loc', 'clear'], SLUGS)).toEqual({ patch: { locations: [] }, screen: 'loc' });
+    expect(decide(s, ['s', 'loc', '7'], SLUGS)).toEqual({ screen: 'loc' });
+    expect(decide(s, ['s', 'type', 'loc'], SLUGS)).toEqual({ screen: 'loc', typeStep: 'loc' });
+  });
+
   it('sets the floor of the mode in use', () => {
     expect(decide(state(), ['s', 'ms', '80'], SLUGS).patch).toEqual({ instantMinScore: 80 });
     expect(decide(state({ mode: 'scheduled' }), ['s', 'ms', '50'], SLUGS).patch).toEqual({ minScore: 50 });
@@ -144,6 +154,15 @@ describe('parseTyped', () => {
     expect(normalizeTimezone('')).toBeNull();
   });
 
+  it('adds typed places to the list, without duplicates and up to the cap', () => {
+    expect(parseTyped('loc', 'MINSK, Poland;  Tbilisi ', { locations: ['minsk'] })).toEqual({
+      locations: ['minsk', 'Poland', 'Tbilisi'],
+    });
+    expect(parseTyped('loc', ' , ;')).toBeNull();
+    const many = Array.from({ length: 12 }, (_, i) => `City${i}`).join(', ');
+    expect(parseTyped('loc', many)?.locations).toHaveLength(LOCATIONS_MAX);
+  });
+
   it('reads a salary and rejects nonsense', () => {
     expect(parseTyped('sal', '$3 000')).toEqual({ minSalaryUsd: 3000 });
     expect(parseTyped('sal', '0')).toEqual({ minSalaryUsd: null });
@@ -185,15 +204,31 @@ describe('renderScreen', () => {
     expect(text).toContain('Навыки: React, TypeScript, GraphQL');
     expect(text).toContain('Минимальное совпадение: 75%');
     expect(text).toContain('Формат: Удалённо');
+    expect(text).toContain('Локация: любая');
     expect(text).toContain('$3000/мес');
     expect(text).toContain('Выключенные источники: hh');
     expect(text).not.toContain('не подтверждён');
     expect(data(keyboard)).toEqual(
       expect.arrayContaining([
         's:open:role', 's:open:grade', 's:type:sk', 's:open:ms', 's:open:fmt', 's:open:emp', 's:open:sal',
-        's:open:src', 's:menu',
+        's:open:src', 's:open:loc', 's:menu',
       ]),
     );
+  });
+
+  it('lists the wanted places as buttons that remove them', () => {
+    const { text, keyboard } = renderScreen('loc', state({ locations: ['Минск', 'Польша'] }), SLUGS);
+    expect(text).toContain('Удалённые');
+    expect(keyboard[0]).toEqual([
+      { text: '✖️ Минск', callbackData: 's:loc:0' },
+      { text: '✖️ Польша', callbackData: 's:loc:1' },
+    ]);
+    expect(data(keyboard)).toEqual(expect.arrayContaining(['s:type:loc', 's:loc:clear', 's:open:flt']));
+    expect(renderScreen('flt', state({ locations: ['Минск', 'Польша'] }), SLUGS).text).toContain(
+      'Локация: Минск, Польша',
+    );
+    // Nothing to clear on an empty list.
+    expect(data(renderScreen('loc', state(), SLUGS).keyboard)).not.toContain('s:loc:clear');
   });
 
   it('asks for the resume on the filters screen when there is no profile yet', () => {
@@ -209,7 +244,7 @@ describe('renderScreen', () => {
   });
 
   it('leads back from a filter screen to the filters, from a delivery screen to the settings', () => {
-    for (const screen of ['fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade'] as const) {
+    for (const screen of ['fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc'] as const) {
       expect(renderScreen(screen, state({ profile: PROFILE }), SLUGS).keyboard.at(-1)).toEqual([
         { text: '← Назад', callbackData: 's:open:flt' },
       ]);
@@ -219,6 +254,7 @@ describe('renderScreen', () => {
     }
     expect(data(renderScreen('flt', state(), SLUGS, 'sk').keyboard)).toEqual(['s:open:flt']);
     expect(data(renderScreen('sal', state(), SLUGS, 'sal').keyboard)).toEqual(['s:open:flt']);
+    expect(data(renderScreen('loc', state(), SLUGS, 'loc').keyboard)).toEqual(['s:open:loc']);
   });
 
   it('marks the current role and grade in their pickers', () => {

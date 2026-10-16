@@ -1,0 +1,1 @@
+ALTER TABLE "digest_settings" ADD COLUMN "locations" text[] DEFAULT '{}'::text[] NOT NULL;
