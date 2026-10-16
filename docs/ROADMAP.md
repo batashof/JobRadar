@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); next: 5.7 bot UX polish.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -175,13 +175,13 @@ The developer asked on 2026-10-16 to keep the website for now and release everyt
 
 **Exit criterion:** a stranger goes from `/start` to the first matching vacancy in 3 minutes without a website; 10 testers use it. Release 2.0.0.
 
-### 5.7 Bot UX polish (v2.0.x, after 2.0.0)
+### 5.7 Bot UX polish (v2.0.1) ✅
 
 The developer's notes of 2026-10-15, to do once the current plan is done:
 
-- [ ] **Every command in the bot menu.** Register the command list with `setMyCommands` (per language, `ru` and `en`) so `/start`, `/settings`, `/help`, `/privacy` and the rest show in Telegram's menu button; today none are registered. A test keeps the menu in sync with the commands `BotService.registerCommand` knows.
-- [ ] **Bigger `/settings` buttons with icons.** Telegram draws inline buttons as wide as their row, so the fix is fewer buttons per row (one or two instead of three) with an emoji icon per action (🕒 times, 🌍 timezone, 🔕 quiet hours, 💼 format, 💰 salary, 📡 sources, 🌐 language, ⏸ pause) and labels that fit without being cut.
-- [ ] **Button texts say what they do.** The language button shows the other language's name ("English" / "Русский") instead of "🌐 Язык: Русский" / "🌐 Language: English"; review every button of the bot for the same mistake (a value where the setting's name should be).
+- [x] **Every command in the bot menu.** Register the command list with `setMyCommands` (per language, `ru` and `en`) so `/start`, `/settings`, `/help`, `/privacy` and the rest show in Telegram's menu button; today none are registered. A test keeps the menu in sync with the commands `BotService.registerCommand` knows. *(v2.0.1: published on every start; the owner's chat also lists /interview, /plan, /gmail)*
+- [x] **Bigger `/settings` buttons with icons.** Telegram draws inline buttons as wide as their row, so the fix is fewer buttons per row (one or two instead of three) with an emoji icon per action (🕒 times, 🌍 timezone, 🔕 quiet hours, 💼 format, 💰 salary, 📡 sources, 🌐 language, ⏸ pause) and labels that fit without being cut. *(v2.0.1: two per row on the main menu and the sources screen)*
+- [x] **Button texts say what they do.** The language button showed the other language's name ("English" / "Русский"); it now names the setting and its value, "🌐 Язык: Русский" / "🌐 Language: English", and the delivery-mode button reads "📬 Доставка: сразу". Reviewed the other buttons: the profile card's edit buttons get ✏️ ("✏️ Роль"); the rest already name an action.
 
 **Exit criterion:** every command is reachable from the menu, and no `/settings` button text is cut or ambiguous on a phone.
 

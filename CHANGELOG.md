@@ -9,6 +9,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.0.1] — 2026-10-16
+
+### Changed
+
+- **Every command in Telegram's menu button** (roadmap 5.7): the bot sets its command list on each start, in English and Russian, and the owner's chat also lists /interview, /plan and /gmail. A test fails when a command the bot answers is missing from the menu.
+- **`/settings` buttons**: two per row instead of three, each with an icon, so the labels are not cut on a phone. The language button names the setting ("🌐 Язык: Русский") instead of showing the other language, and the delivery-mode button shows the current mode. The sources screen is two per row too.
+- The profile card's edit buttons start with ✏️.
+
 ## [2.0.0] — 2026-10-16
 
 JobRadar is a Telegram bot for job seekers (ADR-024, ADR-025): `/start` creates the account, a PDF resume is evaluated once by a free LLM, vacancies from Telegram channels, DOU, Djinni, remote boards and company career pages are scored by a formula and delivered to the chat, every setting lives in `/settings`, applications are tracked in `/applications`. The website stays online as the author's private cabinet (ADR-028).

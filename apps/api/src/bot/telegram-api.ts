@@ -163,6 +163,21 @@ export class TelegramApi {
     });
   }
 
+  /**
+   * Sets the command list behind the client's menu button. `chatId` scopes it
+   * to one chat; `languageCode` to users whose client has that language.
+   */
+  async setMyCommands(
+    commands: { command: string; description: string }[],
+    options: { chatId?: string; languageCode?: string } = {},
+  ): Promise<void> {
+    await this.call('setMyCommands', {
+      commands,
+      scope: options.chatId ? { type: 'chat', chat_id: options.chatId } : undefined,
+      language_code: options.languageCode,
+    });
+  }
+
   private async call<T>(method: string, body: Record<string, unknown>): Promise<T> {
     let response: Response;
     try {

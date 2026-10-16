@@ -143,7 +143,18 @@ describe('renderScreen', () => {
     );
     expect(text).toContain('Delivery: at 09:00, 18:00');
     expect(text).toContain('Status: paused');
-    expect(keyboard.flat().some((b) => b.text === 'Resume')).toBe(true);
+    expect(keyboard.flat().some((b) => b.text === '▶️ Resume')).toBe(true);
+    // Buttons name the setting and show its current value.
+    expect(keyboard.flat().find((b) => b.callbackData === 's:lang')?.text).toBe('🌐 Language: English');
+    expect(keyboard.flat().find((b) => b.callbackData === 's:mode')?.text).toBe('📬 Delivery: scheduled');
+  });
+
+  it('lays the main menu out two buttons per row, each with an icon', () => {
+    const { keyboard } = renderScreen('main', state(), SLUGS);
+    expect(keyboard.every((row) => row.length <= 2)).toBe(true);
+    for (const b of keyboard.flat()) expect(b.text).toMatch(/^\p{Extended_Pictographic}/u);
+    expect(keyboard.flat().find((b) => b.callbackData === 's:lang')?.text).toBe('🌐 Язык: Русский');
+    expect(keyboard.flat().find((b) => b.callbackData === 's:mode')?.text).toBe('📬 Доставка: сразу');
   });
 
   it('marks the selected options and keeps every callback within 64 bytes', () => {
