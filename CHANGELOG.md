@@ -9,6 +9,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.0.2] — 2026-10-16
+
+### Fixed
+
+- **The owner's instant pushes stopped overnight.** Every LLM scoring call was refused: thirty cards plus the resume asked Groq for 8100 tokens against its 8000-per-minute limit (HTTP 413), the next calls hit the same limit (HTTP 429) and Gemini was out of quota. The digest then fell back to the rules order, which scores far below the LLM, so nothing cleared the floor of 75 and each window was consumed unsent. Now one call scores 12 vacancies with a 1500-token reply budget, calls of one send are 30 seconds apart, and an instant push whose scoring fails keeps its window and retries on the next tick, for up to 6 hours, before falling back as before.
+
 ## [2.0.1] — 2026-10-16
 
 ### Changed
