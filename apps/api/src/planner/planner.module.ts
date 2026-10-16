@@ -7,6 +7,7 @@ import { CandidatesService } from './candidates.service';
 import { PlannerController } from './planner.controller';
 import { PlannerScheduler } from './planner.scheduler';
 import { PlannerService } from './planner.service';
+import { PlanBotService } from './plan-bot.service';
 import { PlannerBotService } from './planner-bot.service';
 import { PlannerTickService } from './planner-tick.service';
 
@@ -16,7 +17,8 @@ import { PlannerTickService } from './planner-tick.service';
  * fallback so the module works without an API key. `planner:tick` runs the
  * time-driven half on a plain in-process interval — no BullMQ/Redis (revised
  * ADR-015 §7), since the tick only touches Postgres and Redis polling was
- * burning the Upstash free-tier command budget.
+ * burning the Upstash free-tier command budget. `/plan` in the bot
+ * (`PlanBotService`, owner only) is the planner's chat surface (roadmap 5.5).
  */
 @Module({
   imports: [AuthModule, BotModule, LlmModule],
@@ -25,6 +27,7 @@ import { PlannerTickService } from './planner-tick.service';
     PlannerService,
     CandidatesService,
     PlannerBotService,
+    PlanBotService,
     PlannerTickService,
     PlannerScheduler,
   ],
