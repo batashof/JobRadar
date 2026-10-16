@@ -60,6 +60,8 @@ export const BOT_CALLBACK_NAMESPACES = {
   settings: 's',
   /** /applications: the job-application list, cards and follow-up reminders (roadmap 5.5). */
   applications: 'j',
+  /** /interview: topic plan, questions by topic, mock interview (roadmap 5.5, owner only). */
+  interview: 'i',
 } as const;
 
 /**
