@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product, v2.0.0 (ADR-024, ADR-025).** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); next: 5.7 bot UX polish.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -163,11 +163,14 @@ JobRadar opens to other job seekers, and the Telegram bot becomes the whole prod
 
 **Exit criterion:** nothing a job seeker or the author uses daily needs the website.
 
-### 5.6 Web app removal — release 2.0.0
+### 5.6 Release 2.0.0 (v2.0.0)
 
-- [ ] `apps/web` reduced to a static landing page (what the bot does, "Open in Telegram") and the privacy policy (ADR-024 §7).
-- [ ] Email + password auth, sessions, web proxy and web-only API endpoints removed where nothing else calls them.
-- [ ] README, PRODUCT, ARCHITECTURE describe the bot-only product; CI drops the web test suite that no longer exists.
+The developer asked on 2026-10-16 to keep the website for now and release everything else (ADR-028).
+
+- [x] Public privacy policy at `/privacy` on the existing site (en/ru); the bot's `/privacy` links to it. *(The landing page waits for the website's removal.)*
+- [x] Gmail connected from the bot: `/gmail` (owner) with the consent link and disconnect; Google's callback answers with a page pointing back to Telegram. The bot no longer links into the website ("Open in the app" buttons removed).
+- [x] README, PRODUCT, ARCHITECTURE describe the bot-only product.
+- [ ] *(Deferred, ADR-028)* `apps/web` reduced to a static landing page; email + password auth, sessions, web proxy and web-only API endpoints removed; CI drops the web suite. Needs the developer's word.
 - [ ] Find 10–20 testers (developers the author knows, IT chats in Telegram).
 
 **Exit criterion:** a stranger goes from `/start` to the first matching vacancy in 3 minutes without a website; 10 testers use it. Release 2.0.0.

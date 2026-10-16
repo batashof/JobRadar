@@ -176,11 +176,6 @@ export class GmailService {
     );
   }
 
-  /** Where to send the browser after the OAuth callback. */
-  webOrigin(): string {
-    return this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
-  }
-
   private assertConfigured(): void {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException(

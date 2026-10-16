@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   BOT_CALLBACK_NAMESPACES,
   type Language,
@@ -36,7 +35,6 @@ const TEXT = {
     evening: 'Time for the review — close the day.',
     escalation: 'Still waiting on you.',
     debt: 'You have debt from earlier days. It goes first.',
-    'btn.open': '🌐 Open',
     'btn.plan': '📋 Open plan',
     'btn.ack': '👌 Got it',
     'btn.start': '▶️ Start',
@@ -60,7 +58,6 @@ const TEXT = {
     evening: 'Время разбора — закрой день.',
     escalation: 'Всё ещё ждём тебя.',
     debt: 'Есть долг с прошлых дней. Он идёт первым.',
-    'btn.open': '🌐 Открыть',
     'btn.plan': '📋 Открыть план',
     'btn.ack': '👌 Понял',
     'btn.start': '▶️ Начать',
@@ -109,16 +106,12 @@ interface NudgeRow {
 @Injectable()
 export class PlannerBotService implements OnModuleInit {
   private readonly logger = new Logger(PlannerBotService.name);
-  private readonly webOrigin: string;
 
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly bot: BotService,
     private readonly planner: PlannerService,
-    config: ConfigService,
-  ) {
-    this.webOrigin = (config.get<string>('WEB_ORIGIN') ?? '').replace(/\/$/, '');
-  }
+  ) {}
 
   onModuleInit(): void {
     this.bot.registerCallback(NS, (ctx) => this.handleCallback(ctx));
@@ -178,9 +171,6 @@ export class PlannerBotService implements OnModuleInit {
   private keyboard(nudge: NudgeRow, language: Language): InlineKeyboard {
     // "Open plan" sends `/plan` as a new message, so the nudge keeps its buttons.
     const plan = { text: t(language, 'btn.plan'), callbackData: `${PLAN_NS}:m` };
-    const open = this.webOrigin
-      ? [{ text: t(language, 'btn.open'), url: `${this.webOrigin}/app/day` }]
-      : [];
 
     if (nudge.blockId && BLOCK_SCOPED.includes(nudge.kind)) {
       const actions =
@@ -193,11 +183,11 @@ export class PlannerBotService implements OnModuleInit {
               { text: t(language, 'btn.done'), callbackData: `${NS}:${ACTION.done}:${nudge.id}` },
               { text: t(language, 'btn.skip'), callbackData: `${NS}:${ACTION.skip}:${nudge.id}` },
             ];
-      return [actions, [plan, ...open]];
+      return [actions, [plan]];
     }
 
     const ack = { text: t(language, 'btn.ack'), callbackData: `${NS}:${ACTION.ack}:${nudge.id}` };
-    return open.length ? [[ack, plan], open] : [[ack, plan]];
+    return [[ack, plan]];
   }
 
   // -------------------------------------------------------------------------

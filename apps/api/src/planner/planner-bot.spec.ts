@@ -1,4 +1,3 @@
-import type { ConfigService } from '@nestjs/config';
 
 import type { BotCallbackContext } from '../bot/bot.service';
 import { planBlocks, plannerNudges, users } from '../db/schema';
@@ -22,7 +21,6 @@ function makeDb() {
   };
 }
 
-const config = (webOrigin?: string) => ({ get: () => webOrigin }) as unknown as ConfigService;
 
 const makeBot = (configured = true) => ({
   isConfigured: () => configured,
@@ -64,7 +62,7 @@ describe('PlannerBotService.deliver', () => {
   it('does nothing when the user has the channel off', async () => {
     const { db } = makeDb();
     const bot = makeBot();
-    const service = new PlannerBotService(db, bot as never, makePlanner() as never, config());
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await expect(service.deliver(nudge(), false)).resolves.toBeNull();
     expect(bot.sendToUser).not.toHaveBeenCalled();
@@ -73,22 +71,17 @@ describe('PlannerBotService.deliver', () => {
   it('does nothing when no bot token is configured', async () => {
     const { db } = makeDb();
     const bot = makeBot(false);
-    const service = new PlannerBotService(db, bot as never, makePlanner() as never, config());
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await expect(service.deliver(nudge(), true)).resolves.toBeNull();
     expect(bot.sendToUser).not.toHaveBeenCalled();
   });
 
-  it('sends a day-scoped nudge with an ack button and a link into the app', async () => {
+  it('sends a day-scoped nudge with an ack button and an Open plan button', async () => {
     const { db, queue } = makeDb();
     queue(users, [{ language: 'ru' }]);
     const bot = makeBot();
-    const service = new PlannerBotService(
-      db,
-      bot as never,
-      makePlanner() as never,
-      config('https://job-radar.test/'),
-    );
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await expect(service.deliver(nudge(), true)).resolves.toBe('4242');
 
@@ -99,8 +92,6 @@ describe('PlannerBotService.deliver', () => {
         { text: '👌 Понял', callbackData: 'n:a:nudge-1' },
         { text: '📋 Открыть план', callbackData: 'l:m' },
       ],
-      // Trailing slash on WEB_ORIGIN must not produce a double slash.
-      [{ text: '🌐 Открыть', url: 'https://job-radar.test/app/day' }],
     ]);
   });
 
@@ -109,7 +100,7 @@ describe('PlannerBotService.deliver', () => {
     queue(users, [{ language: 'ru' }]);
     queue(planBlocks, [{ title: 'Откликнуться: Acme', estimate: 45, actual: 0 }]);
     const bot = makeBot();
-    const service = new PlannerBotService(db, bot as never, makePlanner() as never, config());
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await service.deliver(nudge({ kind: 'block_start', blockId: 'block-1' }), true);
 
@@ -129,7 +120,7 @@ describe('PlannerBotService.deliver', () => {
     queue(users, [{ language: 'en' }]);
     queue(planBlocks, [{ title: 'Deep work', estimate: 30, actual: 55 }]);
     const bot = makeBot();
-    const service = new PlannerBotService(db, bot as never, makePlanner() as never, config());
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await service.deliver(nudge({ kind: 'midway', blockId: 'block-1' }), true);
 
@@ -142,7 +133,7 @@ describe('PlannerBotService.deliver', () => {
     const { db, queue } = makeDb();
     queue(users, [{ language: 'ru' }]);
     const bot = makeBot();
-    const service = new PlannerBotService(db, bot as never, makePlanner() as never, config());
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await service.deliver(nudge({ kind: 'escalation', repeatIndex: 1 }), true);
 
@@ -154,7 +145,7 @@ describe('PlannerBotService.deliver', () => {
     queue(users, [{ language: 'ru' }]);
     queue(planBlocks, [{ title: '<b>hack</b> & co', estimate: 30, actual: 0 }]);
     const bot = makeBot();
-    const service = new PlannerBotService(db, bot as never, makePlanner() as never, config());
+    const service = new PlannerBotService(db, bot as never, makePlanner() as never);
 
     await service.deliver(nudge({ kind: 'block_start', blockId: 'block-1' }), true);
 
@@ -170,7 +161,7 @@ describe('PlannerBotService buttons', () => {
   it('registers itself under the nudge namespace', () => {
     const { db } = makeDb();
     const bot = makeBot();
-    new PlannerBotService(db, bot as never, makePlanner() as never, config()).onModuleInit();
+    new PlannerBotService(db, bot as never, makePlanner() as never).onModuleInit();
     expect(bot.registerCallback).toHaveBeenCalledWith('n', expect.any(Function));
   });
 
@@ -180,7 +171,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 
@@ -201,7 +192,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 
@@ -216,7 +207,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 
@@ -235,7 +226,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 
@@ -254,7 +245,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 
@@ -270,7 +261,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 
@@ -285,7 +276,7 @@ describe('PlannerBotService buttons', () => {
     const bot = makeBot();
     const planner = makePlanner();
     const handler = register(
-      new PlannerBotService(db, bot as never, planner as never, config()),
+      new PlannerBotService(db, bot as never, planner as never),
       bot,
     );
 

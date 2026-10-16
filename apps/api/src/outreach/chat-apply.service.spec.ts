@@ -1,4 +1,3 @@
-import type { ConfigService } from '@nestjs/config';
 
 import type { BotCallbackContext, BotCallbackHandler } from '../bot/bot.service';
 import { applyDrafts, vacancies } from '../db/schema';
@@ -103,7 +102,6 @@ function build(
     bot as never,
     outreach as never,
     gmail as never,
-    { get: () => 'https://web.test' } as unknown as ConfigService,
   );
   service.onModuleInit();
   return bot.registerCallback.mock.calls[0][1] as BotCallbackHandler;
@@ -212,7 +210,6 @@ describe('ChatApplyService — drafting', () => {
     const [, text, options] = bot.sendToUser.mock.calls[0];
     expect(text).toContain('<pre>Здравствуйте!</pre>');
     expect(options.keyboard[0]).toEqual([
-      { text: 'Открыть в приложении', url: 'https://web.test/app/vacancies/vac-1' },
       { text: 'Открыть вакансию', url: 'https://acme.test/1' },
     ]);
   });

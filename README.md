@@ -1,39 +1,22 @@
 # JobRadar
 
-> Personal job-search service: a vacancy aggregator with a built-in application-tracking CRM.
+> A Telegram bot for job seekers: send a resume, get matching vacancies in the chat, track applications.
 
-**Status:** v1.0 released — in daily use by the author; next up: phase 4 apply assistant (ADR-011) · **Version:** 1.0.0 · see [CHANGELOG.md](CHANGELOG.md)
+**Status:** 2.0.0, the bot is the product · see [CHANGELOG.md](CHANGELOG.md)
 
-**Live:** [web](https://job-radar-web-phi.vercel.app) (Vercel) · [api /health](https://jobradar-api-ptvp.onrender.com/health) (Render, free tier — first hit after idle takes ~30–60 s)
+**Live:** [@JobRadarAppBot](https://t.me/JobRadarAppBot) · [privacy policy](https://job-radar-web-phi.vercel.app/privacy) · [api /health](https://jobradar-api-ptvp.onrender.com/health) (Render free tier: the first hit after idle takes ~30–60 s)
 
-## Screenshots
+## What it does
 
-**Vacancy feed** — aggregated from Telegram job channels, RemoteOK and WeWorkRemotely every 4 hours; full-text search, format/type filters, per-source filter with counts:
+1. **`/start` creates the account.** No email, no password: the chat is the login.
+2. **A PDF resume sent to the chat** is read once by a free LLM: the bot answers with an evaluation (strengths, gaps, what to add) and a candidate profile the user confirms with buttons.
+3. **Vacancies** are collected every 4 hours from Telegram IT channels (17 across stacks), DOU, Djinni, remote boards (RemoteOK, WeWorkRemotely, Remotive, Himalayas, Jobicy, Working Nomads, HN "Who is hiring"), hh.ru and company career pages (Greenhouse, Ashby, Lever, SmartRecruiters). Each user can forward their own LinkedIn job alerts to a personal address (`/linkedin`). See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+4. **Scoring is a formula** over the profile and the vacancy (no LLM per vacancy), with a one-line explanation on each card. Delivery is instant or on a schedule, with quiet hours, a minimum score and a cap.
+5. **`/settings`** holds every setting: work format, employment, salary, delivery, times, timezone, sources, language, pause.
+6. **`/applications`** tracks applications: "✅ Applied" on a card adds one, buttons move it through the stages, and the bot reminds you to follow up when a company stays silent.
+7. **`/privacy` and `/delete`**: what is stored, and removing the account with everything in it.
 
-![Vacancy feed](docs/screenshots/feed.png)
-
-**Matches** — vacancies scored against your search profiles (rules-based: hard filters + keyword/stack hits):
-
-![Matches](docs/screenshots/matches.png)
-
-**Application board** — drag-and-drop kanban with notes and follow-up reminders:
-
-![Application board](docs/screenshots/board.png)
-
-**Dashboard** — follow-ups due ("no answer for N days"):
-
-![Dashboard](docs/screenshots/dashboard.png)
-
-## What it is
-
-JobRadar combines two tightly coupled parts:
-
-1. **Aggregator** — background workers regularly collect vacancies from scraping-friendly sources (official APIs, RSS feeds, Telegram channels), filter them against the user's search profile, deduplicate them, and deliver a digest.
-2. **Application CRM** — a kanban board for managing the job-search funnel: saved vacancy → applied → screening → tech interview → offer. With per-company notes and follow-up reminders.
-
-Shipped in v1.0: email+password auth with server-side sessions, search profiles, ingestion from three sources (Telegram job channels via MTProto as primary, RemoteOK JSON, WeWorkRemotely RSS) on a 4-hour GitHub Actions cron, heuristic cross-source deduplication, Postgres FTS feed with filters, rules-based profile matching with an in-app Matches page, the kanban board with notes and reminders, and Sentry on both apps. The daily email digest is deferred until after v1.0 (matches are delivered in-app).
-
-Since then the delivery channel became **Telegram** rather than email: a bot ([@JobRadarAppBot](https://t.me/JobRadarAppBot)) linked to the account by a one-tap deep link, carrying day-planner nudges with inline buttons today and the daily resume-matched vacancy digest next. Schedule (up to four sends a day, up to ten vacancies each, with a fit threshold) is configured on the day surface.
+The author's account (`owner` role) also has the LLM-per-action tools: the LLM digest verdict, apply drafts with Gmail sending (`/gmail`), interview prep (`/interview`) and the day planner (`/plan`). The original Next.js web app stays online as the author's private cabinet (ADR-028); new features go only into the bot.
 
 ## Why it exists
 
@@ -49,13 +32,13 @@ The author is a frontend developer (React, 8 years) using this project as a path
 
 | Layer | Choice |
 |---|---|
-| Frontend | React + Next.js (App Router) on Vercel |
+| Client | Telegram bot (webhook into the API); Next.js on Vercel for the privacy page and the author's cabinet |
 | Backend | NestJS + TypeScript (separate service) on Render |
 | Database | PostgreSQL (Supabase free tier, ADR-019) + Postgres FTS |
 | ORM | Drizzle, with migrations (ADR-008) |
 | Queue / cache | Redis (Upstash free) + BullMQ |
 | Cron | GitHub Actions schedule → authenticated ingestion hook (ADR-006) |
-| Sources | Telegram MTProto (GramJS), RemoteOK JSON, WeWorkRemotely RSS |
+| Sources | Telegram MTProto (GramJS), RSS and public JSON APIs, IMAP for LinkedIn alerts |
 | Monitoring | Sentry free tier, both apps (ADR-010) |
 | CI/CD | GitHub Actions (lint + typecheck + tests) |
 
@@ -102,4 +85,4 @@ Monorepo layout: `apps/web` (Next.js), `apps/api` (NestJS), `packages/shared` (s
 
 - v1.0 is deployed and actually used by the author in a real job search.
 - The target full-stack experience is covered: auth, DB + migrations, queues, cron, email, deploy, CI/CD, monitoring.
-- The project works as a resume line: README with screenshots and a live link.
+- The project works as a resume line: a README and a live bot anyone can try.

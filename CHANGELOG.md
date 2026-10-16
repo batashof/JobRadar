@@ -5,11 +5,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
-- **Plan for 2.0.0: JobRadar becomes a Telegram-bot product for other job seekers** (ADR-024, ADR-025). Registration by `/start`, resume PDF in the chat with a one-time free-LLM evaluation, vacancies scored by a formula, every setting in the bot, new sources (DOU, Djinni, SmartRecruiters, Recruitee, Personio). The web app keeps running until the bot covers it, then shrinks to a static landing page in 2.0.0. Roadmap phase 5 lists the six steps.
-
 - Phase 4 remainder: browser extension, calendar sync.
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
+
+## [2.0.0] — 2026-10-16
+
+JobRadar is a Telegram bot for job seekers (ADR-024, ADR-025): `/start` creates the account, a PDF resume is evaluated once by a free LLM, vacancies from Telegram channels, DOU, Djinni, remote boards and company career pages are scored by a formula and delivered to the chat, every setting lives in `/settings`, applications are tracked in `/applications`. The website stays online as the author's private cabinet (ADR-028).
+
+### Added
+
+- `/gmail` (owner only): Gmail status, a consent link and a disconnect button. Google's OAuth callback answers with a small page pointing back to Telegram.
+- Public privacy policy at `/privacy` on the website (en/ru), linked from the bot's `/privacy` reply.
+
+### Changed
+
+- The bot no longer links into the website: the "Open in the app" buttons in the in-chat apply flow and on planner nudges are gone, and messages that sent the user to the app now name the bot command (`/gmail`) or say to try again.
+- README, PRODUCT and ARCHITECTURE describe the bot as the product.
+
+### Deferred
+
+- Removing the website (landing page only, no email + password auth, sessions or web proxy) is a later step that needs the developer's word (ADR-028).
 
 ## [1.30.1] — 2026-10-16
 
