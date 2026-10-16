@@ -209,16 +209,38 @@ describe("renderCardParts", () => {
 });
 
 describe("renderKeyboard", () => {
-  it("offers one button, Apply, linking the original posting", () => {
+  const applied = "d:a:11111111-2222-3333-4444-555555555555";
+
+  it("offers one row: Apply, linking the original posting, and ✅ Applied", () => {
     expect(renderKeyboard(item(), "ru")).toEqual([
-      [{ text: "Откликнуться", url: "https://acme.test/jobs/1" }],
+      [
+        { text: "Откликнуться", url: "https://acme.test/jobs/1" },
+        { text: "✅ Откликнулся", callbackData: applied },
+      ],
     ]);
     expect(renderKeyboard(item(), "en")).toEqual([
-      [{ text: "Apply", url: "https://acme.test/jobs/1" }],
+      [
+        { text: "Apply", url: "https://acme.test/jobs/1" },
+        { text: "✅ Applied", callbackData: applied },
+      ],
     ]);
   });
 
-  it("has no button when the posting has no link", () => {
-    expect(renderKeyboard(item({ url: "" }), "ru")).toEqual([]);
+  it("shows the state once the vacancy is in the applications", () => {
+    expect(renderKeyboard(item(), "en", true)[0]?.[1]).toEqual({
+      text: "✅ In applications",
+      callbackData: applied,
+    });
+    expect(renderKeyboard(item(), "ru", true)[0]?.[1]?.text).toBe("✅ В откликах");
+  });
+
+  it("keeps the ✅ button when the posting has no link", () => {
+    expect(renderKeyboard(item({ url: "" }), "ru")).toEqual([
+      [{ text: "✅ Откликнулся", callbackData: applied }],
+    ]);
+  });
+
+  it("fits Telegram's 64-byte callback limit", () => {
+    expect(Buffer.byteLength(applied)).toBeLessThanOrEqual(64);
   });
 });

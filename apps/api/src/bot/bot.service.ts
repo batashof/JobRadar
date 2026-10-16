@@ -68,7 +68,10 @@ export interface BotCallbackResult {
   alert?: string;
   /** Rewrites the message the button belongs to, e.g. to show the resolved state. */
   editText?: string;
-  /** `null` strips the buttons; omit to leave the existing keyboard alone. */
+  /**
+   * `null` strips the buttons; omit to leave the existing keyboard alone. Given
+   * without `editText`, only the buttons change and the text stays as sent.
+   */
   editKeyboard?: InlineKeyboard | null;
 }
 
@@ -654,6 +657,26 @@ export class BotService {
         disablePreview: true,
         keyboard: result.editKeyboard ?? [],
       });
+    } else if (result?.editKeyboard !== undefined) {
+      await this.editKeyboard(parsed.chatId, parsed.messageId, result.editKeyboard ?? []);
+    }
+  }
+
+  /** Swaps the buttons of a sent message; best-effort, like `editMessage`. */
+  private async editKeyboard(
+    chatId: string,
+    messageId: number,
+    keyboard: InlineKeyboard,
+  ): Promise<void> {
+    if (!this.api) return;
+    try {
+      await this.api.editMessageReplyMarkup(chatId, messageId, keyboard);
+    } catch (err) {
+      this.logger.warn(
+        `edit keyboard of message ${messageId} failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
   }
 

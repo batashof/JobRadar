@@ -107,6 +107,19 @@ export class TelegramApi {
     });
   }
 
+  /** Swaps only the buttons of a sent message, leaving its text as it is. */
+  async editMessageReplyMarkup(
+    chatId: string,
+    messageId: number,
+    keyboard: InlineKeyboard,
+  ): Promise<void> {
+    await this.call('editMessageReplyMarkup', {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: { inline_keyboard: toWire(keyboard) },
+    });
+  }
+
   /**
    * Downloads a file a user sent (a resume PDF). Two steps, as the Bot API
    * requires: `getFile` resolves the id to a path, then the bytes come from the
