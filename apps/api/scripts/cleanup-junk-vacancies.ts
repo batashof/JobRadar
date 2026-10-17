@@ -6,7 +6,7 @@
  * footers that were never vacancies.
  *
  * Telegram rows keep their raw post as the body; they are re-checked against
- * the current post gate (`isLikelyVacancy`) instead, which drops ads and
+ * the current post gate (`rejectReason`) instead, which drops ads and
  * chatter ingested before the gate learned to spot them. The dry run lists
  * the Telegram titles it would drop, to review the gate on real posts.
  *
@@ -21,7 +21,7 @@ import { config } from 'dotenv';
 import { eq, inArray } from 'drizzle-orm';
 
 import { cleanDescription, MIN_DESCRIPTION_LENGTH } from '../src/ingestion/description';
-import { isLikelyVacancy } from '../src/ingestion/telegram/telegram-normalize';
+import { promoMatch, rejectReason } from '../src/ingestion/telegram/telegram-normalize';
 import { openScriptDb } from '../src/db/prod-db';
 import { applications, outreachEmails, sources, vacancies } from '../src/db/schema';
 
@@ -54,15 +54,17 @@ async function main(): Promise<void> {
 
   const junkIds: string[] = [];
   const rewrites: Array<{ id: string; description: string }> = [];
-  const telegramJunk: Array<{ title: string; url: string }> = [];
+  const telegramJunk: Array<{ title: string; url: string; reason: string }> = [];
   let telegramScanned = 0;
 
   for (const row of rows) {
     if (telegram && row.sourceId === telegram.id) {
       telegramScanned += 1;
-      if (!isLikelyVacancy(row.description) && !protectedIds.has(row.id)) {
+      const reason = rejectReason(row.description);
+      if (reason && !protectedIds.has(row.id)) {
         junkIds.push(row.id);
-        telegramJunk.push({ title: row.title, url: row.url });
+        const detail = reason === 'promo' ? `promo "${promoMatch(row.description)}"` : reason;
+        telegramJunk.push({ title: row.title, url: row.url, reason: detail });
       }
       continue;
     }
@@ -79,7 +81,9 @@ async function main(): Promise<void> {
       `${junkIds.length} junk (${telegramJunk.length} Telegram), ` +
       `${rewrites.length} to re-clean${dryRun ? ' (dry run, nothing written)' : ''}.`,
   );
-  for (const { title, url } of telegramJunk) console.log(`  telegram junk: ${title.slice(0, 100)} — ${url}`);
+  for (const { title, url, reason } of telegramJunk) {
+    console.log(`  telegram junk [${reason}]: ${title.slice(0, 100)} — ${url}`);
+  }
   if (dryRun) {
     await close();
     return;

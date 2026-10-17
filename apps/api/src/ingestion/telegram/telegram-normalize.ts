@@ -80,45 +80,82 @@ export function isPromoPost(text: string): boolean {
 }
 
 /**
- * Positive signals. A vacancy names the role it hires for; channels also
- * carry chatter, announcements and native ads that pass the deny-lists, so a
- * post must name a role and either open with it or back it with a hiring
- * marker, a requirements/conditions section or a salary.
+ * Positive signals. A vacancy names the role it hires for or is laid out as
+ * one; channels also carry chatter, announcements and native ads that pass
+ * the deny-lists. A post passes when its first line names a role or says
+ * "vacancy", when it has two vacancy sections (requirements, conditions, …),
+ * or when it names a role anywhere and backs it with a hiring marker, a
+ * section or a salary. Russian, Ukrainian and English.
  */
 const ROLE_RE = new RegExp(
   [
-    String.raw`(?<![\p{L}])(?:разработчи|программист|инженер|тестировщи|аналитик|дизайнер|архитектор|тимлид|техлид|фронтенд|фронтендер|бэкенд|бекенд|бэкендер|фулл?стек|девопс|стаж[её]р|джун|мидл|сень[оё]р|синь[оё]р|менеджер|верстальщик|администратор|продакт|проджект|рекрутер|специалист)`,
-    String.raw`\b(?:developer|dev|engineer|programmer|tester|qa|aqa|sdet|devops|sre|designer|analyst|architect|lead|frontend|front-end|backend|back-end|full-?stack|fullstack|scientist|manager|intern|junior|middle|senior|principal|staff|cto|head\s+of|admin(?:istrator)?|recruiter|php|golang|python|java|android|ios|react|node(?:\.?js)?)\b`,
+    String.raw`(?<![\p{L}])(?:разработчи|розробни|программист|програміст|инженер|інженер|тестировщи|тестувальни|аналитик|аналітик|дизайнер|архитектор|архітектор|тимлид|техлид|лид(?![\p{L}])|фронтенд|бэкенд|бекенд|бекенд|фулл?стек|девопс|стаж[её]р|стажист|джун|мидл|сень[оё]р|синь[оё]р|менеджер|верстальщик|кодер|администратор|адміністратор|продакт|проджект|рекрутер|специалист|спеціаліст|руководител|керівни|директор|маркетолог|копирайтер|редактор|видеоредактор|креатор|бухгалтер|юрист|оператор|консультант|ассистент|асистент|сисадмин|ceo|cto|cpo|cmo|cco|hrbp)`,
+    String.raw`\b(?:developer|dev|engineer|programmer|coder|tester|qa|aqa|sdet|devops|sre|designer|analyst|architect|lead|frontend|front-end|backend|back-end|full-?stack|fullstack|scientist|manager|intern|junior|middle|senior|principal|staff|head\s+of|chief|director|vp|officer|executive|partner|specialist|generalist|consultant|coordinator|strategist|editor|writer|copywriter|journalist|reporter|producer|creator|scout|marketer|recruiter|admin(?:istrator)?|assistant|accountant|php|golang|python|java|android|ios|react|node(?:\.?js)?|c[eotpm]o|hrbp)\b`,
   ].join("|"),
   "iu",
 );
 
+const VACANCY_WORD_RE =
+  /(?<![\p{L}])ваканси[яюі]|ваканс[ії]я|\b(?:vacancy|hiring|we(?:'re|\s+are)\s+hiring)\b/iu;
+
 const HIRING_RE =
-  /#?(?<![\p{L}])(?:вакансия|ваканси[юи](?=\s*[:#\n])|ищем|ищу|требу[ею]тся|нужен|нужна|нужны|в\s+(?:нашу\s+|свою\s+)?команду|открыт\p{L}*\s+позици|позиция|заказ|тз(?![\p{L}]))|#(?:vacancy|job|hiring|вакансия)|\b(?:hiring|we(?:'re|\s+are)\s+looking|looking\s+for\s+an?|join\s+(?:our|the)\s+team|open\s+(?:position|role)|position|vacancy)\b/iu;
+  /(?<![\p{L}])(?:ищем|ищу|шукаємо|требу[ею]тся|потрібен|нужен|нужна|нужны|в\s+(?:нашу\s+|свою\s+)?команду|открыт\p{L}*\s+позици|позиция|должность|заказ|тз(?![\p{L}]))|#(?:vacancy|job|hiring|вакансия|вакансія)|\b(?:hiring|we(?:'re|\s+are)\s+looking|looking\s+for\s+an?|join\s+(?:our|the)\s+team|open\s+(?:position|role)|position|vacancy)\b/iu;
+
+/** Vacancy section headings; two distinct ones mark a vacancy on their own. */
+const SECTION_HEADING_RE =
+  /(?<![\p{L}])(требования|обязанности|задачи|условия|мы\s+предлагаем|что\s+(?:мы\s+)?предлагаем|ожидаем|будет\s+плюсом|вимоги|обов['’]язки|умови|пропонуємо)(?![\p{L}])|\b(requirements|responsibilities|qualifications|what\s+you['’]ll\s+do|about\s+the\s+role|we\s+offer|what\s+we\s+offer|benefits|nice\s+to\s+have)\b/giu;
 
 const SECTION_RE =
-  /(?<![\p{L}])(?:требования|обязанности|задачи|условия|предлагаем|ожидаем|стек|опыт\s+(?:работы|от|с\s)|зарплат|з\/?п(?![\p{L}])|оклад|вилка|бюджет|оплата|занятость|график|удал[её]н|офис|гибрид|релокац|формат\s+работы)|\b(?:requirements|responsibilities|qualifications|we\s+offer|what\s+we\s+offer|stack|experience|salary|compensation|full[\s-]?time|part[\s-]?time|remote|hybrid|on-?site|relocation|benefits)\b/iu;
+  /(?<![\p{L}])(?:стек|опыт\s+(?:работы|от|с\s)|зарплат|з\/?п(?![\p{L}])|оклад|вилка|бюджет|оплата|занятость|зайнятість|график|удал[её]н|віддален|офис|офіс|гибрид|гібрид|релокац|формат\s+работы)|\b(?:stack|experience|salary|compensation|full[\s-]?time|part[\s-]?time|remote|hybrid|on-?site|relocation)\b/iu;
 
-/** True when the post reads like a vacancy (role + hiring/section/salary). */
+function sectionHeadings(text: string): number {
+  const found = new Set<string>();
+  for (const m of text.matchAll(SECTION_HEADING_RE)) {
+    found.add((m[1] ?? m[2] ?? "").toLowerCase());
+  }
+  return found.size;
+}
+
+/** True when the post reads like a vacancy (see the rules above). */
 export function hasVacancySignals(text: string): boolean {
-  if (ROLE_RE.test(extractTitle(text))) return true;
+  const title = extractTitle(text);
+  if (ROLE_RE.test(title) || VACANCY_WORD_RE.test(title)) return true;
+  const sections = sectionHeadings(text);
+  if (sections >= 2) return true;
   if (!ROLE_RE.test(text)) return false;
   return (
+    sections > 0 ||
     HIRING_RE.test(text) ||
+    VACANCY_WORD_RE.test(text) ||
     SECTION_RE.test(text) ||
     extractSalary(text).salaryCurrency !== null
   );
 }
 
-export function isLikelyVacancy(text: string): boolean {
+export type RejectReason = "short" | "junk" | "resume" | "promo" | "no-signals";
+
+/** Why a post is not a vacancy, or null when it is one. */
+export function rejectReason(text: string): RejectReason | null {
   const trimmed = text.trim();
-  return (
-    trimmed.length >= MIN_VACANCY_LENGTH &&
-    !isJunkPost(trimmed) &&
-    !isResumePost(trimmed) &&
-    !isPromoPost(trimmed) &&
-    hasVacancySignals(trimmed)
-  );
+  if (trimmed.length < MIN_VACANCY_LENGTH) return "short";
+  if (isJunkPost(trimmed)) return "junk";
+  if (isResumePost(trimmed)) return "resume";
+  if (isPromoPost(trimmed)) return "promo";
+  if (!hasVacancySignals(trimmed)) return "no-signals";
+  return null;
+}
+
+export function isLikelyVacancy(text: string): boolean {
+  return rejectReason(text) === null;
+}
+
+/** The promo phrase a post matched, for reviewing the deny-list. */
+export function promoMatch(text: string): string | null {
+  for (const re of PROMO_PATTERNS) {
+    const m = re.exec(text);
+    if (m) return m[0];
+  }
+  return null;
 }
 
 /** First non-empty line, stripped of markdown/emoji decoration — the title. */
