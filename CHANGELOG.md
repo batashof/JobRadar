@@ -9,6 +9,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.5.1] — 2026-10-17
+
+### Changed
+
+- **"Apply via <board>" is one full-width button** on the vacancy card, so its label is no longer cut on a phone.
+
+### Removed
+
+- **The "✅ Applied" button** on new vacancy cards. Pressing it on cards already sent still adds the vacancy to `/applications` and leaves only the Apply link.
+
 ## [2.5.0] — 2026-10-16
 
 ### Added

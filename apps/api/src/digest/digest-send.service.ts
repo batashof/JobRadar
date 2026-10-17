@@ -494,7 +494,7 @@ export class DigestSendService implements OnModuleInit {
         messageId = await this.bot.sendToUser(user.userId, part, {
           parseMode: 'HTML',
           disablePreview: true,
-          keyboard: isLast ? renderKeyboard(item, language) : undefined,
+          keyboard: isLast && item.url ? renderKeyboard(item, language) : undefined,
         });
       }
       // Recorded even when the send failed: a vacancy the user already saw
@@ -827,12 +827,9 @@ export class DigestSendService implements OnModuleInit {
         const { item } = await this.applications.markApplied(ctx.userId, vacancyId);
         return {
           alert: digestText(ctx.language, 'addedToApplications'),
-          // Only the buttons change: the card text stays as it was sent.
-          editKeyboard: renderKeyboard(
-            { id: vacancyId, url: item.vacancy.url, sourceSlug: item.vacancy.source },
-            ctx.language,
-            true,
-          ),
+          // A card sent before v2.5.1 loses its "✅ Applied" button: the alert
+          // confirms the press, and the Apply link stays.
+          editKeyboard: renderKeyboard({ url: item.vacancy.url, sourceSlug: item.vacancy.source }, ctx.language),
         };
       }
       default:
