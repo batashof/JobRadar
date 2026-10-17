@@ -60,23 +60,46 @@ export function isResumePost(text: string): boolean {
 /**
  * Career-service and course promotion ("Сейчас найти работу - целый квест…",
  * "поможем получить оффер", "автоотклики"). Such posts talk about job search,
- * so they mention roles and remote work; only phrases a vacancy never uses.
+ * so they mention roles and remote work. Strong phrases drop a post outright;
+ * soft ones (webinars, promo codes, courses) also appear in real vacancies
+ * ("online school hires", "promo code for our product"), so they drop a post
+ * only when its first line names no role (checked on prod posts, 2026-10-17).
  */
-const PROMO_PATTERNS: RegExp[] = [
+const PROMO_STRONG: RegExp[] = [
   /помо(?:жем|жет|жешь|гу|гаем|гает)\s+(?:тебе\s+|вам\s+)?(?:быстрее\s+)?(?:найти|получить)\s+(?:работу|оффер)/iu,
-  /(?<![\p{L}\p{N}])(?:получи|получить|получишь)\s+(?:свой\s+|первый\s+|желанный\s+)?оффер/iu,
   /работ[ау]\s+мечты|целый\s+квест/iu,
   /автоотклик|(?:откликается|откликаться|откликнется)\s+за\s+(?:тебя|вас)/iu,
-  /(?:разбор|составлю|составим|прокачать|прокачаем|улучшить)\s+(?:твоего\s+|твоё\s+|ваше(?:го)?\s+)?резюме/iu,
-  /карьерн\p{L}*\s+(?:консульт|коуч|ментор|трек|сопровожд)/iu,
-  /личн\p{L}*\s+ментор|промокод|вебинар|интенсив|марафон/iu,
-  /онлайн-?\s?(?:школ|курс)|(?:наш\p{L}*|на)\s+курс[еаы]?(?![\p{L}])|обучени\p{L}*\s+с\s+нуля|с\s+нуля\s+до/iu,
-  /с\s+(?:гарантией\s+)?трудоустройств(?:ом|а)(?![\p{L}])/iu,
+  /обучени\p{L}*\s+с\s+нуля|с\s+нуля\s+до\s+(?:первой\s+)?(?:работы|оффера|трудоустройства|junior|джун)/iu,
 ];
+
+const PROMO_SOFT: RegExp[] = [
+  /(?<![\p{L}\p{N}])(?:получи|получить|получишь)\s+(?:свой\s+|первый\s+|желанный\s+)?оффер/iu,
+  /(?:разбор|составлю|составим|прокачать|прокачаем|улучшить)\s+(?:твоего\s+|твоё\s+|ваше(?:го)?\s+)?резюме/iu,
+  /карьерн\p{L}*\s+(?:консульт|коуч|сопровожд)/iu,
+  /личн\p{L}*\s+ментор|промокод|вебинар|марафон|интенсив(?:е|а|ом|ы)?(?![\p{L}])/iu,
+  /(?:наш\p{L}*|на)\s+курс[еаы]?(?![\p{L}])|с\s+(?:гарантией\s+)?трудоустройств(?:ом|а)(?![\p{L}])/iu,
+];
+
+function firstMatch(patterns: RegExp[], text: string): string | null {
+  for (const re of patterns) {
+    const m = re.exec(text);
+    if (m) return m[0];
+  }
+  return null;
+}
+
+/** The promo phrase that rejects a post, or null. */
+export function promoMatch(text: string): string | null {
+  const strong = firstMatch(PROMO_STRONG, text);
+  if (strong) return strong;
+  const title = extractTitle(text);
+  if (ROLE_RE.test(title) || VACANCY_WORD_RE.test(title)) return null;
+  return firstMatch(PROMO_SOFT, text);
+}
 
 /** True for ads of career services, courses and job-search tools. */
 export function isPromoPost(text: string): boolean {
-  return PROMO_PATTERNS.some((re) => re.test(text));
+  return promoMatch(text) !== null;
 }
 
 /**
@@ -89,8 +112,8 @@ export function isPromoPost(text: string): boolean {
  */
 const ROLE_RE = new RegExp(
   [
-    String.raw`(?<![\p{L}])(?:разработчи|розробни|программист|програміст|инженер|інженер|тестировщи|тестувальни|аналитик|аналітик|дизайнер|архитектор|архітектор|тимлид|техлид|лид(?![\p{L}])|фронтенд|бэкенд|бекенд|бекенд|фулл?стек|девопс|стаж[её]р|стажист|джун|мидл|сень[оё]р|синь[оё]р|менеджер|верстальщик|кодер|администратор|адміністратор|продакт|проджект|рекрутер|специалист|спеціаліст|руководител|керівни|директор|маркетолог|копирайтер|редактор|видеоредактор|креатор|бухгалтер|юрист|оператор|консультант|ассистент|асистент|сисадмин|ceo|cto|cpo|cmo|cco|hrbp)`,
-    String.raw`\b(?:developer|dev|engineer|programmer|coder|tester|qa|aqa|sdet|devops|sre|designer|analyst|architect|lead|frontend|front-end|backend|back-end|full-?stack|fullstack|scientist|manager|intern|junior|middle|senior|principal|staff|head\s+of|chief|director|vp|officer|executive|partner|specialist|generalist|consultant|coordinator|strategist|editor|writer|copywriter|journalist|reporter|producer|creator|scout|marketer|recruiter|admin(?:istrator)?|assistant|accountant|php|golang|python|java|android|ios|react|node(?:\.?js)?|c[eotpm]o|hrbp)\b`,
+    String.raw`(?<![\p{L}])(?:разработчи|розробни|программист|програміст|инженер|інженер|тестировщи|тестувальни|аналитик|аналітик|дизайнер|архитектор|архітектор|тимлид|техлид|лид(?![\p{L}])|фронтенд|бэкенд|бекенд|бекенд|фулл?стек|девопс|стаж[её]р|стажист|джун|мидл|сень[оё]р|синь[оё]р|менеджер|верстальщик|кодер|администратор|адміністратор|продакт|проджект|рекрутер|специалист|спеціаліст|руководител|керівни|директор|маркетолог|копирайтер|редактор|видеоредактор|креатор|бухгалтер|юрист|оператор|консультант|ассистент|асистент|сисадмин|интегратор|наставник|ментор|преподавател|викладач|ceo|cto|cpo|cmo|cco|hrbp)`,
+    String.raw`\b(?:developer|dev|engineer|programmer|coder|tester|qa|aqa|sdet|devops|sre|designer|analyst|architect|lead|frontend|front-end|backend|back-end|full-?stack|fullstack|scientist|manager|intern|junior|middle|senior|principal|staff|head\s+of|chief|director|vp|officer|executive|partner|specialist|generalist|consultant|coordinator|strategist|editor|writer|copywriter|journalist|reporter|producer|creator|scout|marketer|recruiter|admin(?:istrator)?|assistant|accountant|annotator|integrator|mentor|tutor|teacher|php|golang|python|java|android|ios|react|node(?:\.?js)?|c[eotpm]o|hrbp)\b`,
   ].join("|"),
   "iu",
 );
@@ -122,13 +145,14 @@ export function hasVacancySignals(text: string): boolean {
   if (ROLE_RE.test(title) || VACANCY_WORD_RE.test(title)) return true;
   const sections = sectionHeadings(text);
   if (sections >= 2) return true;
-  if (!ROLE_RE.test(text)) return false;
+  const salary = extractSalary(text).salaryCurrency !== null;
+  if (!ROLE_RE.test(text)) return salary && HIRING_RE.test(text);
   return (
     sections > 0 ||
     HIRING_RE.test(text) ||
     VACANCY_WORD_RE.test(text) ||
     SECTION_RE.test(text) ||
-    extractSalary(text).salaryCurrency !== null
+    salary
   );
 }
 
@@ -147,15 +171,6 @@ export function rejectReason(text: string): RejectReason | null {
 
 export function isLikelyVacancy(text: string): boolean {
   return rejectReason(text) === null;
-}
-
-/** The promo phrase a post matched, for reviewing the deny-list. */
-export function promoMatch(text: string): string | null {
-  for (const re of PROMO_PATTERNS) {
-    const m = re.exec(text);
-    if (m) return m[0];
-  }
-  return null;
 }
 
 /** First non-empty line, stripped of markdown/emoji decoration — the title. */

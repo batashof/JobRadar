@@ -165,6 +165,34 @@ describe("telegram-normalize", () => {
           "Remote, EU time zones. Send your CV to jobs@acme.dev",
       ),
     ).toBe(true);
+    // Real vacancies seen in prod that mention webinars, intensives, an
+    // online school or a career track: soft promo words, role in the title.
+    expect(
+      isLikelyVacancy(
+        "Junior Python-разработчик (FastAPI)\nОнлайн-школа программирования ищет " +
+          "разработчика. Будет плюсом опыт проведения вебинаров. Интенсивный рост.",
+      ),
+    ).toBe(true);
+    expect(
+      isLikelyVacancy(
+        "Должность: Инженер по тестированию (QA Engineer)\nКарьерный трек, " +
+          "интенсив по автотестам, промокод на подписку для сотрудников.",
+      ),
+    ).toBe(true);
+    // A freelance order with no role word: hiring marker plus a budget.
+    expect(
+      isLikelyVacancy(
+        "Разработка интернет-магазина на Bitrix.\nНужен исполнитель, бюджет " +
+          "от 80 000 ₽, срок месяц. Пишите @client с портфолио.",
+      ),
+    ).toBe(true);
+    // Non-engineering roles from the general channels.
+    expect(
+      isLikelyVacancy(
+        "Director of UX Design\nAcme is growing its design org across EMEA, " +
+          "fully distributed team.",
+      ),
+    ).toBe(true);
     // Benefits that mention training or discounts are not ads.
     expect(
       isLikelyVacancy(

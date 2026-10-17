@@ -63,7 +63,7 @@ async function main(): Promise<void> {
       const reason = rejectReason(row.description);
       if (reason && !protectedIds.has(row.id)) {
         junkIds.push(row.id);
-        const detail = reason === 'promo' ? `promo "${promoMatch(row.description)}"` : reason;
+        const detail = reason === 'promo' ? `promo ${JSON.stringify(promoMatch(row.description))}` : reason;
         telegramJunk.push({ title: row.title, url: row.url, reason: detail });
       }
       continue;
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
       `${rewrites.length} to re-clean${dryRun ? ' (dry run, nothing written)' : ''}.`,
   );
   for (const { title, url, reason } of telegramJunk) {
-    console.log(`  telegram junk [${reason}]: ${title.slice(0, 100)} — ${url}`);
+    console.log(`  telegram junk [${reason}]: ${title.slice(0, 100).replace(/\s+/g, ' ')} — ${url}`);
   }
   if (dryRun) {
     await close();
