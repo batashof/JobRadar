@@ -5,7 +5,7 @@
 ## 2026-10-17 — Telegram ads filtered out (v2.5.2)
 - Developer: a career-service ad ("Сейчас найти работу - целый квест…") from a job channel arrived as a vacancy. The Telegram gate was deny-list only, so any long post without "реклама" passed.
 - `telegram-normalize.ts`: `isPromoPost` (career-service and course phrases) and `hasVacancySignals` (role in the title, or role plus hiring marker / section / salary) join `isLikelyVacancy`. Cyrillic `\w` in the deny-list patterns replaced with `\p{L}` (JS `\w` is ASCII-only).
-- `cleanup:junk` now re-checks Telegram rows with the gate and prints the titles it would drop; dry run on prod used to check the gate on real posts.
+- `cleanup:junk` now re-checks Telegram rows with the gate and prints each title it would drop with the reason. Three prod dry runs tuned the rules: the first dropped vacancies for non-engineering roles (Director, Partner, Editor) and real vacancies mentioning a webinar, an online school or a career track; the final run drops 258 of 1,729 stored posts, all chatter, resumes and ads on review of the titles.
 - Next step: run `DB (prod)` → `cleanup:junk` without dry run after the merge to remove stored ads.
 
 ## 2026-10-17 — Full-width Apply button (v2.5.1)
