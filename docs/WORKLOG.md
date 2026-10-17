@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-17 — Telegram ads filtered out (v2.5.2)
+- Developer: a career-service ad ("Сейчас найти работу - целый квест…") from a job channel arrived as a vacancy. The Telegram gate was deny-list only, so any long post without "реклама" passed.
+- `telegram-normalize.ts`: `isPromoPost` (career-service and course phrases) and `hasVacancySignals` (role in the title, or role plus hiring marker / section / salary) join `isLikelyVacancy`. Cyrillic `\w` in the deny-list patterns replaced with `\p{L}` (JS `\w` is ASCII-only).
+- `cleanup:junk` now re-checks Telegram rows with the gate and prints the titles it would drop; dry run on prod used to check the gate on real posts.
+- Next step: run `DB (prod)` → `cleanup:junk` without dry run after the merge to remove stored ads.
+
 ## 2026-10-17 — Full-width Apply button (v2.5.1)
 - The vacancy card keeps one full-width "Apply via <board>" button; the "✅ Applied" button is removed because the shared row cut the Apply label on a phone.
 - The `d:a:<id>` handler stays for cards already sent: it still adds the application and now leaves only the link.

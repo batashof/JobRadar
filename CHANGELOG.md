@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.5.2] — 2026-10-17
+
+### Fixed
+
+- **Telegram ads and chatter no longer arrive as vacancies.** A post must name a role and either open with it or back it with a hiring marker ("ищем", "нужен", "hiring"), a requirements or conditions section, or a salary. Career-service and course ads ("найти работу - целый квест", "поможем получить оффер", "автоотклики", "обучение с трудоустройством") are dropped outright.
+- `cleanup:junk` re-checks stored Telegram posts against the same gate and lists the titles it would drop in a dry run.
+
 ## [2.5.1] — 2026-10-17
 
 ### Changed
