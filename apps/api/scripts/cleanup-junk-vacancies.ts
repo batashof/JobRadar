@@ -5,18 +5,23 @@
  * turn out to be pure boilerplate — scraped cookie banners and anti-spam
  * footers that were never vacancies.
  *
- * Idempotent, and conservative: Telegram rows are left alone (their body is the
- * raw post, gated by its own rules), and a row the user already saved (an
- * application or a generated outreach draft) is never deleted.
+ * Telegram rows keep their raw post as the body; they are re-checked against
+ * the current post gate (`isLikelyVacancy`) instead, which drops ads and
+ * chatter ingested before the gate learned to spot them. The dry run lists
+ * the Telegram titles it would drop, to review the gate on real posts.
+ *
+ * Idempotent, and conservative: a row the user already saved (an application
+ * or a generated outreach draft) is never deleted.
  *
  * Run with: pnpm --filter @jobradar/api cleanup:junk (DATABASE_URL from the
  * environment / repo-root .env). Pass --prod to run against DATABASE_URL_PROD
  * (the "DB (prod)" workflow), --dry-run to only report.
  */
 import { config } from 'dotenv';
-import { eq, inArray, ne } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { cleanDescription, MIN_DESCRIPTION_LENGTH } from '../src/ingestion/description';
+import { isLikelyVacancy } from '../src/ingestion/telegram/telegram-normalize';
 import { openScriptDb } from '../src/db/prod-db';
 import { applications, outreachEmails, sources, vacancies } from '../src/db/schema';
 
@@ -33,9 +38,14 @@ async function main(): Promise<void> {
     .where(eq(sources.slug, 'telegram'));
 
   const rows = await db
-    .select({ id: vacancies.id, description: vacancies.description })
-    .from(vacancies)
-    .where(telegram ? ne(vacancies.sourceId, telegram.id) : undefined);
+    .select({
+      id: vacancies.id,
+      sourceId: vacancies.sourceId,
+      title: vacancies.title,
+      url: vacancies.url,
+      description: vacancies.description,
+    })
+    .from(vacancies);
 
   const protectedIds = new Set<string>([
     ...(await db.select({ id: applications.vacancyId }).from(applications)).map((r) => r.id),
@@ -44,8 +54,18 @@ async function main(): Promise<void> {
 
   const junkIds: string[] = [];
   const rewrites: Array<{ id: string; description: string }> = [];
+  const telegramJunk: Array<{ title: string; url: string }> = [];
+  let telegramScanned = 0;
 
   for (const row of rows) {
+    if (telegram && row.sourceId === telegram.id) {
+      telegramScanned += 1;
+      if (!isLikelyVacancy(row.description) && !protectedIds.has(row.id)) {
+        junkIds.push(row.id);
+        telegramJunk.push({ title: row.title, url: row.url });
+      }
+      continue;
+    }
     const cleaned = cleanDescription(row.description);
     if (cleaned.length < MIN_DESCRIPTION_LENGTH) {
       if (!protectedIds.has(row.id)) junkIds.push(row.id);
@@ -55,9 +75,11 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Scanned ${rows.length} board vacancies: ${junkIds.length} junk, ` +
+    `Scanned ${rows.length - telegramScanned} board vacancies and ${telegramScanned} Telegram posts: ` +
+      `${junkIds.length} junk (${telegramJunk.length} Telegram), ` +
       `${rewrites.length} to re-clean${dryRun ? ' (dry run, nothing written)' : ''}.`,
   );
+  for (const { title, url } of telegramJunk) console.log(`  telegram junk: ${title.slice(0, 100)} — ${url}`);
   if (dryRun) {
     await close();
     return;

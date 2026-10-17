@@ -19,15 +19,15 @@ const MIN_VACANCY_LENGTH = 80;
 
 /**
  * Non-vacancy noise that leaks into job channels: moderation-bot notices,
- * giveaways, and ads. Deny-list only — no positive-signal requirement, since
- * genuine posts are free-form (ADR-009) and easy to reject by accident.
+ * giveaways, and ads. Genuine posts are free-form (ADR-009), so the deny-lists
+ * stay narrow; `hasVacancySignals` is the positive check.
  */
 const JUNK_PATTERNS: RegExp[] = [
   // Anti-spam bot notices (e.g. "тебя заблокировали (Lols Ban)").
   /lols\s*ban/iu,
   /тебя\s+заблокировали/iu,
-  /глобальн\w*\s+блокировк/iu,
-  /отмечен\w*\s+к\s+глобальной\s+блокировке/iu,
+  /глобальн\p{L}*\s+блокировк/iu,
+  /отмечен\p{L}*\s+к\s+глобальной\s+блокировке/iu,
   // Giveaways / repost contests / ads — not jobs. Cyrillic word boundaries use
   // Unicode lookarounds; JS `\b` only sees ASCII word chars, even with /u.
   /розыгрыш|giveaway/iu,
@@ -57,12 +57,67 @@ export function isResumePost(text: string): boolean {
   return RESUME_PATTERNS.some((re) => re.test(text));
 }
 
+/**
+ * Career-service and course promotion ("Сейчас найти работу - целый квест…",
+ * "поможем получить оффер", "автоотклики"). Such posts talk about job search,
+ * so they mention roles and remote work; only phrases a vacancy never uses.
+ */
+const PROMO_PATTERNS: RegExp[] = [
+  /помо(?:жем|жет|жешь|гу|гаем|гает)\s+(?:тебе\s+|вам\s+)?(?:быстрее\s+)?(?:найти|получить)\s+(?:работу|оффер)/iu,
+  /(?<![\p{L}\p{N}])(?:получи|получить|получишь)\s+(?:свой\s+|первый\s+|желанный\s+)?оффер/iu,
+  /работ[ау]\s+мечты|целый\s+квест/iu,
+  /автоотклик|(?:откликается|откликаться|откликнется)\s+за\s+(?:тебя|вас)/iu,
+  /(?:разбор|составлю|составим|прокачать|прокачаем|улучшить)\s+(?:твоего\s+|твоё\s+|ваше(?:го)?\s+)?резюме/iu,
+  /карьерн\p{L}*\s+(?:консульт|коуч|ментор|трек|сопровожд)/iu,
+  /личн\p{L}*\s+ментор|промокод|вебинар|интенсив|марафон/iu,
+  /онлайн-?\s?(?:школ|курс)|(?:наш\p{L}*|на)\s+курс[еаы]?(?![\p{L}])|обучени\p{L}*\s+с\s+нуля|с\s+нуля\s+до/iu,
+  /с\s+(?:гарантией\s+)?трудоустройств(?:ом|а)(?![\p{L}])/iu,
+];
+
+/** True for ads of career services, courses and job-search tools. */
+export function isPromoPost(text: string): boolean {
+  return PROMO_PATTERNS.some((re) => re.test(text));
+}
+
+/**
+ * Positive signals. A vacancy names the role it hires for; channels also
+ * carry chatter, announcements and native ads that pass the deny-lists, so a
+ * post must name a role and either open with it or back it with a hiring
+ * marker, a requirements/conditions section or a salary.
+ */
+const ROLE_RE = new RegExp(
+  [
+    String.raw`(?<![\p{L}])(?:разработчи|программист|инженер|тестировщи|аналитик|дизайнер|архитектор|тимлид|техлид|фронтенд|фронтендер|бэкенд|бекенд|бэкендер|фулл?стек|девопс|стаж[её]р|джун|мидл|сень[оё]р|синь[оё]р|менеджер|верстальщик|администратор|продакт|проджект|рекрутер|специалист)`,
+    String.raw`\b(?:developer|dev|engineer|programmer|tester|qa|aqa|sdet|devops|sre|designer|analyst|architect|lead|frontend|front-end|backend|back-end|full-?stack|fullstack|scientist|manager|intern|junior|middle|senior|principal|staff|cto|head\s+of|admin(?:istrator)?|recruiter|php|golang|python|java|android|ios|react|node(?:\.?js)?)\b`,
+  ].join("|"),
+  "iu",
+);
+
+const HIRING_RE =
+  /#?(?<![\p{L}])(?:вакансия|ваканси[юи](?=\s*[:#\n])|ищем|ищу|требу[ею]тся|нужен|нужна|нужны|в\s+(?:нашу\s+|свою\s+)?команду|открыт\p{L}*\s+позици|позиция|заказ|тз(?![\p{L}]))|#(?:vacancy|job|hiring|вакансия)|\b(?:hiring|we(?:'re|\s+are)\s+looking|looking\s+for\s+an?|join\s+(?:our|the)\s+team|open\s+(?:position|role)|position|vacancy)\b/iu;
+
+const SECTION_RE =
+  /(?<![\p{L}])(?:требования|обязанности|задачи|условия|предлагаем|ожидаем|стек|опыт\s+(?:работы|от|с\s)|зарплат|з\/?п(?![\p{L}])|оклад|вилка|бюджет|оплата|занятость|график|удал[её]н|офис|гибрид|релокац|формат\s+работы)|\b(?:requirements|responsibilities|qualifications|we\s+offer|what\s+we\s+offer|stack|experience|salary|compensation|full[\s-]?time|part[\s-]?time|remote|hybrid|on-?site|relocation|benefits)\b/iu;
+
+/** True when the post reads like a vacancy (role + hiring/section/salary). */
+export function hasVacancySignals(text: string): boolean {
+  if (ROLE_RE.test(extractTitle(text))) return true;
+  if (!ROLE_RE.test(text)) return false;
+  return (
+    HIRING_RE.test(text) ||
+    SECTION_RE.test(text) ||
+    extractSalary(text).salaryCurrency !== null
+  );
+}
+
 export function isLikelyVacancy(text: string): boolean {
   const trimmed = text.trim();
   return (
     trimmed.length >= MIN_VACANCY_LENGTH &&
     !isJunkPost(trimmed) &&
-    !isResumePost(trimmed)
+    !isResumePost(trimmed) &&
+    !isPromoPost(trimmed) &&
+    hasVacancySignals(trimmed)
   );
 }
 
