@@ -4,8 +4,10 @@ import {
   extractSalary,
   extractTitle,
   extractWorkFormat,
+  hasVacancySignals,
   isJunkPost,
   isLikelyVacancy,
+  isPromoPost,
   isResumePost,
   normalizeTelegramMessage,
 } from "./telegram-normalize";
@@ -95,6 +97,109 @@ describe("telegram-normalize", () => {
         "Send your CV to jobs@acme.dev, we are looking for a Go engineer.",
       ),
     ).toBe(false);
+  });
+
+  it("rejects career-service ads that read like job-search talk", () => {
+    // Reported 2026-10-17: a native ad from a job channel reached the digest.
+    const quest =
+      "Сейчас найти работу - целый квест. Делаешь тестовое весь день идеально, " +
+      "чтобы не получить приглашение на собес - и так по кругу. Поиск может " +
+      "длиться месяцами, а деньги заканчиваются уже через пару недель.\n\n" +
+      "Подписывайся на канал, там разбираем, как пройти отбор: @career_hub";
+    expect(hasVacancySignals(quest)).toBe(false);
+    expect(isLikelyVacancy(quest)).toBe(false);
+
+    const offer =
+      "Junior и Middle разработчики, хватит отправлять сотни откликов!\n" +
+      "Поможем получить оффер за 2 месяца: разбор резюме, мок-собесы, " +
+      "автоотклики на удалёнку. Записывайся по ссылке.";
+    expect(isPromoPost(offer)).toBe(true);
+    expect(isLikelyVacancy(offer)).toBe(false);
+
+    const course =
+      "Frontend-разработчик с нуля до первой работы за 9 месяцев.\n" +
+      "Онлайн-школа, обучение с трудоустройством, удалённо, оплата частями.";
+    expect(isPromoPost(course)).toBe(true);
+    expect(isLikelyVacancy(course)).toBe(false);
+  });
+
+  it("rejects channel chatter that names no role", () => {
+    expect(
+      isLikelyVacancy(
+        "Друзья, напоминаем правила чата: без оскорблений и флуда. " +
+          "Вопросы по размещению пишите админу, отвечаем в течение дня.",
+      ),
+    ).toBe(false);
+    expect(
+      isLikelyVacancy(
+        "Итоги недели: 120 новых постов, спасибо, что читаете! " +
+          "В понедельник расскажем, что изменилось на рынке за месяц.",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps the vacancy formats the channels actually use", () => {
+    expect(isPromoPost(RU_POST)).toBe(false);
+    expect(isPromoPost(EN_POST)).toBe(false);
+    expect(hasVacancySignals(RU_POST)).toBe(true);
+    expect(hasVacancySignals(EN_POST)).toBe(true);
+
+    // Aggregator card: role in the title, tags and a link, no sections.
+    expect(
+      isLikelyVacancy(
+        "React-разработчик в финтех\nКомпания: Тинькофф\n#react #typescript\n" +
+          "Подробнее и отклик: https://example.com/jobs/123",
+      ),
+    ).toBe(true);
+    // Freelance order: the role is mid-text, backed by a hiring marker.
+    expect(
+      isLikelyVacancy(
+        "Telegram-бот для записи клиентов\nНужен разработчик на aiogram, " +
+          "бюджет 40 000 ₽, срок две недели. Пишите в личку @client",
+      ),
+    ).toBe(true);
+    // English hiring post with the role after a hiring marker.
+    expect(
+      isLikelyVacancy(
+        "We're hiring! Join our team as a Go engineer to build payment rails. " +
+          "Remote, EU time zones. Send your CV to jobs@acme.dev",
+      ),
+    ).toBe(true);
+    // Real vacancies seen in prod that mention webinars, intensives, an
+    // online school or a career track: soft promo words, role in the title.
+    expect(
+      isLikelyVacancy(
+        "Junior Python-разработчик (FastAPI)\nОнлайн-школа программирования ищет " +
+          "разработчика. Будет плюсом опыт проведения вебинаров. Интенсивный рост.",
+      ),
+    ).toBe(true);
+    expect(
+      isLikelyVacancy(
+        "Должность: Инженер по тестированию (QA Engineer)\nКарьерный трек, " +
+          "интенсив по автотестам, промокод на подписку для сотрудников.",
+      ),
+    ).toBe(true);
+    // A freelance order with no role word: hiring marker plus a budget.
+    expect(
+      isLikelyVacancy(
+        "Разработка интернет-магазина на Bitrix.\nНужен исполнитель, бюджет " +
+          "от 80 000 ₽, срок месяц. Пишите @client с портфолио.",
+      ),
+    ).toBe(true);
+    // Non-engineering roles from the general channels.
+    expect(
+      isLikelyVacancy(
+        "Director of UX Design\nAcme is growing its design org across EMEA, " +
+          "fully distributed team.",
+      ),
+    ).toBe(true);
+    // Benefits that mention training or discounts are not ads.
+    expect(
+      isLikelyVacancy(
+        "Middle QA Engineer\nУсловия: обучение за счёт компании, скидки на " +
+          "продукты, курсы английского. Подписывайтесь на канал, чтобы не пропустить новые вакансии.",
+      ),
+    ).toBe(true);
   });
 
   it("extracts the first line as the title, stripping markdown and emoji", () => {
