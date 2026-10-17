@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-17 — Full-width Apply button (v2.5.1)
+- The vacancy card keeps one full-width "Apply via <board>" button; the "✅ Applied" button is removed because the shared row cut the Apply label on a phone.
+- The `d:a:<id>` handler stays for cards already sent: it still adds the application and now leaves only the link.
+- Next step: bring back a way to mark an application from the card if the developer asks (e.g. a second row).
+
 ## 2026-10-16 — Vacancy card redesign and location filter (v2.5.0)
 
 - Developer asked for the date beside the company, numeric date and time, the source on the Apply button, icons instead of "matched / related / missing" on separate rows, location and format on their own lines, some colour, and a location filter (the search is not remote-only).

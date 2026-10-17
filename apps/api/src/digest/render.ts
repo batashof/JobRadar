@@ -1,4 +1,4 @@
-import { BOT_CALLBACK_NAMESPACES, type Language } from '@jobradar/shared';
+import type { Language } from '@jobradar/shared';
 
 import { escapeHtml, type InlineKeyboard } from '../bot/telegram-api';
 import type { CardFit, ScoredCandidate } from './select';
@@ -34,7 +34,7 @@ export const DIGEST_ACTION = {
   hide: 'h',
   up: 'u',
   down: 'w',
-  /** "✅ Applied": puts the vacancy on the user's applications (roadmap 5.5). */
+  /** "✅ Applied" (roadmap 5.5): no longer sent since v2.5.1, still answered on older cards. */
   applied: 'a',
   /** "📥 Send now" (/settings, /digest): every unsent match of the fortnight, on request. */
   now: 'n',
@@ -54,8 +54,6 @@ const TEXT = {
     applyVia: 'Apply via {source}',
     companySite: 'the company site',
     grade: 'Grade',
-    markApplied: '✅ Applied',
-    inApplications: '✅ In applications',
     addedToApplications: 'Added to your applications — /applications',
     details: 'Details',
     source: 'Original',
@@ -87,8 +85,6 @@ const TEXT = {
     applyVia: 'Откликнуться через {source}',
     companySite: 'сайт компании',
     grade: 'Грейд',
-    markApplied: '✅ Откликнулся',
-    inApplications: '✅ В откликах',
     addedToApplications: 'Добавлено в отклики — /applications',
     details: 'Подробнее',
     source: 'Первоисточник',
@@ -177,34 +173,20 @@ export function renderCardParts(
 }
 
 /**
- * One row, two buttons: "Apply", a link to the posting where it was published,
- * and "✅ Applied", which puts the vacancy on the user's applications so
- * `/applications` can track it and remind them to follow up (roadmap 5.5).
- *
- * The developer's call of 2026-10-15 cut the card to the one link: the card
- * already carries the text and the fit, and the only thing left to do with a
- * good vacancy is apply on the board that owns it. On 2026-10-16 the developer
- * added the second button, so applying is recorded from the same card. The
- * in-chat apply flow, the web "Details" page (going away in 2.0.0, ADR-024) and
- * the 👍 / 👎 / Hide buttons stay off the card; their callback handlers stay so
- * buttons on cards already sent keep working.
- *
- * `applied` renders the state after the press: "✅ In applications", whose
- * press is the same idempotent action. A posting without a link still gets
- * the callback button.
+ * One full-width button, "Apply via <board>", linking the posting where it
+ * was published. On 2026-10-17 the developer dropped the "✅ Applied" button
+ * that shared the row (v2.5.1): two buttons in one row cut "Откликнуться через
+ * DOU" on a phone. Its callback handler (`d:a:<id>`) stays, so the button on
+ * cards already sent keeps working; the in-chat apply flow and the 👍 / 👎 /
+ * Hide buttons are off the card for the same reason. A posting without a link
+ * gets no keyboard.
  */
 export function renderKeyboard(
-  item: Pick<ScoredCandidate, 'id' | 'url'> & { sourceSlug?: string | null },
+  item: Pick<ScoredCandidate, 'url'> & { sourceSlug?: string | null },
   lang: Language,
-  applied = false,
 ): InlineKeyboard {
-  const row: InlineKeyboard[number] = [];
-  if (item.url) row.push({ text: applyLabel(item.sourceSlug ?? null, lang), url: item.url });
-  row.push({
-    text: digestText(lang, applied ? 'inApplications' : 'markApplied'),
-    callbackData: `${BOT_CALLBACK_NAMESPACES.digest}:${DIGEST_ACTION.applied}:${item.id}`,
-  });
-  return [row];
+  if (!item.url) return [];
+  return [[{ text: applyLabel(item.sourceSlug ?? null, lang), url: item.url }]];
 }
 
 /**

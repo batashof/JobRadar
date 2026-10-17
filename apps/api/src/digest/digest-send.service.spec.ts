@@ -638,7 +638,7 @@ describe("DigestSendService buttons", () => {
     });
   });
 
-  it("puts the vacancy on the applications and swaps only the button (roadmap 5.5)", async () => {
+  it("still handles ✅ Applied on cards sent before v2.5.1, leaving only the link", async () => {
     const { db, writes } = makeDb();
     const bot = makeBot();
     const applications = makeApplications();
@@ -654,12 +654,7 @@ describe("DigestSendService buttons", () => {
     expect(result.alert).toBe("Добавлено в отклики — /applications");
     // The card text is left as sent; only the keyboard changes.
     expect(result.editText).toBeUndefined();
-    expect(result.editKeyboard).toEqual([
-      [
-        { text: "Откликнуться", url: "https://acme.test/1" },
-        { text: "✅ В откликах", callbackData: "d:a:vac-1" },
-      ],
-    ]);
+    expect(result.editKeyboard).toEqual([[{ text: "Откликнуться", url: "https://acme.test/1" }]]);
     expect(writes).toHaveLength(0);
   });
 
@@ -679,10 +674,8 @@ describe("DigestSendService buttons", () => {
     const result = await handler(ctx(["d", "a", "vac-1"]));
 
     expect(result.alert).toBe("Добавлено в отклики — /applications");
-    // No link on the posting: the state button stays on its own.
-    expect(result.editKeyboard).toEqual([
-      [{ text: "✅ В откликах", callbackData: "d:a:vac-1" }],
-    ]);
+    // No link on the posting: no buttons left.
+    expect(result.editKeyboard).toEqual([]);
   });
 
   it("ignores malformed callback data", async () => {
