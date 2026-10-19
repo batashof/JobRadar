@@ -38,3 +38,45 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  e2e:
+    # The bot's journeys end to end (apps/api/test/e2e, ADR-030): the whole API
+    # against real Postgres and Redis, Telegram faked over HTTP. No secrets.
+    name: Bot end-to-end scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jobradar
+          POSTGRES_PASSWORD: jobradar
+          POSTGRES_DB: jobradar
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U jobradar -d jobradar"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the shared package
+        run: pnpm --filter @jobradar/shared build
+
+      - name: Run the bot scenarios
+        run: pnpm --filter @jobradar/api test:e2e

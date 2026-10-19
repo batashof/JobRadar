@@ -35,6 +35,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [027](027-linkedin-forwarding-addresses.md) | Every bot user forwards their own LinkedIn job alerts to a personal plus address (amends ADR-021) | Accepted |
 | [028](028-web-app-kept-as-owner-cabinet.md) | 2.0.0 ships with the web app kept as the author's cabinet; public `/privacy`, `/gmail` in the bot (amends ADR-024) | Accepted |
 | [029](029-formula-for-the-owner-too.md) | The owner's vacancies are scored by the formula too; the LLM reads resumes only (amends ADR-011, ADR-024 §3, ADR-025 §8) | Accepted |
+| [030](030-bot-e2e-and-prod-smoke.md) | End-to-end bot scenarios in CI and a twice-daily production smoke check | Accepted |
 
 ## Template
 

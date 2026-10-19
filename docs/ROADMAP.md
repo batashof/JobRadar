@@ -227,6 +227,14 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 
 **Exit criterion:** the author sees how many people use the bot, where they stop, and what breaks, without opening the database.
 
+### 5.13 Automated checks before testers (v2.6.1) ✅
+
+- [x] End-to-end bot scenarios in CI: a tester's path from `/start` to vacancies, every menu command, `/feedback`, error alerts and `/delete`, with Telegram faked and its limits enforced (ADR-030).
+- [x] Prod smoke twice a day: health and deployed version, the webhook, ingestion freshness, deliveries and errors (ADR-030).
+- [ ] *(Developer)* Add `TELEGRAM_BOT_TOKEN` to the `main - jobradar-api` environment secrets so the smoke run checks the webhook.
+
+**Exit criterion:** a change that breaks a tester's path fails CI, and a broken production is reported within half a day.
+
 ### Later (not in 2.0.0)
 
 - [ ] Telegram Mini App for settings and a filtered feed, only if chat dialogs prove too clumsy (ADR-024 §5).

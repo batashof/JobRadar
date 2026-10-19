@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-19 — Bot end-to-end scenarios and prod smoke (v2.6.1)
+- Developer asked what to do before testers and for automated tests that run on their own.
+- `apps/api/test/e2e`: the whole `AppModule` on real Postgres + Redis, updates posted to the webhook, `FakeTelegram` in place of api.telegram.org that refuses HTML errors, >4096-character text and >64-byte `callback_data`. 27 tests: webhook secret, sign-up with a tag, non-PDF, PDF resume → fallback profile → confirm, `/digest` (a long posting with markup, split and escaped), no repeats, instant push, every menu command without an `error` event, owner tools refused, `/feedback`, `/settings` and `/filters` buttons, an error alert, `/delete`. Verified to fail when `escapeHtml` stops escaping `&`.
+- CI job "Bot end-to-end scenarios" with Postgres and Redis service containers; `prod-smoke.yml` + `scripts/prod-smoke.ts` (logic in `src/health/smoke.ts`, unit-tested). ADR-030.
+- A local smoke run against prod showed `SENTRY_DSN` is not set on Render.
+- Next step: developer adds `TELEGRAM_BOT_TOKEN` to the `main - jobradar-api` environment secrets and runs "Prod smoke" by hand once.
+
 ## 2026-10-19 — Stats, link tags, error alerts and feedback (v2.6.0)
 - Owner-only `/stats` in the bot, counted from existing tables plus `events`; `users.last_seen_at` (migration 0025) for "active in 7 days".
 - `?start=<tag>` links sign up as a plain /start and keep the tag on the `start` event.

@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.6.1] — 2026-10-19
+
+### Added
+
+- **End-to-end bot scenarios** (`apps/api/test/e2e`, ADR-030): the whole API against real Postgres and Redis walks a tester's path through the webhook: `/start` with a link tag, a PDF resume, the profile card and its confirmation, `/digest`, the instant push, every menu command, the author-only commands refused, `/feedback`, an error alert and `/delete`. A fake Telegram refuses what the real Bot API would (broken HTML, over-long text, oversized buttons). Runs as a second CI job with Postgres and Redis service containers.
+- **Prod smoke** workflow, twice a day: `/health` with the deployed version, the Telegram webhook (`getWebhookInfo`), the newest vacancy's age, the day's deliveries and bot errors. A failed run is mailed by GitHub.
+
 ## [2.6.0] — 2026-10-19
 
 ### Added
