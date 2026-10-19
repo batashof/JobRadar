@@ -1,0 +1,49 @@
+name: Prod smoke
+
+# Read-only check of production (ADR-030): /health with its dependencies and the
+# deployed version, the Telegram webhook (getWebhookInfo), and whether
+# vacancies keep arriving and reaching people. A failed run is mailed to the
+# author by GitHub; warnings show in the run summary only.
+#
+# Secrets come from the `main - jobradar-api` environment, like DB (prod):
+# DATABASE_URL_PROD + DATABASE_CA_CERT_PROD for the pipeline check, and
+# TELEGRAM_BOT_TOKEN for the webhook check. A missing one skips its part.
+on:
+  schedule:
+    - cron: '30 5,17 * * *' # 08:30 and 20:30 in Minsk
+  workflow_dispatch:
+
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: 'main - jobradar-api'
+    env:
+      DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
+      DATABASE_CA_CERT_PROD: ${{ secrets.DATABASE_CA_CERT_PROD }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The script imports @jobradar/shared, which resolves to its built dist/.
+      - name: Check production
+        run: |
+          pnpm --filter @jobradar/shared build
+          pnpm --filter @jobradar/api smoke:prod

@@ -1,6 +1,6 @@
 {
   "name": "@jobradar/api",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -9,11 +9,13 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest -c jest.e2e.config.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:migrate:prod": "tsx src/db/prod-apply.ts",
     "db:check:prod": "tsx src/db/prod-check.ts",
+    "smoke:prod": "tsx scripts/prod-smoke.ts",
     "db:schedule:prod": "tsx src/db/prod-schedule.ts",
     "telegram:session": "tsx scripts/telegram-session.ts",
     "bot:webhook": "tsx scripts/telegram-webhook.ts",
