@@ -88,9 +88,11 @@ async function pipelineResults(now: Date): Promise<SmokeResult[]> {
         (select max(ingested_at) from vacancies)::text as newest,
         (select count(*) from vacancies where ingested_at > now() - interval '24 hours')::int as vacancies,
         (select count(*) from digest_items where sent_at > now() - interval '24 hours')::int as deliveries,
-        (select count(*) from candidate_profiles p
-           join telegram_accounts t on t.user_id = p.user_id
-           where p.confirmed_at is not null and t.chat_id is not null)::int as recipients,
+        (select count(*) from users u
+           join telegram_accounts t on t.user_id = u.id
+           left join candidate_profiles p on p.user_id = u.id
+           where t.chat_id is not null
+             and (u.role = 'owner' or p.confirmed_at is not null))::int as recipients,
         (select count(*) from events where name = 'error' and created_at > now() - interval '24 hours')::int as errors,
         (select props ->> 'where' from events
            where name = 'error' and created_at > now() - interval '24 hours'
