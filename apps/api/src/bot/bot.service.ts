@@ -566,11 +566,12 @@ export class BotService implements OnApplicationBootstrap {
       now,
     });
 
-    // Test mode's way back: the owner account parked by /testmode returns to
-    // its Telegram user once the test account is gone (the plain /start that
-    // would otherwise register yet another account).
-    if (outcome.kind === 'register' && fromId && (await this.unparkOwner(fromId, chatId, username, now))) {
-      return;
+    // Test mode, two steps. The first /start after /testmode signs up the test
+    // account (the owner moves from `testing:` to `parked:`); once that account
+    // is deleted, the next /start brings the parked owner back.
+    if (outcome.kind === 'register' && fromId) {
+      const testStarts = await this.beginTest(fromId, now);
+      if (!testStarts && (await this.unparkOwner(fromId, chatId, username, now))) return;
     }
 
     switch (outcome.kind) {
@@ -800,10 +801,24 @@ export class BotService implements OnApplicationBootstrap {
     const telegramUserId = row?.telegramUserId ?? ctx.chatId;
     await this.db
       .update(users)
-      .set({ telegramUserId: parkedTelegramUserId(telegramUserId), updatedAt: new Date() })
+      .set({ telegramUserId: testingTelegramUserId(telegramUserId), updatedAt: new Date() })
       .where(eq(users.id, ctx.userId));
     await this.unlink(ctx.userId);
     return { editText: escapeHtml(botMessage(ctx.language, 'testmode.on')), editKeyboard: null };
+  }
+
+  /**
+   * The /start that opens a test: an owner waiting under `testing:` is parked,
+   * and the caller registers the test account. False when no test is waiting.
+   */
+  private async beginTest(fromId: string, now: Date): Promise<boolean> {
+    const waiting = await this.accountByTelegramUser(testingTelegramUserId(fromId));
+    if (!waiting) return false;
+    await this.db
+      .update(users)
+      .set({ telegramUserId: parkedTelegramUserId(fromId), updatedAt: now })
+      .where(eq(users.id, waiting.userId));
+    return true;
   }
 
   /** Re-attaches a parked owner account to its Telegram user; false when there is none. */
@@ -970,6 +985,15 @@ export class BotService implements OnApplicationBootstrap {
       return null;
     }
   }
+}
+
+/**
+ * Where /testmode keeps the owner's Telegram user id until the next /start
+ * signs up the test account; without this step that /start would bring the
+ * owner straight back (the v2.3.0 bug: "the chat is linked again").
+ */
+export function testingTelegramUserId(telegramUserId: string): string {
+  return `testing:${telegramUserId}`;
 }
 
 /** Where /testmode keeps the owner's Telegram user id while a test account uses it. */

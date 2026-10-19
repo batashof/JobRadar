@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-19 — /testmode fixed (v2.6.2)
+- Developer: after /testmode, /start only said the chat is linked again. Cause: `start()` tried `unparkOwner` on every register outcome, so the first /start returned the parked owner before any test account existed (since v2.3.0).
+- /testmode now sets the owner aside as `testing:<id>`; the first /start moves it to `parked:<id>` and registers the test account; after /delete the next /start unparks as before. No migration.
+- e2e scenario for the whole /testmode round trip (fails without the fix); unit test for the first /start.
+- First manual "Prod smoke" run: all green, webhook OK, 958 vacancies in 24 h; only SENTRY_DSN missing. Recipients now count the owner.
+- Next step: developer re-walks the new-user flow with /testmode.
+
 ## 2026-10-19 — Bot end-to-end scenarios and prod smoke (v2.6.1)
 - Developer asked what to do before testers and for automated tests that run on their own.
 - `apps/api/test/e2e`: the whole `AppModule` on real Postgres + Redis, updates posted to the webhook, `FakeTelegram` in place of api.telegram.org that refuses HTML errors, >4096-character text and >64-byte `callback_data`. 27 tests: webhook secret, sign-up with a tag, non-PDF, PDF resume → fallback profile → confirm, `/digest` (a long posting with markup, split and escaped), no repeats, instant push, every menu command without an `error` event, owner tools refused, `/feedback`, `/settings` and `/filters` buttons, an error alert, `/delete`. Verified to fail when `escapeHtml` stops escaping `&`.

@@ -323,3 +323,36 @@ describe('error alerts', () => {
     }
   });
 });
+
+describe('the author walks the new-user flow with /testmode', () => {
+  it('signs up a fresh account on the first /start, and comes back after /delete', async () => {
+    const owner = new ChatUser(e2e, OWNER_CHAT, 'en');
+    const [ownerRow] = await e2e.db.select().from(users).where(eq(users.role, 'owner'));
+
+    e2e.telegram.reset();
+    await owner.say('/testmode');
+    await owner.press(owner.last()!, 'u:test:y');
+    expect(owner.last()?.text).toBe(botMessage('en', 'testmode.on'));
+
+    // The first /start is the test sign-up, not the way back.
+    e2e.telegram.reset();
+    await owner.say('/start');
+    expect(owner.last()?.text).toBe(botMessage('en', 'start.welcome'));
+    const [testAccount] = await e2e.db.select().from(users).where(eq(users.telegramUserId, String(OWNER_CHAT)));
+    expect(testAccount).toMatchObject({ role: 'user' });
+    expect(testAccount!.id).not.toBe(ownerRow!.id);
+
+    // A test account is an ordinary user: the author tools are refused.
+    e2e.telegram.reset();
+    await owner.say('/stats');
+    await owner.waitForMessage(/author only/);
+
+    e2e.telegram.reset();
+    await owner.say('/delete');
+    await owner.press(owner.last()!, 'u:del:y');
+    await owner.say('/start');
+    expect(owner.last()?.text).toBe(botMessage('en', 'testmode.off'));
+    const [back] = await e2e.db.select().from(users).where(eq(users.telegramUserId, String(OWNER_CHAT)));
+    expect(back).toMatchObject({ id: ownerRow!.id, role: 'owner' });
+  });
+});

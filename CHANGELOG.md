@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.6.2] — 2026-10-19
+
+### Fixed
+
+- **`/testmode` works again**: the first `/start` after it signs up a fresh test account. Before, that `/start` brought the author's own account straight back ("linked to the owner account again"), so the new-user flow could not be walked. `/delete` in the test account, then `/start`, still returns to the author's account.
+- The prod smoke check counts the author among the people who get vacancies.
+
 ## [2.6.1] — 2026-10-19
 
 ### Added

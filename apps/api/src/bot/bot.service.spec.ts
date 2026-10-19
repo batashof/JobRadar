@@ -682,7 +682,7 @@ describe('BotService test mode (owner walks the new-user flow)', () => {
     expect(writes).toHaveLength(0);
   });
 
-  it('parks the owner account and unlinks the chat, deleting nothing', async () => {
+  it('sets the owner account aside and unlinks the chat, deleting nothing', async () => {
     const { db, writes, queue } = makeDb();
     queue(telegramAccounts, [{ userId: 'owner-1' }]);
     queue(users, [{ language: 'ru', role: 'owner' }], [{ telegramUserId: '555' }]);
@@ -692,7 +692,7 @@ describe('BotService test mode (owner walks the new-user flow)', () => {
     await bot.handleUpdate(press('u:test:y'));
 
     expect(writes).toEqual([
-      expect.objectContaining({ kind: 'update', table: users, values: expect.objectContaining({ telegramUserId: 'parked:555' }) }),
+      expect.objectContaining({ kind: 'update', table: users, values: expect.objectContaining({ telegramUserId: 'testing:555' }) }),
       expect.objectContaining({ kind: 'update', table: telegramAccounts, values: expect.objectContaining({ chatId: null }) }),
     ]);
     expect(writes.some((w) => w.kind === 'delete')).toBe(false);
@@ -710,10 +710,28 @@ describe('BotService test mode (owner walks the new-user flow)', () => {
     expect(writes).toHaveLength(0);
   });
 
+  it('signs up a test account instead of bringing the owner back', async () => {
+    const { db, writes, queue, inserted } = makeDb();
+    queue(telegramAccounts, []); // the chat was unlinked by /testmode
+    queue(users, [], [{ userId: 'owner-1' }]); // no account for 555, the owner waiting under testing:555
+    inserted(users, [{ id: 'test-1' }]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate({ message: { text: '/start', chat, from: { id: 555 } } });
+
+    expect(writes[0]).toEqual(
+      expect.objectContaining({ kind: 'update', table: users, values: expect.objectContaining({ telegramUserId: 'parked:555' }) }),
+    );
+    expect(writes[1]).toEqual(
+      expect.objectContaining({ kind: 'insert', table: users, values: expect.objectContaining({ telegramUserId: '555', role: 'user' }) }),
+    );
+    expect(body().text).toContain('Добро пожаловать');
+  });
   it('brings the parked owner back on /start once the test account is deleted', async () => {
     const { db, writes, queue } = makeDb();
     queue(telegramAccounts, []); // chat unlinked: the test account was deleted
-    queue(users, [], [{ userId: 'owner-1' }], RU_USER); // no account for 555, the parked one, its language
+    queue(users, [], [], [{ userId: 'owner-1' }], RU_USER); // no account for 555, no test waiting, the parked one, its language
     fetchMock.mockReturnValue(message());
     const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 

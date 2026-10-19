@@ -91,7 +91,7 @@ export interface PipelineStats {
   newestIngestedAt: Date | null;
   vacancies24h: number;
   deliveries24h: number;
-  /** Users with a confirmed profile and a linked chat: who should be receiving. */
+  /** Linked chats that get vacancies: a confirmed profile, or the owner (ADR-029). */
   activeRecipients: number;
   errors24h: number;
   /** The most frequent `events.props.where` of the day's errors, if any. */

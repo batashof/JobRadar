@@ -231,7 +231,8 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 
 - [x] End-to-end bot scenarios in CI: a tester's path from `/start` to vacancies, every menu command, `/feedback`, error alerts and `/delete`, with Telegram faked and its limits enforced (ADR-030).
 - [x] Prod smoke twice a day: health and deployed version, the webhook, ingestion freshness, deliveries and errors (ADR-030).
-- [ ] *(Developer)* Add `TELEGRAM_BOT_TOKEN` to the `main - jobradar-api` environment secrets so the smoke run checks the webhook.
+- [x] *(Developer)* Add `TELEGRAM_BOT_TOKEN` to the `main - jobradar-api` environment secrets so the smoke run checks the webhook. *(2026-10-19; first run green)*
+- [x] `/testmode` round trip fixed and covered by an end-to-end scenario (v2.6.2).
 
 **Exit criterion:** a change that breaks a tester's path fails CI, and a broken production is reported within half a day.
 
