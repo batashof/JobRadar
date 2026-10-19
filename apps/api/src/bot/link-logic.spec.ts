@@ -1,4 +1,4 @@
-import { languageFromTelegram, type LinkInput, resolveLink } from './link-logic';
+import { languageFromTelegram, type LinkInput, resolveLink, START_SOURCE_MAX, startSource } from './link-logic';
 
 const now = new Date('2026-08-10T12:00:00Z');
 const future = new Date('2026-08-10T12:10:00Z');
@@ -109,5 +109,25 @@ describe('languageFromTelegram', () => {
   it('falls back to Russian, the first audience, when the client sends nothing', () => {
     expect(languageFromTelegram(undefined)).toBe('ru');
     expect(languageFromTelegram('')).toBe('ru');
+  });
+});
+
+describe('startSource (v2.6.0)', () => {
+  it('reads a shared link tag, lower-cased', () => {
+    expect(startSource('DOU_chat')).toBe('dou_chat');
+    expect(startSource('friends')).toBe('friends');
+    expect(startSource('tg-channel-1')).toBe('tg-channel-1');
+  });
+
+  it('never mistakes a web link token for a tag', () => {
+    // `startLink` tokens: 24 random bytes in base64url, 32 characters.
+    expect(startSource('AbCdEfGhIjKlMnOpQrStUvWxYz012345')).toBeNull();
+    expect(startSource('a'.repeat(START_SOURCE_MAX + 1))).toBeNull();
+  });
+
+  it('ignores an empty argument and characters Telegram does not allow', () => {
+    expect(startSource('')).toBeNull();
+    expect(startSource('dou chat')).toBeNull();
+    expect(startSource('dou.chat')).toBeNull();
   });
 });

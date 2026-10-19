@@ -14,7 +14,11 @@ export type EventName =
   | 'resume_analyzed'
   | 'profile_confirmed'
   | 'bot_blocked'
-  | 'settings_changed';
+  | 'settings_changed'
+  /** A bot update or button failed (v2.6.0); props: `where`, `message`. */
+  | 'error'
+  /** A user sent `/feedback` (v2.6.0); the text goes to the owner, never into the event. */
+  | 'feedback';
 
 const logger = new Logger('Events');
 

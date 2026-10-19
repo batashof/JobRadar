@@ -72,6 +72,24 @@ export interface ParsedDocument {
   fileSize: number | null;
 }
 
+/**
+ * A short, content-free label of an update for error reports (v2.6.0): the
+ * command, or a button's namespace and action. Never the typed text or the
+ * file name, which may be personal.
+ */
+export function describeUpdate(parsed: Exclude<ParsedUpdate, null>): string {
+  switch (parsed.type) {
+    case 'command':
+      return `/${parsed.command}`;
+    case 'callback':
+      return `button ${parsed.parts.slice(0, 2).join(':')}`;
+    case 'text':
+      return 'typed text';
+    case 'document':
+      return 'file';
+  }
+}
+
 export type ParsedUpdate = ParsedCommand | ParsedCallback | ParsedText | ParsedDocument | null;
 
 export function parseUpdate(update: TelegramUpdate): ParsedUpdate {

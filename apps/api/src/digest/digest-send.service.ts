@@ -202,11 +202,9 @@ export class DigestSendService implements OnModuleInit {
    * webhook has answered, since a long list is paced at one message a second.
    */
   private startOnRequest(userId: string, role: UserRole, language: Language): void {
-    void this.sendOnRequest(userId, role, language).catch((err: unknown) => {
-      this.logger.error(
-        `manual send failed for user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
+    void this.sendOnRequest(userId, role, language).catch((err: unknown) =>
+      this.bot.reportError('send now (/digest)', err, userId),
+    );
   }
 
   /** Exposed for tests; the bot entry points go through `startOnRequest`. */
@@ -306,11 +304,7 @@ export class DigestSendService implements OnModuleInit {
         result.sent += 1;
         result.vacancies += count;
       } catch (err) {
-        this.logger.error(
-          `digest failed for user ${row.userId}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
+        await this.bot.reportError('scheduled digest', err, row.userId);
       }
     }
 

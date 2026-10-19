@@ -25,6 +25,7 @@ export const PUBLIC_COMMANDS: readonly [string, Descriptions][] = [
   ['privacy', { en: 'What is stored and who sees it', ru: 'Что хранится и кто это видит' }],
   ['delete', { en: 'Delete your account', ru: 'Удалить аккаунт' }],
   ['stop', { en: 'Stop messages', ru: 'Остановить сообщения' }],
+  ['feedback', { en: 'Tell the author what is wrong or missing', ru: 'Написать автору: что не так, чего не хватает' }],
   ['help', { en: 'What the bot can do', ru: 'Что умеет бот' }],
 ];
 
@@ -34,6 +35,7 @@ export const OWNER_COMMANDS: readonly [string, Descriptions][] = [
   ['plan', { en: 'The day plan', ru: 'План дня' }],
   ['gmail', { en: 'Connect Gmail', ru: 'Подключить Gmail' }],
   ['testmode', { en: 'Sign up as a new user, then come back', ru: 'Пройти регистрацию как новый пользователь' }],
+  ['stats', { en: 'Users, funnel, sources, errors', ru: 'Пользователи, воронка, источники, ошибки' }],
 ];
 
 /** The menu for one language; the owner's adds the author tools before /help. */

@@ -137,11 +137,9 @@ export class CandidateBotService implements OnModuleInit {
     await this.say(ctx, 'reading');
     // Download + LLM can take longer than Telegram waits for the webhook to
     // answer; acknowledge now and finish in the background.
-    void this.ingest(ctx, doc).catch((err) => {
-      this.logger.error(
-        `resume flow failed for ${ctx.userId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      void this.say(ctx, 'downloadFailed');
+    void this.ingest(ctx, doc).catch(async (err) => {
+      await this.bot.reportError('resume upload', err, ctx.userId);
+      await this.say(ctx, 'downloadFailed');
     });
   }
 
@@ -153,7 +151,7 @@ export class CandidateBotService implements OnModuleInit {
     try {
       bytes = await this.bot.downloadFile(doc.fileId, RESUME_MAX_BYTES);
     } catch (err) {
-      this.logger.warn(`resume download failed: ${err instanceof Error ? err.message : String(err)}`);
+      await this.bot.reportError('resume download', err, ctx.userId);
       return this.say(ctx, 'downloadFailed');
     }
 
@@ -321,7 +319,7 @@ export class CandidateBotService implements OnModuleInit {
     const active = await this.resumes.getActive(ctx.userId);
     if (!active?.extractedText.trim()) return { alert: profileText(ctx.language, 'noProfile') };
     void this.analyzeAndShow(ctx, profile.resumeId ?? active.id, active.extractedText).catch((err) =>
-      this.logger.error(`re-analysis failed: ${err instanceof Error ? err.message : String(err)}`),
+      this.bot.reportError('resume re-analysis', err, ctx.userId),
     );
     // The old card loses its buttons: a new one follows with the new analysis.
     return {

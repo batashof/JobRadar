@@ -9,6 +9,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.6.0] — 2026-10-19
+
+### Added
+
+- **`/stats` for the author**: users (total, new in 24 hours and 7 days, active in 7 days, reachable), the sign-up funnel with shares (started → resume → profile confirmed → received vacancies → marked an application), vacancies sent in the week, who blocked the bot or deleted the account, sign-ups per link tag, errors and feedback. Migration `0025_user_last_seen`.
+- **Link tags**: `t.me/JobRadarAppBot?start=<tag>` signs a new user up as usual and remembers the tag, so `/stats` shows which chat or post brought people.
+- **Error alerts**: a failed command, button, resume upload or digest run sends the author a short message (once per place and message per 30 minutes) and is counted in `/stats`.
+- **`/feedback`**: a user writes what is wrong or missing, and the message goes to the author's chat. Only the fact is stored, not the text.
+
 ## [2.5.2] — 2026-10-17
 
 ### Fixed

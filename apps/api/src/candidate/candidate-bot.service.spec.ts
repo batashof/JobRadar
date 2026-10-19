@@ -53,6 +53,7 @@ function setup(options: { role?: 'owner' | 'user'; analyses?: number; llm?: 'ok'
     registerCommand: jest.fn(),
     downloadFile: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4')),
     sendToUser: jest.fn().mockResolvedValue('1'),
+    reportError: jest.fn().mockResolvedValue(undefined),
   };
   const dialogs = { open: jest.fn(), close: jest.fn() };
   const llm = {
@@ -120,6 +121,15 @@ describe('CandidateBotService — upload', () => {
     await service.onDocument(ctx, pdf);
     expect(bot.downloadFile).not.toHaveBeenCalled();
     expect(sent(bot)[0]).toContain('все 3 анализа');
+  });
+
+  it('reports a failed download to the owner and asks the user to resend (v2.6.0)', async () => {
+    const { service, bot, ctx } = setup();
+    bot.downloadFile.mockRejectedValueOnce(new Error('file is too big'));
+    await service.onDocument(ctx, pdf);
+    await settle();
+    expect(bot.reportError).toHaveBeenCalledWith('resume download', expect.any(Error), 'user-1');
+    expect(sent(bot).at(-1)).toContain('Не удалось скачать файл');
   });
 
   it('never limits the owner', async () => {

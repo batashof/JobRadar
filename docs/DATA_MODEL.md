@@ -54,6 +54,7 @@ User 1──n PlannerNudge        (n──1 DayPlan / PlanBlock, nullable)
 | role | text not null default `'user'` | `owner` \| `user`; LLM-per-action and personal-credential features are owner-only (ADR-024 §3). `0019` made every pre-existing account `owner` |
 | alerts_token | text unique nullable | migration `0022`. Token of the personal LinkedIn-alert forwarding address `<local>+<token>@<domain>` on `ALERTS_IMAP_USER` (ADR-027): 12 lowercase base32 characters, created the first time the user opens `/linkedin` |
 | alerts_confirmation_code | text nullable | migration `0022`. The last Gmail forwarding-confirmation code relayed to the user in the bot, so each code is sent once |
+| last_seen_at | timestamptz nullable | migration `0025` (v2.6.0). Last message or button press in the bot, written at most once an hour per user; "active in 7 days" in the owner's `/stats` |
 | created_at / updated_at | timestamptz | |
 
 ### sessions
@@ -389,7 +390,7 @@ Activation-funnel analytics. No message text, no resume content: event names and
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid FK → users, nullable | **set null** on user delete, so the funnel keeps its counts after `/delete` |
-| name | text not null | `start`, `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (5.2); later `card_opened`, `feedback` |
+| name | text not null | `start` (`props.language`, `props.source`: the `?start=` tag of a shared link, v2.6.0), `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (5.2); `bot_blocked`, `settings_changed`; `error` (`props.where`, `props.message`) and `feedback` (`props.length`, never the text) (v2.6.0) |
 | props | jsonb nullable | small flat map, e.g. `{ "language": "en" }` |
 | created_at | timestamptz | index `(name, created_at)` |
 

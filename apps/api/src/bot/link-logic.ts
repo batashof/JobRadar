@@ -58,6 +58,25 @@ export function resolveLink(input: LinkInput): LinkOutcome {
   return { kind: 'link', userId: target };
 }
 
+/**
+ * Longest `/start` argument read as a source tag (v2.6.0). The web link
+ * tokens are 32 characters (24 random bytes, base64url), so a tag can never be
+ * mistaken for one.
+ */
+export const START_SOURCE_MAX = 30;
+
+/**
+ * The tag of a shared link such as `t.me/<bot>?start=dou_chat`: which chat,
+ * post or friend brought a new user, for the owner's /stats. Telegram allows
+ * `A-Z a-z 0-9 _ -` in a start parameter; anything else, or anything as long
+ * as a link token, is not a tag.
+ */
+export function startSource(argument: string): string | null {
+  if (argument.length === 0 || argument.length > START_SOURCE_MAX) return null;
+  if (!/^[A-Za-z0-9_-]+$/.test(argument)) return null;
+  return argument.toLowerCase();
+}
+
 /** Languages whose speakers get the Russian interface; everyone else gets English (ADR-014). */
 const RUSSIAN_INTERFACE = new Set(['ru', 'be', 'kk', 'ky', 'uz', 'tg']);
 
