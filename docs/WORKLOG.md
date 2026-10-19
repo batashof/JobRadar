@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-19 — Stats, link tags, error alerts and feedback (v2.6.0)
+- Owner-only `/stats` in the bot, counted from existing tables plus `events`; `users.last_seen_at` (migration 0025) for "active in 7 days".
+- `?start=<tag>` links sign up as a plain /start and keep the tag on the `start` event.
+- `BotService.reportError`: failed updates, buttons, resume uploads and digest runs become `error` events and a throttled message to the owner.
+- `/feedback` forwards the user's text to the owner; only its length is stored.
+- Next step: share tagged links with the first testers and read `/stats` after a week.
+
 ## 2026-10-17 — Telegram ads filtered out (v2.5.2)
 - Developer: a career-service ad ("Сейчас найти работу - целый квест…") from a job channel arrived as a vacancy. The Telegram gate was deny-list only, so any long post without "реклама" passed.
 - `telegram-normalize.ts`: `isPromoPost` (career-service and course phrases) and `hasVacancySignals` (role in the title, or role plus hiring marker / section / salary) join `isLikelyVacancy`. Cyrillic `\w` in the deny-list patterns replaced with `\p{L}` (JS `\w` is ASCII-only).

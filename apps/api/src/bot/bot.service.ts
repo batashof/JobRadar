@@ -10,7 +10,7 @@ import {
   TELEGRAM_LINK_TOKEN_TTL_MINUTES,
   type UserRole,
 } from '@jobradar/shared';
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, lt, or } from 'drizzle-orm';
 
 import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
@@ -18,13 +18,14 @@ import { digestSettings, plannerSettings, telegramAccounts, users } from '../db/
 import { BotDialogs, type OpenDialog } from './bot-dialogs';
 import { menuCommands, OWNER_COMMANDS, PUBLIC_COMMANDS } from './command-menu';
 import {
+  describeUpdate,
   type ParsedCommand,
   type ParsedDocument,
   type ParsedText,
   parseUpdate,
   type TelegramUpdate,
 } from './bot-update';
-import { languageFromTelegram, resolveLink } from './link-logic';
+import { languageFromTelegram, resolveLink, startSource } from './link-logic';
 import { SendLimiter } from './send-limiter';
 import { botMessage, DEFAULT_BOT_LANGUAGE } from './messages';
 import {
@@ -41,6 +42,16 @@ import {
  * hard, and the run moves on rather than holding every other user.
  */
 const FLOOD_RETRY_MAX_SECONDS = 30;
+
+/**
+ * The same error (place and message) reaches the owner's chat once per window
+ * (v2.6.0); repeats inside it are logged and counted in `events` only, so a
+ * broken button pressed by twenty users is one alert, not twenty.
+ */
+export const ERROR_ALERT_WINDOW_MS = 30 * 60_000;
+
+/** `users.last_seen_at` is rewritten at most this often per user (v2.6.0). */
+export const LAST_SEEN_STEP_MS = 60 * 60_000;
 
 /**
  * A starting timezone for a new account; Telegram does not tell the bot the
@@ -126,6 +137,8 @@ export class BotService implements OnApplicationBootstrap {
   private readonly limiter = new SendLimiter();
   /** Resolved lazily from `getMe`, then cached — it never changes for a token. */
   private botUsername: string | null = null;
+  /** When each error was last sent to the owner: `where|message` → epoch ms. */
+  private readonly errorAlerts = new Map<string, number>();
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -385,6 +398,7 @@ export class BotService implements OnApplicationBootstrap {
     if (!parsed) return;
 
     try {
+      await this.touchLastSeen(parsed.chatId);
       if (parsed.type === 'command') {
         await this.handleCommand(parsed);
       } else if (parsed.type === 'callback') {
@@ -395,10 +409,82 @@ export class BotService implements OnApplicationBootstrap {
         await this.handleDocument(parsed);
       }
     } catch (err) {
-      this.logger.error(
-        `update handling failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const account = await this.accountByChat(parsed.chatId).catch(() => null);
+      await this.reportError(describeUpdate(parsed), err, account?.userId ?? null);
     }
+  }
+
+  /**
+   * Marks the sender as seen for the owner's /stats (v2.6.0). In a private chat
+   * the chat id is the sender's Telegram user id, so one keyed UPDATE does it,
+   * and the time condition keeps it to one write an hour per user.
+   */
+  private async touchLastSeen(chatId: string, now: Date = new Date()): Promise<void> {
+    try {
+      const stale = new Date(now.getTime() - LAST_SEEN_STEP_MS);
+      await this.db
+        .update(users)
+        .set({ lastSeenAt: now })
+        .where(
+          and(
+            eq(users.telegramUserId, chatId),
+            or(isNull(users.lastSeenAt), lt(users.lastSeenAt, stale)),
+          ),
+        );
+    } catch (err) {
+      this.logger.warn(`last seen not saved: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * Sends plain text to every owner's chat (v2.6.0): error alerts and user
+   * feedback. `render` gets each owner's language. Best-effort, never throws.
+   */
+  async notifyOwners(render: (language: Language) => string): Promise<void> {
+    if (!this.api) return;
+    try {
+      const owners = await this.db
+        .select({ chatId: telegramAccounts.chatId, language: users.language })
+        .from(users)
+        .innerJoin(telegramAccounts, eq(telegramAccounts.userId, users.id))
+        .where(and(eq(users.role, 'owner'), isNotNull(telegramAccounts.chatId)));
+      for (const owner of owners) {
+        if (!owner.chatId) continue;
+        await this.replyTextToChat(owner.chatId, render(owner.language === 'en' ? 'en' : 'ru'));
+      }
+    } catch (err) {
+      this.logger.warn(`owner notice not sent: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * A failure a user ran into (v2.6.0): logged, counted as an `error` event for
+   * /stats, and sent to the owner's chat once per `ERROR_ALERT_WINDOW_MS`.
+   * `where` is a content-free label (`describeUpdate`); never throws.
+   */
+  async reportError(
+    where: string,
+    err: unknown,
+    userId: string | null = null,
+    now: number = Date.now(),
+  ): Promise<void> {
+    const message = (err instanceof Error ? err.message : String(err)).slice(0, 300);
+    this.logger.error(`${where} failed: ${message}`);
+    await recordEvent(this.db, userId, 'error', { where: where.slice(0, 80), message: message.slice(0, 200) });
+
+    const key = `${where}|${message}`;
+    const last = this.errorAlerts.get(key);
+    if (last !== undefined && now - last < ERROR_ALERT_WINDOW_MS) return;
+    // A long-running process meets few distinct errors; the cap only guards
+    // against a message that embeds an id and so never repeats.
+    if (this.errorAlerts.size >= 200) this.errorAlerts.clear();
+    this.errorAlerts.set(key, now);
+    await this.notifyOwners((language) =>
+      botMessage(language, 'owner.error')
+        .replace('{where}', where)
+        .replace('{user}', userId ?? '—')
+        .replace('{message}', message),
+    );
   }
 
   private async handleCommand(cmd: ParsedCommand): Promise<void> {
@@ -451,7 +537,11 @@ export class BotService implements OnApplicationBootstrap {
    * one it signs a Telegram user up, or reconnects a known one (ADR-024).
    */
   private async start(cmd: ParsedCommand): Promise<void> {
-    const { chatId, argument: token, username, fromId } = cmd;
+    const { chatId, username, fromId } = cmd;
+    // A shared link's tag (`?start=dou_chat`, v2.6.0) is not a link token: the
+    // sign-up goes on as a plain /start and remembers where the user came from.
+    const source = startSource(cmd.argument);
+    const token = source ? '' : cmd.argument;
     const now = new Date();
     const pending = token
       ? ((
@@ -488,7 +578,7 @@ export class BotService implements OnApplicationBootstrap {
         await this.replyToChat(chatId, 'link.already', await this.languageOf(owner!.userId));
         return;
       case 'register':
-        await this.register(cmd, fallbackLanguage, now);
+        await this.register(cmd, fallbackLanguage, now, source);
         return;
       case 'relink':
         await this.attachChat(outcome.userId, chatId, username, now);
@@ -525,7 +615,12 @@ export class BotService implements OnApplicationBootstrap {
   }
 
   /** A new account from a plain `/start`: no email, no password, this chat is the login. */
-  private async register(cmd: ParsedCommand, language: Language, now: Date): Promise<void> {
+  private async register(
+    cmd: ParsedCommand,
+    language: Language,
+    now: Date,
+    source: string | null = null,
+  ): Promise<void> {
     if (!cmd.fromId) {
       // Telegram always sends `from` in a private chat; without it there is no
       // identity to key the account on, so do nothing rather than guess.
@@ -553,7 +648,7 @@ export class BotService implements OnApplicationBootstrap {
       .insert(plannerSettings)
       .values({ userId: created.id, timezone: defaultTimezone(language) })
       .onConflictDoNothing();
-    await recordEvent(this.db, created.id, 'start', { language });
+    await recordEvent(this.db, created.id, 'start', source ? { language, source } : { language });
     await this.replyToChat(cmd.chatId, 'start.welcome', language);
   }
 
@@ -767,11 +862,7 @@ export class BotService implements OnApplicationBootstrap {
         role: profile?.role ?? 'user',
       });
     } catch (err) {
-      this.logger.warn(
-        `callback ${parsed.parts.join(':')} failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      await this.reportError(`button ${parsed.parts.slice(0, 2).join(':')}`, err, account.userId);
       await this.api?.answerCallbackQuery(
         parsed.callbackId,
         botMessage(language, 'callback.failed'),

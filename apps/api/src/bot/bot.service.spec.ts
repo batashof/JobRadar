@@ -49,6 +49,8 @@ function makeDb() {
     table: unknown;
     values: Record<string, unknown>;
   }[] = [];
+  /** `users.last_seen_at` touches (v2.6.0), kept apart so `writes` stays the feature's. */
+  const seen: Record<string, unknown>[] = [];
   /** Rows `insert ... onConflictDoNothing().returning()` yields, per table. */
   const returning = new Map<unknown, unknown[][]>();
 
@@ -61,11 +63,14 @@ function makeDb() {
         // caller finishes with `.where()` or awaits the builder directly.
         let cached: unknown[] | undefined;
         const rows = () => (cached ??= next(table));
-        return {
+        const builder = {
+          // A join reads from the `from()` table's queue.
+          innerJoin: () => builder,
           where: () => Promise.resolve(rows()),
           then: (resolve: (rows: unknown[]) => unknown, reject?: (err: unknown) => unknown) =>
             Promise.resolve(rows()).then(resolve, reject),
         };
+        return builder;
       },
     }),
     insert: (table: unknown) => ({
@@ -103,7 +108,8 @@ function makeDb() {
     update: (table: unknown) => ({
       set: (values: Record<string, unknown>) => ({
         where: () => {
-          writes.push({ kind: 'update', table, values });
+          if ('lastSeenAt' in values) seen.push(values);
+          else writes.push({ kind: 'update', table, values });
           return Promise.resolve();
         },
       }),
@@ -113,6 +119,7 @@ function makeDb() {
   return {
     db: db as never,
     writes,
+    seen,
     /** Scripts the responses `select ... from(table)` returns, in order. */
     queue: (table: unknown, ...responses: unknown[][]) => queues.set(table, responses),
     /** Scripts what `insert(table)...returning()` yields, in order. */
@@ -167,7 +174,7 @@ describe('BotService linking', () => {
     const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.handleUpdate({
-      message: { text: '/start tok-1', chat: { id: 555, type: 'private' }, from: { username: 'vlad' } },
+      message: { text: '/start AbCdEfGhIjKlMnOpQrStUvWxYz012345', chat: { id: 555, type: 'private' }, from: { username: 'vlad' } },
     });
 
     expect(writes[0]).toMatchObject({
@@ -189,7 +196,7 @@ describe('BotService linking', () => {
     fetchMock.mockReturnValue(message());
     const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
-    await bot.handleUpdate({ message: { text: '/start tok-1', chat: { id: 555, type: 'private' } } });
+    await bot.handleUpdate({ message: { text: '/start AbCdEfGhIjKlMnOpQrStUvWxYz012345', chat: { id: 555, type: 'private' } } });
 
     expect(writes).toHaveLength(0);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('другой аккаунт');
@@ -435,6 +442,36 @@ describe('BotService registration in the bot (ADR-024)', () => {
     expect(sentText()).toContain('Welcome to JobRadar');
   });
 
+  it('signs up through a shared link and remembers its tag for /stats (v2.6.0)', async () => {
+    const { db, writes, queue, inserted } = makeDb();
+    queue(telegramAccounts, []);
+    queue(users, []);
+    inserted(users, [{ id: 'new-user' }]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate({ message: { text: '/start DOU_chat', chat, from: { id: 555 } } });
+
+    // A tag is not a link token: no "link expired", a new account instead.
+    expect(writes[0]).toMatchObject({ kind: 'insert', table: users });
+    expect(writes.find((w) => w.table === events)?.values).toMatchObject({
+      name: 'start',
+      props: { language: 'ru', source: 'dou_chat' },
+    });
+    expect(sentText()).toContain('Добро пожаловать');
+  });
+
+  it('marks the sender as seen, keyed by the Telegram user id (v2.6.0)', async () => {
+    const { db, seen, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.handleUpdate({ message: { text: '/help', chat, from: { id: 555 } } });
+
+    expect(seen).toEqual([{ lastSeenAt: expect.any(Date) }]);
+  });
+
   it('does nothing more when a racing /start already created the account', async () => {
     const { db, writes, queue, inserted } = makeDb();
     queue(telegramAccounts, []);
@@ -487,7 +524,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     fetchMock.mockReturnValue(message());
     const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
-    await bot.handleUpdate({ message: { text: '/start tok-1', chat, from: { id: 555 } } });
+    await bot.handleUpdate({ message: { text: '/start AbCdEfGhIjKlMnOpQrStUvWxYz012345', chat, from: { id: 555 } } });
 
     expect(writes[1]).toMatchObject({ kind: 'update', table: users, values: { telegramUserId: '555' } });
   });
@@ -766,5 +803,67 @@ describe('BotService messages: dialogs and documents', () => {
 
     expect(handler).not.toHaveBeenCalled();
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('/start');
+  });
+});
+
+describe('BotService error reports (v2.6.0)', () => {
+  beforeEach(() => fetchMock.mockReset());
+  const OWNER = [{ chatId: '42', language: 'ru' }];
+
+  it('counts the error and tells the owner once per window', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(users, OWNER, OWNER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    const t0 = Date.parse('2026-10-19T10:00:00Z');
+    await bot.reportError('/resume', new Error('pdf broken'), 'user-1', t0);
+    await bot.reportError('/resume', new Error('pdf broken'), 'user-1', t0 + 60_000);
+
+    // Both land in events for /stats, with no message text beyond the error.
+    const errors = writes.filter((w) => w.table === events);
+    expect(errors).toHaveLength(2);
+    expect(errors[0]?.values).toMatchObject({
+      userId: 'user-1',
+      name: 'error',
+      props: { where: '/resume', message: 'pdf broken' },
+    });
+    // Only the first reaches the owner's chat.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.chat_id).toBe('42');
+    expect(body.text).toContain('Ошибка в боте: /resume');
+    expect(body.text).toContain('pdf broken');
+    expect(body.text).toContain('user-1');
+  });
+
+  it('alerts again once the window has passed', async () => {
+    const { db, queue } = makeDb();
+    queue(users, OWNER, OWNER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    const t0 = Date.parse('2026-10-19T10:00:00Z');
+    await bot.reportError('/digest', new Error('x'), null, t0);
+    await bot.reportError('/digest', new Error('x'), null, t0 + 31 * 60_000);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a failing command with its label instead of only logging it', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }], [{ userId: 'user-1' }]);
+    queue(users, [{ language: 'ru', role: 'user' }], OWNER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    bot.registerCommand('boom', () => Promise.reject(new Error('kaput')));
+
+    await bot.handleUpdate({ message: { text: '/boom', chat: { id: 555, type: 'private' }, from: { id: 555 } } });
+
+    expect(writes.find((w) => w.table === events)?.values).toMatchObject({
+      name: 'error',
+      props: { where: '/boom', message: 'kaput' },
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('/boom');
   });
 });

@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BotModule } from './bot/bot.module';
 import { CandidateModule } from './candidate/candidate.module';
 import { SettingsModule } from './settings/settings.module';
+import { StatsModule } from './stats/stats.module';
 import { DbModule } from './db/db.module';
 import { DigestModule } from './digest/digest.module';
 import { HealthModule } from './health/health.module';
@@ -54,6 +55,7 @@ import { redisConnectionFromUrl } from './redis';
     BotModule,
     CandidateModule,
     SettingsModule,
+    StatsModule,
     DigestModule,
     LlmModule,
     MatchingModule,

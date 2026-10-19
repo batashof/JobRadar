@@ -104,6 +104,7 @@ const makeBot = () => ({
   sendToUser: jest.fn().mockResolvedValue("900"),
   registerCallback: jest.fn(),
   registerCommand: jest.fn(),
+  reportError: jest.fn().mockResolvedValue(undefined),
 });
 
 /**
@@ -434,6 +435,8 @@ describe("DigestSendService.run", () => {
 
     expect(result.users).toBe(2);
     expect(result.sent).toBe(1);
+    // The failure reaches the owner's chat and /stats (v2.6.0).
+    expect(bot.reportError).toHaveBeenCalledWith("scheduled digest", expect.any(Error), "bad");
   });
 });
 

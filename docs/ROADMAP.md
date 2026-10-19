@@ -218,6 +218,15 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 
 **Exit criterion:** a card can be judged at a glance, and an on-site search gets only the cities asked for.
 
+### 5.12 Stats, sources, error alerts and feedback (v2.6.0) ✅
+
+- [x] Owner-only `/stats`: users (new, active, reachable), the sign-up funnel with shares, the week's deliveries, who left, errors and feedback.
+- [x] Shared links with a source tag (`t.me/JobRadarAppBot?start=<tag>`), counted per tag in `/stats`.
+- [x] Failures users hit go to the owner's chat (one alert per place and message per 30 minutes) and to `events`.
+- [x] `/feedback`: a user's message goes to the owner's chat.
+
+**Exit criterion:** the author sees how many people use the bot, where they stop, and what breaks, without opening the database.
+
 ### Later (not in 2.0.0)
 
 - [ ] Telegram Mini App for settings and a filtered feed, only if chat dialogs prove too clumsy (ADR-024 §5).

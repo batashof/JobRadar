@@ -1,4 +1,4 @@
-import { parseUpdate } from './bot-update';
+import { describeUpdate, parseUpdate } from './bot-update';
 
 const privateChat = { id: 12345, type: 'private' };
 
@@ -105,5 +105,19 @@ describe('parseUpdate', () => {
       callback_query: { id: 'cb-1', data: 'd:x:1', message: { message_id: 1, chat: { id: 9 } } },
     });
     expect(parsed).toMatchObject({ type: 'callback' });
+  });
+});
+
+describe('describeUpdate (v2.6.0)', () => {
+  const chat = { id: 1, type: 'private' };
+
+  it('labels commands and buttons, never the typed text or file name', () => {
+    const label = (update: Parameters<typeof parseUpdate>[0]) => describeUpdate(parseUpdate(update)!);
+    expect(label({ message: { text: '/resume now', chat } })).toBe('/resume');
+    expect(
+      label({ callback_query: { id: 'c', data: 's:loc:3:x', message: { message_id: 1, chat: { id: 1 } } } }),
+    ).toBe('button s:loc');
+    expect(label({ message: { text: 'my secret salary', chat } })).toBe('typed text');
+    expect(label({ message: { document: { file_id: 'f', file_name: 'Ivan_CV.pdf' }, chat } })).toBe('file');
   });
 });

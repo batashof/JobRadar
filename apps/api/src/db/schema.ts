@@ -198,6 +198,10 @@ export const users = pgTable('users', {
   // The last Gmail forwarding-confirmation code relayed to the user, so each
   // code is sent once (ADR-027).
   alertsConfirmationCode: text('alerts_confirmation_code'),
+  // Last message or button press from the user in the bot, at most an hour
+  // stale (written once an hour per user). Feeds "active" in the owner's
+  // /stats (v2.6.0); null = never seen since the column was added.
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
