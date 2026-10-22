@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/nestjs';
-import type { Job } from 'bullmq';
 
 import { IngestionProcessor } from './ingestion.processor';
 import type { IngestJobData } from './ingestion.types';
@@ -10,7 +9,7 @@ const captureExceptionMock = Sentry.captureException as jest.MockedFunction<
   typeof Sentry.captureException
 >;
 
-const job = (data: IngestJobData): Job<IngestJobData> => ({ data }) as Job<IngestJobData>;
+const job = (data: IngestJobData): IngestJobData => data;
 
 describe('IngestionProcessor error handling', () => {
   const activeSource = {

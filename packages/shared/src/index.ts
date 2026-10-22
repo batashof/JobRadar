@@ -30,14 +30,6 @@ export interface HealthChecks {
   dbCaConfigured: boolean;
   /** Connection failure detail (no secrets); null when the db is ok. */
   dbError: string | null;
-  redis: 'ok' | 'unreachable';
-  /** Hostname (no credentials) the queue is configured against; null if REDIS_URL is invalid. */
-  redisHost: string | null;
-  redisPort: number | null;
-  /** Whether the redis connection uses TLS (rediss://). Managed Redis (Upstash) requires it. */
-  redisTls: boolean;
-  /** Connection failure detail (no secrets); null when redis is ok. */
-  redisError: string | null;
   ingestionTokenConfigured: boolean;
   /** Whether all three TELEGRAM_* env vars are present (not their values). */
   telegramConfigured: boolean;

@@ -1,4 +1,3 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
 import { BotModule } from '../bot/bot.module';
@@ -19,12 +18,11 @@ import { UaBoardsIngestService } from './ua-boards/ua-boards.service';
 import { WwrIngestService } from './wwr/wwr.service';
 import { IngestionController } from './ingestion.controller';
 import { IngestionProcessor } from './ingestion.processor';
-import { INGESTION_QUEUE } from './ingestion.types';
+import { IngestionQueue } from './ingestion-queue';
 import { IngestionTokenGuard } from './ingestion-token.guard';
 
 @Module({
   imports: [
-    BullModule.registerQueue({ name: INGESTION_QUEUE }),
     BotModule,
     DedupModule,
     MatchingModule,
@@ -32,6 +30,7 @@ import { IngestionTokenGuard } from './ingestion-token.guard';
   controllers: [IngestionController],
   providers: [
     IngestionProcessor,
+    IngestionQueue,
     HhIngestService,
     RemoteOkIngestService,
     RemotiveIngestService,

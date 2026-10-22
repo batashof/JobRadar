@@ -1,5 +1,3 @@
-export const INGESTION_QUEUE = 'ingestion';
-
 export type IngestJobData =
   | {
       kind: 'source';
@@ -8,7 +6,7 @@ export type IngestJobData =
       force?: boolean;
     }
   | {
-      /** Runs after all source jobs (FIFO queue, concurrency 1). */
+      /** Runs after all source jobs (FIFO, one at a time: `IngestionQueue`). */
       kind: 'dedup';
     }
   | {

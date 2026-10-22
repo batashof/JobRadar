@@ -36,7 +36,7 @@ The author is a frontend developer (React, 8 years) using this project as a path
 | Backend | NestJS + TypeScript (separate service) on Render |
 | Database | PostgreSQL (Supabase free tier, ADR-019) + Postgres FTS |
 | ORM | Drizzle, with migrations (ADR-008) |
-| Queue / cache | Redis (Upstash free) + BullMQ |
+| Background jobs | In process: ingestion queue and timers (ADR-031); no Redis |
 | Cron | GitHub Actions schedule → authenticated ingestion hook (ADR-006) |
 | Sources | Telegram MTProto (GramJS), RSS and public JSON APIs, IMAP for LinkedIn alerts |
 | Monitoring | Sentry free tier, both apps (ADR-010) |
@@ -49,7 +49,7 @@ Full rationale for each choice: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 Requirements: Node.js ≥ 22, pnpm ≥ 11, Docker (Docker Desktop, OrbStack, or colima).
 
 ```bash
-# infrastructure (Postgres 17 + Redis 8)
+# infrastructure (Postgres 17)
 cp .env.example .env      # once
 docker compose up -d      # start; `docker compose ps` shows health
 docker compose down       # stop (add -v to also drop data volumes)

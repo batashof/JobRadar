@@ -13,13 +13,13 @@
 │  Next.js web │ ────────────► │      NestJS API      │
 │   (Vercel)   │               │       (Render)       │
 └──────────────┘               │                      │
-                               │  ┌────────────────┐  │      ┌─────────────────┐
-                               │  │ BullMQ workers │◄─┼─────►│ Redis (Upstash) │
-                               │  │  - ingest:hh   │  │      └─────────────────┘
-                               │  │  - ingest:rss  │  │
-                               │  │  - dedup       │  │      ┌─────────────────┐
-                               │  │  - digest      │◄─┼─────►│ Resend (email)  │
-                               │  └────────────────┘  │      └─────────────────┘
+                               │  ┌────────────────┐  │
+                               │  │ In-process     │  │
+                               │  │ ingestion queue│  │
+                               │  │ (ADR-031):     │  │
+                               │  │ sources, dedup,│  │
+                               │  │ match; timers  │  │
+                               │  └────────────────┘  │
                                └──────────┬───────────┘
                                           │ Prisma/Drizzle
                                           ▼
@@ -79,11 +79,11 @@ The API stays a separate NestJS service (ADR-002). Its client changes: the Teleg
 JobRadar/
 ├── apps/
 │   ├── web/            # Next.js frontend
-│   └── api/            # NestJS backend (REST API + BullMQ workers)
+│   └── api/            # NestJS backend (REST API + in-process ingestion queue and timers)
 ├── packages/
 │   └── shared/         # Shared TypeScript types, validation schemas (zod), constants
 ├── docs/               # All project documentation (source of truth)
-├── docker-compose.yml  # Local dev: Postgres + Redis
+├── docker-compose.yml  # Local dev: Postgres
 ├── CLAUDE.md           # AI-assistant entry point
 ├── CHANGELOG.md        # Versions
 └── README.md
@@ -99,7 +99,7 @@ Tooling: pnpm workspaces (+ Turborepo if build orchestration becomes painful). O
 | Backend | NestJS + TypeScript | Learning goal: real backend framework with DI, modules, guards; opinionated structure teaches good habits. Fallback option: Fastify if NestJS feels too heavy |
 | Database | PostgreSQL (Supabase free tier, ADR-019) | Relational fits the domain; free tier; **Postgres FTS** covers full-text search without extra infrastructure. Always-on instance with no compute-hour quota — the per-minute planner tick exhausted Neon's (ADR-019) |
 | ORM | Drizzle (ADR-008) | Type-safe queries + first-class migrations; generated tsvector and enum arrays expressible in schema; no query engine — fast cold starts |
-| Queue / cache | Redis (Upstash free) + BullMQ | Background ingestion jobs, retries, backoff; also response caching |
+| Background jobs | In process (ADR-031) | `IngestionQueue` runs source, dedup and match jobs one at a time; timers run the planner, digest and reminders. Redis and BullMQ were removed in 2.6.3 after the Upstash command quota ran low |
 | Cron | GitHub Actions schedule → HTTP hook | Free; sidesteps free-tier container sleeping (ADR-006) |
 | Email | Resend, 3000 emails/mo free | Digests + reminders; generous free tier |
 | Telegram | Bot API (phase 4) | Second digest channel; free |
@@ -176,7 +176,7 @@ The Bot API side is one module (`apps/api/src/bot`) with one chat link per accou
 ## Data flow: ingestion
 
 1. Supabase `pg_cron` fires every 10 minutes (ADR-023; GitHub Actions as fallback) → authenticated HTTP call to `POST /ingestion/run`.
-2. API enqueues one BullMQ job per active source whose own interval has elapsed (`ingestion/schedule.ts`: Telegram and LinkedIn alerts 10 min, ATS (Greenhouse, Ashby, Lever, SmartRecruiters) and WWR 1 h, the rest, DOU and Djinni RSS included, 4 h); nothing when none is due.
+2. API adds one job to the in-process `IngestionQueue` (ADR-031) per active source whose own interval has elapsed (`ingestion/schedule.ts`: Telegram and LinkedIn alerts 10 min, ATS (Greenhouse, Ashby, Lever, SmartRecruiters) and WWR 1 h, the rest, DOU and Djinni RSS included, 4 h); nothing when none is due.
 3. Each worker fetches new items (API pagination / RSS), respecting per-source politeness rules ([DATA_SOURCES.md](DATA_SOURCES.md)).
 4. Items are normalized into the common `Vacancy` shape and upserted (`source + external_id` unique key).
 5. Dedup job links duplicates across sources (heuristic v1, ADR-004).
@@ -186,5 +186,5 @@ The Bot API side is one module (`apps/api/src/bot`) with one chat link per accou
 
 - **Politeness**: every source fetch is cached, rate-limited, and retried with exponential backoff. An ingestion run that yields zero items triggers a Sentry alert (likely breakage).
 - **Idempotency**: ingestion and digest jobs are safe to re-run; upserts keyed on `source + external_id`; digest tracks `last_sent_at` per user.
-- **Observability**: Sentry on both apps; structured logs in workers; job failures visible in BullMQ.
+- **Observability**: Sentry on both apps; structured logs; source failures in `sources.last_run_status` and the prod smoke check.
 - **Security**: secrets only in host env vars / GitHub Actions secrets; the ingestion hook requires a shared token; standard authn/authz on user data.

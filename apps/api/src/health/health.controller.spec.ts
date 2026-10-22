@@ -3,15 +3,7 @@ import { Test } from '@nestjs/testing';
 
 import { DB } from '../db/db.module';
 import { LlmService } from '../llm/llm.service';
-import { probeRedis } from '../redis';
 import { HealthController } from './health.controller';
-
-jest.mock('../redis', () => ({
-  ...jest.requireActual('../redis'),
-  probeRedis: jest.fn(),
-}));
-
-const probeRedisMock = probeRedis as jest.MockedFunction<typeof probeRedis>;
 
 describe('HealthController', () => {
   let controller: HealthController;
@@ -20,7 +12,6 @@ describe('HealthController', () => {
   const configMock = {
     get: (key: string) =>
       ({
-        REDIS_URL: 'redis://localhost:6379',
         INGESTION_TOKEN: 'secret',
         DATABASE_URL:
           'postgresql://postgres.ref:dbsecret@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',
@@ -29,7 +20,6 @@ describe('HealthController', () => {
   };
 
   beforeEach(async () => {
-    probeRedisMock.mockResolvedValue({ ok: true });
     const moduleRef = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
@@ -62,11 +52,6 @@ describe('HealthController', () => {
       dbHost: 'aws-0-eu-central-1.pooler.supabase.com',
       dbCaConfigured: true,
       dbError: null,
-      redis: 'ok',
-      redisHost: 'localhost',
-      redisPort: 6379,
-      redisTls: false,
-      redisError: null,
       ingestionTokenConfigured: true,
       telegramConfigured: false,
       linkedinAlertsConfigured: false,
@@ -81,7 +66,6 @@ describe('HealthController', () => {
 
   it('reports the LinkedIn alert mailbox as configured without exposing it', async () => {
     const env: Record<string, string> = {
-      REDIS_URL: 'redis://localhost:6379',
       ALERTS_IMAP_USER: 'alerts@example.com',
       ALERTS_IMAP_PASSWORD: 'app-pass-secret',
     };
@@ -146,12 +130,9 @@ describe('HealthController', () => {
     expect(health.checks?.llmStatus[1]?.lastOutcome).toBe('ok');
   });
 
-  it('surfaces the redis failure detail when the probe fails', async () => {
-    probeRedisMock.mockResolvedValue({ ok: false, error: 'WRONGPASS invalid username-password pair' });
+  it('no longer reports Redis: nothing uses it since ADR-031', async () => {
     const health = await controller.getHealth();
-
-    expect(health.checks?.redis).toBe('unreachable');
-    expect(health.checks?.redisError).toContain('WRONGPASS');
+    expect(JSON.stringify(health.checks)).not.toContain('redis');
   });
 
   it('degrades db to unreachable on failure, still returning ok status', async () => {
