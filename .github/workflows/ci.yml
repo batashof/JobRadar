@@ -41,7 +41,7 @@ jobs:
 
   e2e:
     # The bot's journeys end to end (apps/api/test/e2e, ADR-030): the whole API
-    # against real Postgres and Redis, Telegram faked over HTTP. No secrets.
+    # against real Postgres, Telegram faked over HTTP. No secrets.
     name: Bot end-to-end scenarios
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -55,12 +55,6 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U jobradar -d jobradar"
-          --health-interval 5s --health-timeout 3s --health-retries 10
-      redis:
-        image: redis:8-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v7

@@ -38,7 +38,6 @@ export function checkHealth(
   const results: SmokeResult[] = [
     health.status === 'ok' ? ok('health', 'GET /health answered') : fail('health', `status ${String(health.status)}`),
     checks?.db === 'ok' ? ok('database', 'reachable') : fail('database', checks?.dbError ?? 'unreachable'),
-    checks?.redis === 'ok' ? ok('redis', 'reachable') : fail('redis', checks?.redisError ?? 'unreachable'),
     checks?.botConfigured
       ? ok('bot token', 'TELEGRAM_BOT_TOKEN is set')
       : fail('bot token', 'TELEGRAM_BOT_TOKEN is not set on Render: the bot is off'),

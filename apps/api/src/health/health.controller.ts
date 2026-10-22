@@ -5,7 +5,6 @@ import { sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
 import { LlmService } from '../llm/llm.service';
-import { probeRedis, redisConnectionFromUrl } from '../redis';
 
 // Runtime require keeps package.json out of the tsc program (it would shift rootDir).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -44,27 +43,13 @@ export class HealthController {
 
   @Get()
   async getHealth(): Promise<HealthResponse> {
-    const redisConn = redisConnectionFromUrl(
-      this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-    );
-
-    const [dbProbe, redisProbe] = await Promise.all([
-      this.checkDb(),
-      redisConn
-        ? probeRedis(redisConn)
-        : Promise.resolve({ ok: false as const, error: 'REDIS_URL is not a valid redis URL' }),
-    ]);
+    const dbProbe = await this.checkDb();
 
     const checks: HealthChecks = {
       db: dbProbe.ok ? 'ok' : 'unreachable',
       dbHost: hostOf(this.config.get<string>('DATABASE_URL')),
       dbCaConfigured: Boolean(this.config.get<string>('DATABASE_CA_CERT')?.trim()),
       dbError: dbProbe.ok ? null : dbProbe.error,
-      redis: redisProbe.ok ? 'ok' : 'unreachable',
-      redisHost: redisConn?.host ?? null,
-      redisPort: redisConn?.port ?? null,
-      redisTls: Boolean(redisConn && 'tls' in redisConn),
-      redisError: redisProbe.ok ? null : redisProbe.error,
       ingestionTokenConfigured: Boolean(this.config.get<string>('INGESTION_TOKEN')),
       telegramConfigured: Boolean(
         this.config.get<string>('TELEGRAM_API_ID') &&

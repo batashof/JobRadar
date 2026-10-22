@@ -10,7 +10,7 @@ describe('IngestionController.run', () => {
       lastRunStatus: string | null;
     }[],
   ) => {
-    const queue = { add: jest.fn().mockResolvedValue(undefined) };
+    const queue = { add: jest.fn().mockReturnValue(true) };
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(rows) }),
@@ -65,7 +65,6 @@ describe('IngestionController.run', () => {
     expect(queue.add).toHaveBeenCalledWith(
       'ingest:remotive',
       { kind: 'source', slug: 'remotive', force: true },
-      expect.any(Object),
     );
   });
 });

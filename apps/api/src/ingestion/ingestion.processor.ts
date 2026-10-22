@@ -1,7 +1,5 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
-import type { Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/db.module';
@@ -20,19 +18,8 @@ import { TelegramIngestService } from './telegram/telegram.service';
 import { UaBoardsIngestService } from './ua-boards/ua-boards.service';
 import { WorkingNomadsIngestService } from './workingnomads/workingnomads.service';
 import { WwrIngestService } from './wwr/wwr.service';
-import { INGESTION_QUEUE, type IngestJobData } from './ingestion.types';
+import type { IngestJobData } from './ingestion.types';
 import { isSourceDue } from './schedule';
-
-/**
- * Idle-polling budget on Upstash (ADR-001, ADR-007). A BullMQ worker blocks on
- * Redis waiting for a job and re-issues that command every `drainDelay`, and
- * runs a stalled-job sweep every `stalledInterval` — both count against the
- * Upstash free-tier command quota (500k/mo). Jobs here arrive at most every 4h
- * (ADR-006 cron), so the defaults (5s / 30s ≈ 20k commands/day) are pure waste.
- * A newly enqueued job still wakes the blocking pop immediately, so relaxing
- * these adds no latency to real work — only ~12× fewer idle commands.
- */
-const IDLE_POLL_OPTIONS = { drainDelay: 60, stalledInterval: 300_000 };
 
 type JobOutcome =
   | IngestResult
@@ -40,8 +27,9 @@ type JobOutcome =
   | MatchRunResult
   | { skipped: string };
 
-@Processor(INGESTION_QUEUE, IDLE_POLL_OPTIONS)
-export class IngestionProcessor extends WorkerHost {
+/** Runs one ingestion job; `IngestionQueue` feeds it one at a time (ADR-031). */
+@Injectable()
+export class IngestionProcessor {
   private readonly logger = new Logger(IngestionProcessor.name);
 
   constructor(
@@ -60,15 +48,13 @@ export class IngestionProcessor extends WorkerHost {
     private readonly uaBoards: UaBoardsIngestService,
     private readonly dedup: DedupService,
     private readonly matching: MatchingService,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job<IngestJobData>): Promise<JobOutcome> {
-    if (job.data.kind === 'dedup') {
+  async process(data: IngestJobData): Promise<JobOutcome> {
+    if (data.kind === 'dedup') {
       return this.dedup.run();
     }
-    if (job.data.kind === 'match') {
+    if (data.kind === 'match') {
       // Rules only. The background LLM résumé pass (ADR-011) is gone since
       // ADR-029: vacancies are scored by the formula, and the LLM is spent on
       // resumes alone. The web cabinet can still score on demand.
@@ -76,13 +62,13 @@ export class IngestionProcessor extends WorkerHost {
     }
 
     const source = await this.db.query.sources.findFirst({
-      where: eq(sources.slug, job.data.slug),
+      where: eq(sources.slug, data.slug),
     });
     if (!source || !source.isActive) return { skipped: 'inactive-or-unknown-source' };
 
     // The hook enqueues only due sources; this re-check covers a job that
     // waited in the queue behind a duplicate trigger.
-    if (!isSourceDue(source, new Date(), job.data.force)) {
+    if (!isSourceDue(source, new Date(), data.force)) {
       this.logger.log(`${source.slug}: ran recently, skipping (politeness interval)`);
       return { skipped: 'ran-recently' };
     }
@@ -143,7 +129,7 @@ export class IngestionProcessor extends WorkerHost {
         .where(eq(sources.id, source.id));
       return result;
     } catch (error) {
-      // Queue jobs run outside any HTTP request, so the global Sentry filter
+      // Jobs run outside any HTTP request, so the global Sentry filter
       // never sees them — capture here so a silently failing cron source is
       // visible. No-op when Sentry is disabled.
       Sentry.captureException(error, { tags: { source: source.slug, job: 'ingestion' } });

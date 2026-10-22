@@ -14,7 +14,7 @@ import { TELEGRAM_SECRET_HEADER } from '../../../src/bot/bot-webhook.guard';
 import { FakeTelegram, type SentMessage } from './fake-telegram';
 
 /**
- * Boots the whole API (every module, real Postgres and Redis) with Telegram
+ * Boots the whole API (every module, real Postgres) with Telegram
  * replaced by `FakeTelegram`, and drives the bot the way Telegram does: HTTP
  * POSTs of updates to the webhook. No secrets and no network beyond localhost.
  *
@@ -24,7 +24,6 @@ import { FakeTelegram, type SentMessage } from './fake-telegram';
  */
 export const E2E_DATABASE_URL =
   process.env.E2E_DATABASE_URL ?? 'postgresql://jobradar:jobradar@localhost:5432/jobradar_e2e';
-export const E2E_REDIS_URL = process.env.E2E_REDIS_URL ?? 'redis://localhost:6379';
 const WEBHOOK_SECRET = 'e2e-webhook-secret';
 
 export interface E2eApp {
@@ -82,7 +81,6 @@ export async function startApp(): Promise<E2eApp> {
 
   Object.assign(process.env, {
     DATABASE_URL: E2E_DATABASE_URL,
-    REDIS_URL: E2E_REDIS_URL,
     TELEGRAM_BOT_TOKEN: '123456:e2e-test-token',
     TELEGRAM_BOT_WEBHOOK_SECRET: WEBHOOK_SECRET,
     // The in-process timers would race the scenarios; tests call the services.

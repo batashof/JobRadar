@@ -1,6 +1,6 @@
 # ADR-030: End-to-end bot scenarios in CI and a twice-daily production smoke check
 
-- Status: Accepted
+- Status: Accepted (amended by ADR-031: Redis is gone from the harness, CI and the smoke check)
 - Date: 2026-10-19
 
 ## Context

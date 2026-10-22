@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-22 — Ingestion off Redis (v2.6.3)
+- Upstash warned at 90% of 500k monthly commands. Cause: the BullMQ ingestion queue, ~600 jobs a day since the 10-minute tick (ADR-023).
+- `IngestionQueue` runs the jobs in process, FIFO, one at a time; BullMQ, ioredis and every Redis check removed (ADR-031).
+- Next step: confirm vacancies keep arriving after the deploy; the Upstash database can be deleted.
+
 ## 2026-10-19 — /testmode fixed (v2.6.2)
 - Developer: after /testmode, /start only said the chat is linked again. Cause: `start()` tried `unparkOwner` on every register outcome, so the first /start returned the parked owner before any test account existed (since v2.3.0).
 - /testmode now sets the owner aside as `testing:<id>`; the first /start moves it to `parked:<id>` and registers the test account; after /delete the next /start unparks as before. No migration.

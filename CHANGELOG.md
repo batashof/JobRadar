@@ -9,6 +9,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.6.3] — 2026-10-22
+
+### Changed
+
+- **Ingestion jobs run in the API process** (ADR-031) instead of a BullMQ queue on Upstash Redis, whose 500k commands a month were 90% used by the 22nd. Sources, dedup and matching still run one at a time, in order; a failed source is retried by the schedule an hour later.
+
+### Removed
+
+- Redis and BullMQ: the `@nestjs/bullmq`, `bullmq` and `ioredis` packages, the Redis check in `GET /health` and the prod smoke check, and the Redis containers in CI and `docker-compose.yml`. `REDIS_URL` is no longer read.
+
 ## [2.6.2] — 2026-10-19
 
 ### Fixed

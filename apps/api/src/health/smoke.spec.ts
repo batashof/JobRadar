@@ -24,11 +24,6 @@ function health(overrides: Partial<NonNullable<HealthResponse['checks']>> = {}, 
       dbHost: 'db',
       dbCaConfigured: true,
       dbError: null,
-      redis: 'ok',
-      redisHost: 'redis',
-      redisPort: 6379,
-      redisTls: true,
-      redisError: null,
       ingestionTokenConfigured: true,
       telegramConfigured: true,
       linkedinAlertsConfigured: true,
@@ -57,10 +52,10 @@ describe('checkHealth', () => {
 
   it('fails on a down dependency, a missing bot token and a stale deploy', () => {
     const results = checkHealth(
-      health({ db: 'unreachable', dbError: 'ETIMEDOUT', redis: 'unreachable', botConfigured: false }, '2.6.0'),
+      health({ db: 'unreachable', dbError: 'ETIMEDOUT', botConfigured: false }, '2.6.0'),
       '2.6.1',
     );
-    expect(levels(results)).toMatchObject({ database: 'fail', redis: 'fail', 'bot token': 'fail', version: 'fail' });
+    expect(levels(results)).toMatchObject({ database: 'fail', 'bot token': 'fail', version: 'fail' });
     expect(results.find((r) => r.check === 'database')?.detail).toBe('ETIMEDOUT');
   });
 
