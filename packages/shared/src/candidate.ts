@@ -36,8 +36,11 @@ export interface FeedbackWeights {
   companies: Record<string, number>;
 }
 
-/** Where a profile came from: the LLM, or the term fallback when every provider failed. */
-export type CandidateProfileSource = 'llm' | 'fallback';
+/**
+ * Where a profile came from: the LLM, the term fallback when every provider
+ * failed, or the user's own answers without a resume (`manual`, ADR-034).
+ */
+export type CandidateProfileSource = 'llm' | 'fallback' | 'manual';
 
 /** At most this many analyses per user per rolling window (ADR-025 §3). Owner is exempt. */
 export const RESUME_ANALYSES_PER_WINDOW = 3;

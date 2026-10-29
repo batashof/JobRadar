@@ -391,7 +391,7 @@ Activation-funnel analytics. No message text, no resume content: event names and
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid FK → users, nullable | **set null** on user delete, so the funnel keeps its counts after `/delete` |
-| name | text not null | `start` (`props.language`, `props.source`: the `?start=` tag of a shared link, v2.6.0), `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (5.2); `bot_blocked`, `settings_changed`; `error` (`props.where`, `props.message`) and `feedback` (`props.length`, never the text) (v2.6.0) |
+| name | text not null | `start` (`props.language`, `props.source`: the `?start=` tag of a shared link, v2.6.0), `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (`props.source`) (5.2); `profile_manual_started` (`/noresume`, ADR-034); `bot_blocked`, `settings_changed`; `error` (`props.where`, `props.message`) and `feedback` (`props.length`, never the text) (v2.6.0) |
 | props | jsonb nullable | small flat map, e.g. `{ "language": "en" }` |
 | created_at | timestamptz | index `(name, created_at)` |
 
@@ -413,14 +413,14 @@ What the bot waits for when the user next types plain text (ADR-024 §4). One ro
 
 ### candidate_profiles (migration `0020`)
 
-The profile one resume analysis produces (ADR-025); one row per user, replaced by the next analysis.
+The profile one resume analysis produces (ADR-025), or the user's own answers to `/noresume` (ADR-034); one row per user, replaced by the next analysis or wizard.
 
 | Column | Type | Notes |
 |---|---|---|
 | user_id | uuid PK, FK → users (cascade) | |
-| resume_id | uuid FK → resumes, nullable | set null if that resume is deleted |
-| source | text | `llm` \| `fallback` (every provider failed; built from resume terms, ADR-017) |
-| prompt_version | smallint | `ANALYSIS_PROMPT_VERSION` at analysis time |
+| resume_id | uuid FK → resumes, nullable | set null if that resume is deleted; null for a `manual` profile |
+| source | text | `llm` \| `fallback` (every provider failed; built from resume terms, ADR-017) \| `manual` (set by hand without a resume, ADR-034) |
+| prompt_version | smallint | `ANALYSIS_PROMPT_VERSION` at analysis time; `0` for a `manual` profile |
 | role | text nullable | e.g. `Frontend Developer` |
 | grade | text nullable | one of `SENIORITY_LEVELS` |
 | years | smallint nullable | |

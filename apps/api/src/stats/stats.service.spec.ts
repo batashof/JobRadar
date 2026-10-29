@@ -15,7 +15,7 @@ function setup() {
       rows: [
         {
           total: '12', new1d: '1', new7d: '4', active7d: '7', reachable: '11',
-          resume: '9', confirmed: '6', received: '5', applied: '2',
+          resume: '9', manual: '2', confirmed: '6', received: '5', applied: '2',
           cards7d: '80', recipients7d: '5', fallback7d: '0',
           blocked7d: '1', deleted7d: '0', deleted_total: '2', feedback7d: '1',
           errors1d: '0', errors7d: '3',
@@ -40,7 +40,7 @@ describe('StatsService', () => {
     const { service } = setup();
     const s = await service.snapshot(new Date('2026-10-19T12:00:00Z'));
     expect(s.users).toEqual({ total: 12, new1d: 1, new7d: 4, active7d: 7, reachable: 11 });
-    expect(s.funnel).toEqual({ resume: 9, confirmed: 6, received: 5, applied: 2 });
+    expect(s.funnel).toEqual({ resume: 9, manual: 2, confirmed: 6, received: 5, applied: 2 });
     expect(s.week).toEqual({ cards: 80, recipients: 5, fallbackResumes: 0, blocked: 1, deleted: 0, feedback: 1 });
     expect(s.deletedTotal).toBe(2);
     expect(s.sources).toEqual([

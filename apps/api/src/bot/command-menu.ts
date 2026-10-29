@@ -17,6 +17,7 @@ export const PUBLIC_COMMANDS: readonly [string, Descriptions][] = [
   ['start', { en: 'Create your account or reconnect this chat', ru: 'Создать аккаунт или подключить чат' }],
   ['setup', { en: 'First steps: a checklist for a start', ru: 'Первые шаги: чек-лист для начала' }],
   ['resume', { en: 'Add or replace your resume', ru: 'Добавить или заменить резюме' }],
+  ['noresume', { en: 'Without a resume: set role, grade and skills by hand', ru: 'Без резюме: задать роль, грейд и навыки вручную' }],
   ['digest', { en: 'Send matching vacancies now', ru: 'Прислать подходящие вакансии сейчас' }],
   ['filters', { en: 'Which vacancies to send: role, skills, salary, format', ru: 'Какие вакансии присылать: роль, навыки, зарплата, формат' }],
   ['settings', { en: 'When to send: delivery, timezone, language, pause', ru: 'Когда присылать: доставка, часовой пояс, язык, пауза' }],

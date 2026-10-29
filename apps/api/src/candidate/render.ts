@@ -55,12 +55,12 @@ const TEXT = {
       'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Next: /filters for which vacancies to receive, /settings for when.',
     askSkills: 'Send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     badSkills: 'I did not find any skills in that. Send them separated by commas, e.g. React, TypeScript.',
-    noProfile: 'Send your resume as a PDF first.',
+    noProfile: 'Send your resume as a PDF first, or set the profile by hand: /noresume.',
     pickGrade: 'Pick your grade:',
     pickEnglish: 'Pick your English level:',
     pickRole: 'Pick your role:',
     resumeNone:
-      '📄 No resume yet.\n\nHow to add it: tap 📎 next to the message field → File → pick your resume as a PDF (up to 5 MB) and send it here. I will read it and build the profile vacancies are picked by.',
+      '📄 No resume yet.\n\nHow to add it: tap 📎 next to the message field → File → pick your resume as a PDF (up to 5 MB) and send it here. I will read it and build the profile vacancies are picked by.\n\nNo resume, or rather not share it? Press ✍️ Without a resume: pick the role, grade and skills by hand.',
     resumeCurrent: '📄 Your resume: <b>{file}</b>, uploaded {date}.',
     resumeReplace:
       'To replace it, send a new PDF here the same way (📎 → File). The profile is rebuilt from the new resume and waits for your confirmation.',
@@ -69,18 +69,31 @@ const TEXT = {
     bSetup: '🧭 First steps',
     setupTitle: 'First steps in JobRadar',
     setupResumeDone: 'Resume: {file}',
-    setupResumeTodo: 'Resume: send it here as a PDF file (📎 → File)',
+    setupResumeTodo: 'Resume: send it here as a PDF file (📎 → File), or skip it with ✍️ Without a resume',
+    setupResumeManual: 'Resume: not needed, the profile is set by hand',
     setupProfileDone: 'Profile confirmed',
     setupProfileCheck: 'Profile: check the card and press "✅ All correct"',
-    setupProfileWait: 'Profile: appears after the resume',
+    setupProfileWait: 'Profile: appears after the resume or ✍️ Without a resume',
     setupDelivery: 'Delivery: new vacancies arrive as soon as they are posted, silent 22:00–08:00. Change it in ⚙️ Settings.',
-    setupFilters: 'Filters: role, grade and skills come from the resume; work format, salary and minimum fit are up to you. All in 🎯 Filters.',
+    setupFilters: 'Filters: role, grade and skills come from the profile; work format, location, salary and minimum fit are up to you. All in 🎯 Filters.',
     setupLinkedin: 'Optional: /linkedin brings vacancies from your own LinkedIn job alerts.',
     setupHint: 'Go through the buttons below in order.',
     bResume: '📄 Resume',
     bSettings: '⚙️ Settings',
     bFilters: '🎯 Filters',
     bSendNow: '📥 Send vacancies now',
+    bManual: '✍️ Without a resume',
+    manualReplace:
+      'Your profile was built from your resume. Setting it by hand replaces it; the resume stays, and sending it again rebuilds the profile from it. Continue?',
+    manualYes: '✍️ Set by hand',
+    manualKeep: '← Keep the current one',
+    wizRole:
+      'Without a resume: four questions, and vacancies are picked by your answers. Nothing personal is asked.\n\nStep 1 of 4: pick your role.',
+    wizGrade: 'Step 2 of 4: pick your grade.',
+    wizSkills: 'Step 3 of 4: send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
+    wizEnglish: 'Step 4 of 4: your English level.',
+    skip: 'Skip',
+    manualNote: 'Set by hand, without a resume. Work format, location and the vacancy\'s language are in /filters.',
   },
   ru: {
     reading: 'Читаю резюме…',
@@ -118,12 +131,12 @@ const TEXT = {
       'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Дальше: /filters — какие вакансии присылать, /settings — когда.',
     askSkills: 'Пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     badSkills: 'Не нашёл навыков в сообщении. Пришли их через запятую, например: React, TypeScript.',
-    noProfile: 'Сначала пришли резюме в PDF.',
+    noProfile: 'Сначала пришли резюме в PDF или задай профиль вручную: /noresume.',
     pickGrade: 'Выбери грейд:',
     pickEnglish: 'Выбери уровень английского:',
     pickRole: 'Выбери роль:',
     resumeNone:
-      '📄 Резюме ещё не загружено.\n\nКак добавить: нажми 📎 рядом с полем ввода → «Файл» → выбери резюме в PDF (до 5 МБ) и отправь сюда. Я прочитаю его и соберу профиль, по которому подбираются вакансии.',
+      '📄 Резюме ещё не загружено.\n\nКак добавить: нажми 📎 рядом с полем ввода → «Файл» → выбери резюме в PDF (до 5 МБ) и отправь сюда. Я прочитаю его и соберу профиль, по которому подбираются вакансии.\n\nНет резюме или не хочешь им делиться? Нажми ✍️ Без резюме: роль, грейд и навыки выбираются вручную.',
     resumeCurrent: '📄 Твоё резюме: <b>{file}</b>, загружено {date}.',
     resumeReplace:
       'Чтобы заменить, пришли сюда новый PDF тем же способом (📎 → «Файл»). Профиль соберётся заново по новому резюме и будет ждать твоего подтверждения.',
@@ -132,18 +145,31 @@ const TEXT = {
     bSetup: '🧭 Первые шаги',
     setupTitle: 'Первые шаги в JobRadar',
     setupResumeDone: 'Резюме: {file}',
-    setupResumeTodo: 'Резюме: пришли его сюда файлом PDF (📎 → «Файл»)',
+    setupResumeTodo: 'Резюме: пришли его сюда файлом PDF (📎 → «Файл») или обойдись без него: ✍️ Без резюме',
+    setupResumeManual: 'Резюме: не нужно, профиль задан вручную',
     setupProfileDone: 'Профиль подтверждён',
     setupProfileCheck: 'Профиль: проверь карточку и нажми «✅ Всё верно»',
-    setupProfileWait: 'Профиль: появится после резюме',
+    setupProfileWait: 'Профиль: появится после резюме или ✍️ Без резюме',
     setupDelivery: 'Доставка: новые вакансии приходят сразу после публикации, ночью (22:00–08:00) тишина. Поменять можно в ⚙️ Настройках.',
-    setupFilters: 'Фильтры: роль, грейд и навыки берутся из резюме; формат работы, зарплата и минимальное совпадение — по желанию. Всё в 🎯 Фильтрах.',
+    setupFilters: 'Фильтры: роль, грейд и навыки берутся из профиля; формат работы, локация, зарплата и минимальное совпадение — по желанию. Всё в 🎯 Фильтрах.',
     setupLinkedin: 'По желанию: /linkedin — вакансии из твоих оповещений LinkedIn.',
     setupHint: 'Пройди кнопки ниже по порядку.',
     bResume: '📄 Резюме',
     bSettings: '⚙️ Настройки',
     bFilters: '🎯 Фильтры',
     bSendNow: '📥 Прислать вакансии сейчас',
+    bManual: '✍️ Без резюме',
+    manualReplace:
+      'Твой профиль собран из резюме. Если задать его вручную, он заменится; резюме останется, и если прислать его снова, профиль соберётся по нему. Продолжить?',
+    manualYes: '✍️ Задать вручную',
+    manualKeep: '← Оставить текущий',
+    wizRole:
+      'Без резюме: четыре вопроса, и вакансии подбираются по твоим ответам. Ничего личного не спрашиваю.\n\nШаг 1 из 4: выбери роль.',
+    wizGrade: 'Шаг 2 из 4: выбери грейд.',
+    wizSkills: 'Шаг 3 из 4: пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
+    wizEnglish: 'Шаг 4 из 4: уровень английского.',
+    skip: 'Пропустить',
+    manualNote: 'Задан вручную, без резюме. Формат работы, локация и язык вакансии — в /filters.',
   },
 } as const;
 
@@ -194,7 +220,7 @@ export interface ProfileView {
 export function profileCard(
   lang: Language,
   profile: ProfileView,
-  options: { fallback?: boolean } = {},
+  options: { fallback?: boolean; manual?: boolean } = {},
 ): { text: string; keyboard: InlineKeyboard } {
   const unknown = profileText(lang, 'unknown');
   const line = (key: ProfileTextKey, value: string | null) =>
@@ -219,7 +245,8 @@ export function profileCard(
     line('location', profile.location),
     line('salary', profile.salaryUsd !== null ? `$${profile.salaryUsd}` : null),
   ];
-  const note = options.fallback ? `\n\n<i>${escapeHtml(profileText(lang, 'fallbackNote'))}</i>` : '';
+  const noteKey: ProfileTextKey | null = options.manual ? 'manualNote' : options.fallback ? 'fallbackNote' : null;
+  const note = noteKey ? `\n\n<i>${escapeHtml(profileText(lang, noteKey))}</i>` : '';
   const text = `${lines.join('\n')}${note}\n\n${escapeHtml(profileText(lang, 'confirmHint'))}`;
 
   const keyboard: InlineKeyboard = [
@@ -232,14 +259,24 @@ export function profileCard(
       { text: profileText(lang, 'editEnglish'), callbackData: `${NS}:e` },
       { text: profileText(lang, 'editSkills'), callbackData: `${NS}:s` },
     ],
-    [{ text: profileText(lang, 'retry'), callbackData: `${NS}:retry` }],
+    // A profile set by hand has no resume to analyse again.
+    ...(options.manual ? [] : [[{ text: profileText(lang, 'retry'), callbackData: `${NS}:retry` }]]),
   ];
   return { text, keyboard };
 }
 
-/** Picker rows for one field: `p:<field>:<value>`, plus a way back to the card. */
-export function pickerKeyboard(lang: Language, field: 'g' | 'e' | 'r'): InlineKeyboard {
-  const options: { text: string; value: string }[] =
+/**
+ * Picker rows for one field: `p:<field>:<value>`, plus a way back to the card.
+ * In the no-resume wizard (ADR-034) the buttons are `p:w<field>:<value>`, each
+ * pick leads to the next step, and English can be skipped instead.
+ */
+export function pickerKeyboard(
+  lang: Language,
+  field: 'g' | 'e' | 'r',
+  options: { wizard?: boolean } = {},
+): InlineKeyboard {
+  const action = options.wizard ? `w${field}` : field;
+  const values: { text: string; value: string }[] =
     field === 'g'
       ? SENIORITY_LEVELS.map((level) => ({ text: GRADE_LABELS[level]![lang], value: level }))
       : field === 'e'
@@ -247,14 +284,15 @@ export function pickerKeyboard(lang: Language, field: 'g' | 'e' | 'r'): InlineKe
         : Object.entries(ROLE_TITLES).map(([family, title]) => ({ text: title, value: family }));
   const rows: InlineKeyboard = [];
   const perRow = field === 'r' ? 2 : 3;
-  for (let i = 0; i < options.length; i += perRow) {
+  for (let i = 0; i < values.length; i += perRow) {
     rows.push(
-      options
+      values
         .slice(i, i + perRow)
-        .map((o) => ({ text: o.text, callbackData: `${NS}:${field}:${o.value}` })),
+        .map((o) => ({ text: o.text, callbackData: `${NS}:${action}:${o.value}` })),
     );
   }
-  rows.push([{ text: profileText(lang, 'back'), callbackData: `${NS}:card` }]);
+  if (!options.wizard) rows.push([{ text: profileText(lang, 'back'), callbackData: `${NS}:card` }]);
+  else if (field === 'e') rows.push([{ text: profileText(lang, 'skip'), callbackData: `${NS}:we:-` }]);
   return rows;
 }
 
@@ -310,7 +348,8 @@ export function resumeScreen(
     ...(options.hasProfile ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
     btn(profileText(lang, 'bSetup'), `${NS}:setup`),
   ];
-  return { text: parts.join('\n\n'), keyboard: [row] };
+  const keyboard: InlineKeyboard = resume ? [row] : [[btn(profileText(lang, 'bManual'), `${NS}:man`)], row];
+  return { text: parts.join('\n\n'), keyboard };
 }
 
 /**
@@ -320,14 +359,18 @@ export function resumeScreen(
  */
 export function setupScreen(
   lang: Language,
-  state: { resume: ResumeView | null; profile: 'none' | 'unconfirmed' | 'confirmed' },
+  state: { resume: ResumeView | null; profile: 'none' | 'unconfirmed' | 'confirmed'; manual?: boolean },
 ): { text: string; keyboard: InlineKeyboard } {
   const t = (key: ProfileTextKey, vars: Record<string, string | number> = {}) =>
     escapeHtml(profileText(lang, key, vars));
   const mark = (done: boolean) => (done ? '✅' : '⬜');
+  // A profile set by hand (ADR-034) makes the resume step done without a file.
+  const resumeDone = state.resume !== null || state.manual === true;
   const resumeLine = state.resume
     ? t('setupResumeDone', { file: state.resume.filename })
-    : t('setupResumeTodo');
+    : state.manual
+      ? t('setupResumeManual')
+      : t('setupResumeTodo');
   const profileLine =
     state.profile === 'confirmed'
       ? t('setupProfileDone')
@@ -337,7 +380,7 @@ export function setupScreen(
   const text = [
     `<b>${t('setupTitle')}</b>`,
     '',
-    `1. ${mark(state.resume !== null)} ${resumeLine}`,
+    `1. ${mark(resumeDone)} ${resumeLine}`,
     `2. ${mark(state.profile === 'confirmed')} ${profileLine}`,
     `3. ${t('setupDelivery')}`,
     `4. ${t('setupFilters')}`,
@@ -352,6 +395,7 @@ export function setupScreen(
       btn(profileText(lang, 'bResume'), `${NS}:res`),
       ...(state.profile !== 'none' ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
     ],
+    ...(state.profile === 'none' ? [[btn(profileText(lang, 'bManual'), `${NS}:man`)]] : []),
     [btn(profileText(lang, 'bFilters'), `${s}:open:flt`), btn(profileText(lang, 'bSettings'), `${s}:menu`)],
     ...(state.profile === 'confirmed'
       ? [[btn(profileText(lang, 'bSendNow'), `${BOT_CALLBACK_NAMESPACES.digest}:n`)]]

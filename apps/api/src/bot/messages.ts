@@ -20,10 +20,11 @@ const STRINGS = {
     'stop.done': 'Unlinked. Messages stopped. Link again from Settings whenever you want.',
     'stop.notLinked': 'This chat is not linked to any JobRadar account.',
     'help':
-      'JobRadar finds remote IT vacancies that fit your resume and sends them here.\n\n' +
+      'JobRadar finds remote IT vacancies that fit your resume, or the parameters you set without one, and sends them here.\n\n' +
       '/start — create your account or reconnect this chat\n' +
       '/setup — first steps: a checklist for a start\n' +
       '/resume — your resume: add or replace it\n' +
+      '/noresume — without a resume: set role, grade and skills by hand\n' +
       '/digest — send every new matching vacancy now\n' +
       '/filters — which vacancies to send: role, grade, skills, salary, format\n' +
       '/settings — when to send: delivery, timezone, language, pause\n' +
@@ -41,10 +42,11 @@ const STRINGS = {
     'start.welcome':
       'Welcome to JobRadar. Your account is created: no email and no password, this chat is your login.\n\n' +
       'Next step: send your resume here as a PDF file (📎 → File). I will evaluate it and build your profile for picking vacancies.\n\n' +
+      'No resume, or rather not share it? /noresume: pick the role, grade and skills by hand, nothing personal is asked.\n\n' +
       '/setup walks you through the rest step by step.',
     'start.back': 'Welcome back. This chat is connected to your JobRadar account again.',
     'privacy':
-      'What JobRadar stores: your Telegram id, username and chat id, the interface language, when you last used the bot, and later your resume (the PDF and its text), the profile built from it, the vacancies sent to you, your reactions to them and the applications you track (/applications). If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.\n\n' +
+      'What JobRadar stores: your Telegram id, username and chat id, the interface language, when you last used the bot, your resume (the PDF and its text) if you upload one, the profile built from it or from the parameters you set with /noresume, the vacancies sent to you, your reactions to them and the applications you track (/applications). If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.\n\n' +
       'Who sees it: only JobRadar. To read your resume, its text is sent once to an AI provider that does not train on it. What you send with /feedback is read by the author of the bot. Nothing is sold or shared.\n\n' +
       'How long: until you delete it. /delete removes the account and everything in it at once.\n\n' +
       'Full policy: https://job-radar-web-phi.vercel.app/privacy',
@@ -78,10 +80,11 @@ const STRINGS = {
     'stop.done': 'Отключено. Сообщений больше не будет. Подключить снова можно в настройках.',
     'stop.notLinked': 'Этот чат не привязан ни к одному аккаунту JobRadar.',
     'help':
-      'JobRadar находит удалённые IT-вакансии под твоё резюме и присылает их сюда.\n\n' +
+      'JobRadar находит удалённые IT-вакансии под твоё резюме или под параметры, заданные без него, и присылает их сюда.\n\n' +
       '/start — создать аккаунт или снова подключить этот чат\n' +
       '/setup — первые шаги: чек-лист для начала\n' +
       '/resume — твоё резюме: добавить или заменить\n' +
+      '/noresume — без резюме: задать роль, грейд и навыки вручную\n' +
       '/digest — прислать все новые подходящие вакансии сейчас\n' +
       '/filters — какие вакансии присылать: роль, грейд, навыки, зарплата, формат\n' +
       '/settings — когда присылать: доставка, часовой пояс, язык, пауза\n' +
@@ -98,10 +101,11 @@ const STRINGS = {
     'start.welcome':
       'Добро пожаловать в JobRadar. Аккаунт создан: без почты и пароля, вход — этот чат.\n\n' +
       'Следующий шаг: пришли сюда резюме файлом PDF (📎 → Файл). Я оценю его и соберу профиль для подбора вакансий.\n\n' +
+      'Нет резюме или не хочешь им делиться? /noresume: роль, грейд и навыки выбираются вручную, ничего личного не спрашиваю.\n\n' +
       '/setup проведёт по остальным шагам.',
     'start.back': 'С возвращением. Этот чат снова подключён к твоему аккаунту JobRadar.',
     'privacy':
-      'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, время последнего действия в боте, а позже резюме (PDF и его текст), профиль, собранный по нему, отправленные тебе вакансии, твои реакции на них и отклики, которые ты отмечаешь (/applications). Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.\n\n' +
+      'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, время последнего действия в боте, резюме (PDF и его текст), если ты его загрузишь, профиль, собранный по нему или по параметрам из /noresume, отправленные тебе вакансии, твои реакции на них и отклики, которые ты отмечаешь (/applications). Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.\n\n' +
       'Кто это видит: только JobRadar. Чтобы прочитать резюме, его текст один раз отправляется AI-провайдеру, который на нём не обучается. То, что ты пишешь в /feedback, читает автор бота. Ничего не продаётся и не передаётся.\n\n' +
       'Сколько хранится: пока ты сам не удалишь. /delete сразу удаляет аккаунт и всё, что в нём.\n\n' +
       'Полная политика: https://job-radar-web-phi.vercel.app/privacy',

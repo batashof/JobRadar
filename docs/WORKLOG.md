@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-29 — Profile without a resume (v2.8.0)
+- Developer asked to search for work "anonymously": no resume upload, only parameters.
+- `/noresume` wizard in `CandidateBotService`: an empty `manual` profile, then role → grade → skills (the `profile` dialog, step `wizard-skills`) → English (skippable) → the usual card. No LLM, no file, no migration (`source = 'manual'`, `prompt_version = 0`). ADR-034.
+- Entry points: `/start` welcome, `/help`, "✍️ Without a resume" on `/resume` and `/setup` (step 1 counts as done for a manual profile), texts of `/digest` and `/filters` without a profile, `/privacy`. `/stats` funnel line; `profile_manual_started` event.
+- Unit tests for the wizard and the replace confirmation; an e2e scenario: four answers → confirm → the matching vacancy on `/digest`.
+- Next step: watch in `/stats` how many testers pick the manual path and whether their matches are good enough without a resume.
+
 ## 2026-10-29 — Working language of a vacancy (v2.7.0)
 - Developer: LinkedIn vacancies written entirely in Spanish, no mention of English; asked to at least show the language of the work.
 - `matching/work-language.ts`: written-in languages by function-word counts (plus non-English job-title words), required languages by a name next to a level or "required", "nice to have" clauses skipped; ten languages. Pure, run at delivery, nothing stored. LinkedIn rows are read by title only (their description is our English summary).

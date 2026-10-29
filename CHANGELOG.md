@@ -9,6 +9,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.8.0] — 2026-10-29
+
+### Added
+
+- **Looking for work without a resume** (ADR-034): `/noresume` asks four questions (role, grade, skills, English level, the last one skippable) and builds the candidate profile from the answers. No file, no AI call, nothing personal; the profile is confirmed and matched by the formula exactly like one read from a resume. Also reachable as "✍️ Without a resume" on `/resume` and `/setup`, and named in the `/start` welcome, `/help`, `/digest` and `/filters` when there is no profile yet.
+- A profile read from a resume is replaced by the manual one only after a confirmation; the manual card has no "Analyse again" button.
+- `/stats` shows how many users set a profile without a resume.
+
+### Changed
+
+- `/privacy` says the resume is optional.
+
 ## [2.7.0] — 2026-10-29
 
 ### Added

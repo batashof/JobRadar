@@ -17,6 +17,8 @@ export interface StatsSnapshot {
   /** How far the current users got, all time. `users.total` is the first step. */
   funnel: {
     resume: number;
+    /** A profile set by hand with `/noresume` instead of a resume (ADR-034). */
+    manual: number;
     confirmed: number;
     received: number;
     applied: number;
@@ -51,6 +53,7 @@ const TEXT = {
     funnel: '🪜 Funnel',
     started: 'Started the bot: {n}',
     resume: 'Uploaded a resume: {n}',
+    manual: 'Set a profile without a resume: {n}',
     confirmed: 'Confirmed the profile: {n}',
     received: 'Received vacancies: {n}',
     applied: 'Marked an application: {n}',
@@ -70,6 +73,7 @@ const TEXT = {
     funnel: '🪜 Воронка',
     started: 'Запустили бота: {n}',
     resume: 'Загрузили резюме: {n}',
+    manual: 'Задали профиль без резюме: {n}',
     confirmed: 'Подтвердили профиль: {n}',
     received: 'Получили вакансии: {n}',
     applied: 'Отметили отклик: {n}',
@@ -115,6 +119,7 @@ export function renderStats(s: StatsSnapshot, lang: Language): string {
     t('funnel'),
     t('started', { n: base }),
     t('resume', { n: withShare(s.funnel.resume, base) }),
+    t('manual', { n: withShare(s.funnel.manual, base) }),
     t('confirmed', { n: withShare(s.funnel.confirmed, base) }),
     t('received', { n: withShare(s.funnel.received, base) }),
     t('applied', { n: withShare(s.funnel.applied, base) }),

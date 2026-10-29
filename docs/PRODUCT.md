@@ -37,7 +37,7 @@ JobRadar is a personal job-search service that removes the two most tedious part
 ## v2.0.0 scope (phase 5, ADR-024, ADR-025)
 
 1. Registration by `/start` in the bot; no email, no password.
-2. Resume PDF sent to the chat → one free-LLM analysis → resume evaluation + a candidate profile the user confirms with buttons.
+2. Resume PDF sent to the chat → one free-LLM analysis → resume evaluation + a candidate profile the user confirms with buttons. Or, without a resume (v2.8.0, ADR-034): `/noresume` asks role, grade, skills and English and builds the same profile from the answers.
 3. Vacancies scored by a deterministic formula (no LLM per vacancy), delivered instantly or on a schedule, with Apply / Details / Hide / 👍👎.
 4. Every setting in the bot (`/settings`); `/privacy`, `/delete`.
 5. More sources for the CIS audience: DOU, Djinni, SmartRecruiters, Recruitee, Personio.
