@@ -221,7 +221,7 @@ describe('SettingsBotService', () => {
     expect(bot.sendToUser.mock.calls[0][1]).toContain('Сохранено.');
   });
 
-  it('starts an account with no rows on English, Russian and Ukrainian (ADR-032)', async () => {
+  it('starts an account with no rows on English, Russian and Ukrainian (ADR-033)', async () => {
     const { filters, bot } = setup();
 
     await filters(msg);

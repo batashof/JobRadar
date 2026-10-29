@@ -832,7 +832,7 @@ describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
     });
   });
 
-  it("drops a posting written in a language the user does not work in (ADR-032)", async () => {
+  it("drops a posting written in a language the user does not work in (ADR-033)", async () => {
     const { db, queue, writes } = makeDb();
     queue(digestSettings, [userRow({ workLanguages: ["en", "ru"] })]);
     queue(candidateProfiles, [profileRow()]);

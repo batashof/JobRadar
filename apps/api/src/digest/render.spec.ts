@@ -57,7 +57,7 @@ describe("renderCardParts", () => {
     expect(card).toContain("<i>Стек совпадает почти полностью</i>");
   });
 
-  it("names the languages the work is in, written-in first (ADR-032)", () => {
+  it("names the languages the work is in, written-in first (ADR-033)", () => {
     const [card] = renderCardParts(item({ languages: { text: ["es"], required: ["en"] } }), "ru");
     expect(card).toContain("🗣 Испанский, Английский");
     const [english] = renderCardParts(item({ languages: { text: ["es"], required: [] } }), "en");

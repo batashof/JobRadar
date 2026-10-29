@@ -65,7 +65,7 @@ export interface SettingsState {
   mutedSources: string[];
   /** Places an on-site or hybrid vacancy must be in; empty = anywhere. */
   locations: string[];
-  /** Languages the user can work in; empty = any (v2.7.0, ADR-032). */
+  /** Languages the user can work in; empty = any (v2.7.0, ADR-033). */
   workLanguages: string[];
   timezone: string;
   language: Language;

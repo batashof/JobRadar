@@ -238,7 +238,7 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 
 ### 5.14 Working language of a vacancy (v2.7.0) ✅
 
-- [x] The language a vacancy is written in and the languages it requires, read from its text without the LLM (ADR-032).
+- [x] The language a vacancy is written in and the languages it requires, read from its text without the LLM (ADR-033).
 - [x] A 🗣 row on the card.
 - [x] `/filters` → 🗣 Languages: hide vacancies in other languages (English, Russian and Ukrainian by default).
 

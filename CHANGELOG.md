@@ -13,8 +13,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Added
 
-- **The vacancy card names the language of the work**: a `🗣 Spanish, English` row, from the language the posting is written in and the ones it requires ("fluent German", "inglés C1", "знание польского"). Read from the text by word counts, with no LLM (ADR-032). A LinkedIn alert is read from its title, the only part of it JobRadar has.
+- **The vacancy card names the language of the work**: a `🗣 Spanish, English` row, from the language the posting is written in and the ones it requires ("fluent German", "inglés C1", "знание польского"). Read from the text by word counts, with no LLM (ADR-033). A LinkedIn alert is read from its title, the only part of it JobRadar has.
 - **`/filters` → 🗣 Languages**: the languages you can work in. A vacancy written only in other languages, or requiring one you do not have, is not sent; one whose language could not be told still is. English, Russian and Ukrainian are on by default; "Any language" turns the filter off. Migration `0026_work_languages`.
+
+## [2.6.4] — 2026-10-29
+
+### Fixed
+
+- **Vacancies for other professions no longer arrive** (ADR-032). "Senior SEO Specialist" with React, TypeScript and JavaScript in the text scored 86 for a frontend resume, because the formula knew only engineering job families and read the title as generic. Titles naming SEO, marketing, content, sales, recruiting, support or project management, and QA or design titles written loosely ("QA Automation Engineer", "UI/UX Designer"), now count as another job family unless the title also says developer or engineer.
+- A posting of another job family is capped at 30 instead of 40, below the lowest minimum fit in `/filters`, so it is never delivered.
 
 ## [2.6.3] — 2026-10-22
 

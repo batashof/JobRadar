@@ -232,7 +232,7 @@ describe('renderScreen', () => {
     expect(data(renderScreen('loc', state(), SLUGS).keyboard)).not.toContain('s:loc:clear');
   });
 
-  it('toggles working languages, with "any" clearing them (ADR-032)', () => {
+  it('toggles working languages, with "any" clearing them (ADR-033)', () => {
     const s = state({ workLanguages: ['en', 'ru'] });
     expect(decide(s, ['s', 'wl', 'ru'], SLUGS)).toEqual({ patch: { workLanguages: ['en'] }, screen: 'wl' });
     expect(decide(s, ['s', 'wl', 'es'], SLUGS)).toEqual({ patch: { workLanguages: ['en', 'ru', 'es'] }, screen: 'wl' });

@@ -732,7 +732,7 @@ export const digestSettings = pgTable('digest_settings', {
   mutedSources: text('muted_sources').array().notNull().default(sql`'{}'::text[]`),
   // Places a non-remote vacancy must be in (v2.5.0): "Minsk", "Poland"; empty = anywhere.
   locations: text('locations').array().notNull().default(sql`'{}'::text[]`),
-  // Languages the user can work in (v2.7.0, ADR-032): a vacancy written in or
+  // Languages the user can work in (v2.7.0, ADR-033): a vacancy written in or
   // requiring another one is not sent; empty = any language.
   workLanguages: text('work_languages').array().notNull().default(sql`'{en,ru,uk}'::text[]`),
   // Delivery bookkeeping for both modes: the latest `vacancies.ingested_at`

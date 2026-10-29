@@ -1,7 +1,7 @@
 import type { Language } from '@jobradar/shared';
 
 /**
- * Which language a vacancy's work is in (v2.7.0, ADR-032), read from the
+ * Which language a vacancy's work is in (v2.7.0, ADR-033), read from the
  * posting itself with no LLM (ADR-025, ADR-029): the language the text is
  * written in, by counting each language's function words, plus the languages
  * it explicitly asks for ("fluent German", "inglés C1", "знание польского").

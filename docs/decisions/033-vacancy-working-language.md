@@ -1,4 +1,4 @@
-# ADR-032: A vacancy's working language is read from its text, and /filters can hide other languages
+# ADR-033: A vacancy's working language is read from its text, and /filters can hide other languages
 
 - Status: Accepted
 - Date: 2026-10-29
