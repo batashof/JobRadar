@@ -57,6 +57,15 @@ describe("renderCardParts", () => {
     expect(card).toContain("<i>Стек совпадает почти полностью</i>");
   });
 
+  it("names the languages the work is in, written-in first (ADR-032)", () => {
+    const [card] = renderCardParts(item({ languages: { text: ["es"], required: ["en"] } }), "ru");
+    expect(card).toContain("🗣 Испанский, Английский");
+    const [english] = renderCardParts(item({ languages: { text: ["es"], required: [] } }), "en");
+    expect(english).toContain("🗣 Spanish");
+    expect(renderCardParts(item({ languages: { text: [], required: [] } }), "ru")[0]).not.toContain("🗣");
+    expect(renderCardParts(item(), "ru")[0]).not.toContain("🗣");
+  });
+
   it("lays the head out as icon rows: date by the company, location, format, salary, fit", () => {
     const [card] = renderCardParts(
       item({

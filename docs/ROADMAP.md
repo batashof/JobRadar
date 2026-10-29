@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0; 5.10 settings and filters apart in v2.4.0; 5.11 vacancy card and location filter in v2.5.0. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0; 5.10 settings and filters apart in v2.4.0; 5.11 vacancy card and location filter in v2.5.0; 5.14 working language of a vacancy in v2.7.0. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -235,6 +235,14 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 - [x] `/testmode` round trip fixed and covered by an end-to-end scenario (v2.6.2).
 
 **Exit criterion:** a change that breaks a tester's path fails CI, and a broken production is reported within half a day.
+
+### 5.14 Working language of a vacancy (v2.7.0) ✅
+
+- [x] The language a vacancy is written in and the languages it requires, read from its text without the LLM (ADR-032).
+- [x] A 🗣 row on the card.
+- [x] `/filters` → 🗣 Languages: hide vacancies in other languages (English, Russian and Ukrainian by default).
+
+**Exit criterion:** a vacancy written only in Spanish does not reach a user who works in English and Russian, and every card says what language the work is in.
 
 ### Later (not in 2.0.0)
 

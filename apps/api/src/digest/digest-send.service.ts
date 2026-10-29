@@ -70,6 +70,7 @@ import {
   type ScoringProfile,
   scoreVacancy,
 } from '../matching/score';
+import { detectVacancyLanguages } from '../matching/work-language';
 import { isQuietTime, resolveDue } from './due';
 import { DIGEST_ACTION, digestText, renderCardParts, renderHeader, renderKeyboard } from './render';
 import {
@@ -641,6 +642,9 @@ export class DigestSendService implements OnModuleInit {
       resumeScore: row.resumeScore ?? 0,
       ruleScore: ruleScores.get(row.id) ?? 0,
       lexScore: normalizeLexScore(row.lexScore),
+      // A LinkedIn row's description is JobRadar's own English summary of the
+      // alert card (ADR-021), so only its title says what language it is in.
+      languages: detectVacancyLanguages(row, row.sourceSlug === LINKEDIN_SLUG),
     }));
 
     // Title-based catch for the rows ingestion left unlevelled.
@@ -879,7 +883,10 @@ const preferenceColumns = {
   minSalaryUsd: digestSettings.minSalaryUsd,
   mutedSources: digestSettings.mutedSources,
   locations: digestSettings.locations,
+  workLanguages: digestSettings.workLanguages,
 };
+
+const LINKEDIN_SLUG = 'linkedin';
 
 /** A stored candidate profile as the formula reads it; an unknown grade reads as none. */
 function scoringProfile(stored: {

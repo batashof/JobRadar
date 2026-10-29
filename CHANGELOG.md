@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.7.0] — 2026-10-29
+
+### Added
+
+- **The vacancy card names the language of the work**: a `🗣 Spanish, English` row, from the language the posting is written in and the ones it requires ("fluent German", "inglés C1", "знание польского"). Read from the text by word counts, with no LLM (ADR-032). A LinkedIn alert is read from its title, the only part of it JobRadar has.
+- **`/filters` → 🗣 Languages**: the languages you can work in. A vacancy written only in other languages, or requiring one you do not have, is not sent; one whose language could not be told still is. English, Russian and Ukrainian are on by default; "Any language" turns the filter off. Migration `0026_work_languages`.
+
 ## [2.6.3] — 2026-10-22
 
 ### Changed

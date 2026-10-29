@@ -221,6 +221,23 @@ describe('SettingsBotService', () => {
     expect(bot.sendToUser.mock.calls[0][1]).toContain('Сохранено.');
   });
 
+  it('starts an account with no rows on English, Russian and Ukrainian (ADR-032)', async () => {
+    const { filters, bot } = setup();
+
+    await filters(msg);
+
+    expect(bot.sendToUser.mock.calls[0][1]).toContain('Языки работы: Английский, Русский, Украинский');
+  });
+
+  it('shows the stored working languages on /filters', async () => {
+    const { filters, bot, queue } = setup();
+    queue(digestSettings, [{ ...digestRow, workLanguages: ['en'] }]);
+
+    await filters(msg);
+
+    expect(bot.sendToUser.mock.calls[0][1]).toMatch(/Языки работы: Английский\n/);
+  });
+
   it('shows the filters with the profile from the resume on /filters', async () => {
     const { filters, bot, queue } = setup(profileRow);
     queue(digestSettings, [{ ...digestRow, minSalaryUsd: 3000 }]);

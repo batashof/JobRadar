@@ -1,0 +1,1 @@
+ALTER TABLE "digest_settings" ADD COLUMN "work_languages" text[] DEFAULT '{en,ru,uk}'::text[] NOT NULL;

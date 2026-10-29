@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-29 — Working language of a vacancy (v2.7.0)
+- Developer: LinkedIn vacancies written entirely in Spanish, no mention of English; asked to at least show the language of the work.
+- `matching/work-language.ts`: written-in languages by function-word counts (plus non-English job-title words), required languages by a name next to a level or "required", "nice to have" clauses skipped; ten languages. Pure, run at delivery, nothing stored. LinkedIn rows are read by title only (their description is our English summary).
+- Card gets a 🗣 row; `/filters` → 🗣 Languages (`s:wl:<code>`, `s:wl:any`), `digest_settings.work_languages` default `{en,ru,uk}` (migration 0026); `passesPreferences` drops a posting written only in other languages or requiring one outside the list. ADR-032.
+- Checked on live feeds (25 DOU, 20 Djinni, 12 Remotive, 65 posts of four Telegram channels): no wrong hide; one Djinni "French-speaking" vacancy correctly hidden; 3 short Telegram posts unknown (pass).
+- Next step: apply the migration with `DB (prod)` → `migrate` right after the merge; watch whether LinkedIn titles are enough or Spanish bodies still slip through.
+
 ## 2026-10-22 — Ingestion off Redis (v2.6.3)
 - Upstash warned at 90% of 500k monthly commands. Cause: the BullMQ ingestion queue, ~600 jobs a day since the 10-minute tick (ADR-023).
 - `IngestionQueue` runs the jobs in process, FIFO, one at a time; BullMQ, ioredis and every Redis check removed (ADR-031).
