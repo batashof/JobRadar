@@ -37,6 +37,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [029](029-formula-for-the-owner-too.md) | The owner's vacancies are scored by the formula too; the LLM reads resumes only (amends ADR-011, ADR-024 §3, ADR-025 §8) | Accepted |
 | [030](030-bot-e2e-and-prod-smoke.md) | End-to-end bot scenarios in CI and a twice-daily production smoke check | Accepted |
 | [031](031-in-process-ingestion-queue.md) | The ingestion queue runs in process; Redis and BullMQ removed (Upstash command quota; amends ADR-001, ADR-006, ADR-007, ADR-030) | Accepted |
+| [032](032-title-role-gate.md) | Non-engineering titles (SEO, marketing, sales, HR, …) are another job family; the wrong-family cap is 30, below every floor (amends ADR-025 §5) | Accepted |
 
 ## Template
 

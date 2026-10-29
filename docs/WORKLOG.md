@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-29 — Off-profession titles dropped (v2.6.4)
+- Developer: "Senior SEO Specialist" arrived with React/TypeScript/JS matched against a frontend resume. Cause: `titleSignal` knew only engineering families, so the title read as generic (0.3) and the skills carried it to 86.
+- `matching/score.ts`: `TITLE_FAMILIES` (engineering families plus title-only QA/design/analyst words, plus SEO, marketing, content, sales, HR, support, project management), ignored for non-engineering families when the title has an engineering word; a non-engineering title is off track for a resume of no known family too. `WRONG_FAMILY_CAP` 40 → 30, below the lowest min-fit preset. ADR-032.
+- No direct prod DB access from the session, so no prod sample; the reported title scores 30 instead of 86 in tests.
+- Next step: if another off-profession title slips through, add its words to `TITLE_FAMILIES`.
+
 ## 2026-10-22 — Ingestion off Redis (v2.6.3)
 - Upstash warned at 90% of 500k monthly commands. Cause: the BullMQ ingestion queue, ~600 jobs a day since the 10-minute tick (ADR-023).
 - `IngestionQueue` runs the jobs in process, FIFO, one at a time; BullMQ, ioredis and every Redis check removed (ADR-031).

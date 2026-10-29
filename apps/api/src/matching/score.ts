@@ -30,13 +30,17 @@ import { DESCRIPTION_SCAN_CHARS, ROLE_FAMILIES } from './resume-terms';
  *   - freshness (10%): a week-old posting has had a week of applicants.
  * A posting for another job family or two grades away is capped, whatever the
  * skill overlap says — a backend role full of "TypeScript" is still not a
- * frontend job.
+ * frontend job, and neither is an SEO specialist's (ADR-032).
  */
 
 export const SCORE_WEIGHTS = { skills: 0.55, title: 0.2, grade: 0.15, freshness: 0.1 } as const;
 
-/** Ceiling for a posting of another job family (a backend role for a frontend resume). */
-export const WRONG_FAMILY_CAP = 40;
+/**
+ * Ceiling for a posting of another job family (a backend role or an SEO
+ * specialist for a frontend resume). Below the lowest min-fit preset (40), so
+ * such a posting never reaches a digest, whatever the floor.
+ */
+export const WRONG_FAMILY_CAP = 30;
 /** Ceiling for a posting two or more grades away from the candidate. */
 export const FAR_GRADE_CAP = 40;
 /** Feedback can move a score by at most this many points either way (ADR-025 §7). */
@@ -131,24 +135,90 @@ export function detectVacancySkills(title: string, description: string): string[
 // Signals
 // ---------------------------------------------------------------------------
 
+/**
+ * Words a title uses for an engineering family that are too loose for a
+ * resume: "QA Automation Engineer" and "Manual Tester" are QA jobs, but a
+ * frontend resume says "QA" and "designer" in passing.
+ */
+const TITLE_ONLY_TERMS: Record<string, string[]> = {
+  qa: ['qa', 'aqa', 'tester', 'test automation', 'тестировщик', 'тестирования'],
+  design: ['designer', 'дизайнер', 'ux/ui', 'ui/ux'],
+  analytics: ['analyst', 'аналитик'],
+};
+
+/**
+ * Job families as a title names them: ROLE_FAMILIES plus title-only words and
+ * the non-engineering jobs that boards and channels also post. A
+ * non-engineering title ("Senior SEO Specialist") still lists React and
+ * TypeScript when the site it works on is built with them, and before these
+ * families existed such a title read as generic and passed on skills alone.
+ * Kept out of ROLE_FAMILIES because that list also reads resumes, where
+ * "worked with the marketing team" is not a career.
+ */
+export const TITLE_FAMILIES: { family: string; terms: string[] }[] = [
+  ...ROLE_FAMILIES.map((entry) => ({
+    family: entry.family,
+    terms: [...entry.terms, ...(TITLE_ONLY_TERMS[entry.family] ?? [])],
+  })),
+  { family: 'seo', terms: ['seo', 'сео'] },
+  {
+    family: 'marketing',
+    terms: ['marketing', 'marketer', 'smm', 'ppc', 'growth manager', 'маркетинг', 'маркетолог', 'таргетолог'],
+  },
+  {
+    family: 'content',
+    terms: ['copywriter', 'content manager', 'content writer', 'editor', 'копирайтер', 'контент', 'редактор'],
+  },
+  {
+    family: 'sales',
+    terms: ['sales', 'account manager', 'account executive', 'business development', 'менеджер по продажам', 'продажи'],
+  },
+  { family: 'hr', terms: ['recruiter', 'recruitment', 'talent acquisition', 'sourcer', 'hr', 'рекрутер'] },
+  {
+    family: 'support',
+    terms: ['customer support', 'customer success', 'support specialist', 'call center', 'поддержка', 'поддержки'],
+  },
+  {
+    family: 'management',
+    terms: ['project manager', 'delivery manager', 'scrum master', 'руководитель проекта', 'руководитель проектов'],
+  },
+];
+
+/** Families no engineering resume belongs to. */
+export const NON_ENGINEERING_FAMILIES = new Set(['seo', 'marketing', 'content', 'sales', 'hr', 'support', 'management']);
+
+/** Words that make a title an engineering job whatever team it serves. */
+const ENGINEERING_WORDS = [
+  'developer', 'engineer', 'programmer', 'dev', 'разработчик', 'программист', 'инженер',
+  'desenvolvedor', 'développeur', 'entwickler', 'desarrollador', 'programista',
+];
+
 /** Job family of a free-text role ("Senior Frontend Developer" → frontend). */
 export function roleFamily(role: string | null): string | null {
   if (!role) return null;
   const text = role.toLowerCase();
   // Bare words as well as the families' phrases: a role is short and
   // "Frontend Developer" is written in a dozen ways.
-  const found = ROLE_FAMILIES.find((family) =>
+  const found = TITLE_FAMILIES.find((family) =>
     [...family.terms, family.family].some((term) => phrasePattern(term).test(text)),
   );
   return found?.family ?? null;
 }
 
-function titleFamilies(title: string): Set<string> {
+/**
+ * Every job family a title names. A non-engineering family counts only when
+ * the title has no engineering word: "Software Engineer, Sales Tools" is an
+ * engineering job, "Senior SEO Specialist" is not.
+ */
+export function titleFamilies(title: string): Set<string> {
   const text = title.toLowerCase();
+  const engineering = ENGINEERING_WORDS.some((word) => phrasePattern(word).test(text));
   return new Set(
-    ROLE_FAMILIES.filter((family) => family.terms.some((term) => phrasePattern(term).test(text))).map(
-      (family) => family.family,
-    ),
+    TITLE_FAMILIES.filter(
+      (family) =>
+        !(engineering && NON_ENGINEERING_FAMILIES.has(family.family)) &&
+        family.terms.some((term) => phrasePattern(term).test(text)),
+    ).map((family) => family.family),
   );
 }
 
@@ -175,6 +245,11 @@ function titleSignal(
   // A title naming another job family is a different job, however the
   // description reads.
   if (family && families.size > 0) return { value: 0, wrongFamily: true };
+  // An SEO or sales title is off track for a resume of no known family too:
+  // a resume that lists technologies is an engineering one.
+  if (families.size > 0 && [...families].every((name) => NON_ENGINEERING_FAMILIES.has(name))) {
+    return { value: 0, wrongFamily: true };
+  }
   // A generic title ("Software Engineer") naming the candidate's stack.
   const text = title.toLowerCase();
   if (coreKeys.some((key) => mentions(key, text))) return { value: 0.7, wrongFamily: false };
