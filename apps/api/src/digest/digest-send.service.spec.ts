@@ -832,6 +832,46 @@ describe("DigestSendService — formula for non-owners (ADR-025 §8)", () => {
     });
   });
 
+  it("drops a posting written in a language the user does not work in (ADR-033)", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [userRow({ workLanguages: ["en", "ru"] })]);
+    queue(candidateProfiles, [profileRow()]);
+    queue(vacancies, [
+      vacancyRow({
+        id: "spanish",
+        title: "Desarrollador Frontend Senior",
+        description:
+          "Buscamos un desarrollador con experiencia en React y TypeScript para nuestro equipo. Ofrecemos trabajo remoto.",
+      }),
+      vacancyRow({ id: "english" }),
+    ]);
+    const bot = makeBot();
+
+    await expect(service(db, bot).sendNow("user-1", NOW)).resolves.toBe(1);
+    expect(writes.find((w) => w.table === digestItems)?.values).toMatchObject({
+      vacancyId: "english",
+    });
+  });
+
+  it("reads a LinkedIn alert's language from its title only, not JobRadar's English summary", async () => {
+    const { db, queue, writes } = makeDb();
+    queue(digestSettings, [userRow({ workLanguages: ["en", "ru"] })]);
+    queue(candidateProfiles, [profileRow()]);
+    queue(vacancies, [
+      vacancyRow({
+        id: "linkedin-es",
+        sourceSlug: "linkedin",
+        title: "Desarrollador Frontend React",
+        description:
+          "Desarrollador Frontend React at Acme.\nFrom a LinkedIn job-alert email; the full posting is on LinkedIn. You will find the rest of the job there.",
+      }),
+    ]);
+    const bot = makeBot();
+
+    await expect(service(db, bot).sendNow("user-1", NOW)).resolves.toBe(0);
+    expect(writes.filter((w) => w.table === digestItems)).toHaveLength(0);
+  });
+
   it("applies the same preferences to the owner", async () => {
     const { db, queue, writes } = ownerDb();
     queue(digestSettings, [settingsRow({ workFormats: ["remote"], minScore: 0 })]);

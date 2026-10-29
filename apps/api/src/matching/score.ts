@@ -16,6 +16,7 @@ import {
 } from '@jobradar/shared';
 
 import { DESCRIPTION_SCAN_CHARS, ROLE_FAMILIES } from './resume-terms';
+import { matchesWorkLanguages, type VacancyLanguages } from './work-language';
 
 /**
  * The deterministic resume ↔ vacancy fit of ADR-025 §5: same input, same
@@ -456,6 +457,8 @@ export interface DeliveryPreferences {
   minSalaryUsd: number | null;
   /** Places a non-remote posting must be in; empty = anywhere (v2.5.0). */
   locations: string[];
+  /** Languages the user can work in; empty = any (v2.7.0, ADR-033). */
+  workLanguages?: string[];
 }
 
 /**
@@ -538,8 +541,13 @@ export function passesPreferences(
     salaryMax: number | null;
     salaryCurrency: string | null;
     location?: string | null;
+    /** What `detectVacancyLanguages` read from the posting; absent = not checked. */
+    languages?: VacancyLanguages;
   },
 ): boolean {
+  if (vacancy.languages && !matchesWorkLanguages(prefs.workLanguages ?? [], vacancy.languages)) {
+    return false;
+  }
   if (!matchesLocation(prefs.locations ?? [], { location: vacancy.location ?? null, workFormat: vacancy.workFormat })) {
     return false;
   }

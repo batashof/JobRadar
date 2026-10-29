@@ -15,6 +15,7 @@ import {
 import { escapeHtml, type InlineKeyboard } from '../bot/telegram-api';
 import { ROLE_TITLES } from '../candidate/analysis';
 import { GRADE_LABELS } from '../candidate/render';
+import { isWorkLanguage, languageLabel, WORK_LANGUAGES } from '../matching/work-language';
 
 /**
  * `/settings` and `/filters` in the bot (roadmap 5.3, 5.10), kept pure: what
@@ -36,6 +37,7 @@ import { GRADE_LABELS } from '../candidate/render';
  *   s:tz:<i>                            timezone preset by index
  *   s:role:<family> / s:grade:<level>   edit the candidate profile
  *   s:loc:<i> / s:loc:clear             drop one wanted place / all of them
+ *   s:wl:<code> / s:wl:any              toggle a working language / accept any
  *   s:type:<step>                       ask for a typed value
  */
 
@@ -63,6 +65,8 @@ export interface SettingsState {
   mutedSources: string[];
   /** Places an on-site or hybrid vacancy must be in; empty = anywhere. */
   locations: string[];
+  /** Languages the user can work in; empty = any (v2.7.0, ADR-033). */
+  workLanguages: string[];
   timezone: string;
   language: Language;
   /** Null until a resume has been analysed. */
@@ -73,12 +77,12 @@ export type SettingsPatch = Partial<Omit<SettingsState, 'profile'>>;
 export type ProfilePatch = Partial<Pick<ProfileFilters, 'role' | 'grade'>>;
 
 export const SCREENS = [
-  'main', 'fmt', 'emp', 'src', 'ms', 'cap', 'sal', 't', 'q', 'tz', 'flt', 'role', 'grade', 'loc',
+  'main', 'fmt', 'emp', 'src', 'ms', 'cap', 'sal', 't', 'q', 'tz', 'flt', 'role', 'grade', 'loc', 'wl',
 ] as const;
 export type Screen = (typeof SCREENS)[number];
 
 /** The `/filters` screens: their "back" leads to the filters, not the settings. */
-const FILTER_SCREENS: readonly Screen[] = ['flt', 'fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc'];
+const FILTER_SCREENS: readonly Screen[] = ['flt', 'fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc', 'wl'];
 
 /** At most this many wanted places, each at most LOCATION_MAX_LENGTH characters. */
 export const LOCATIONS_MAX = 10;
@@ -215,6 +219,10 @@ export function decide(state: SettingsState, parts: string[], sourceSlugs: strin
       if (!Number.isInteger(number) || place === undefined) return { screen: 'loc' };
       return { patch: { locations: state.locations.filter((_, i) => i !== number) }, screen: 'loc' };
     }
+    case 'wl':
+      if (arg === 'any') return { patch: { workLanguages: [] }, screen: 'wl' };
+      if (!isWorkLanguage(arg)) return { screen: 'wl' };
+      return { patch: { workLanguages: toggle(state.workLanguages, arg) }, screen: 'wl' };
     case 'role':
       if (!state.profile) return { screen: 'flt' };
       if (!arg || !ROLE_TITLES[arg]) return { screen: 'role' };
@@ -358,6 +366,11 @@ const TEXT = {
     bClearPlaces: '🗑 Clear',
     locHint:
       'Places an on-site or hybrid vacancy must be in. Remote vacancies and those that do not say where always arrive. Tap a place to remove it.',
+    workLanguages: 'Work languages',
+    bWorkLanguages: '🗣 Languages',
+    bAnyLanguage: 'Any language',
+    wlHint:
+      'Languages you can work in. A vacancy written in another language, or requiring one ("fluent German"), does not arrive; one whose language could not be told always does. None selected = any language.',
     language: 'Language',
     status: 'Status',
     active: 'active',
@@ -444,6 +457,11 @@ const TEXT = {
     bClearPlaces: '🗑 Очистить',
     locHint:
       'Где должна быть вакансия в офисе или гибрид. Удалённые и те, где место не указано, приходят всегда. Нажми на место, чтобы убрать его.',
+    workLanguages: 'Языки работы',
+    bWorkLanguages: '🗣 Языки',
+    bAnyLanguage: 'Любой язык',
+    wlHint:
+      'Языки, на которых ты можешь работать. Вакансия на другом языке или с обязательным знанием другого («fluent German») не придёт; если язык определить не удалось, придёт. Ничего не выбрано — любой язык.',
     language: 'Язык',
     status: 'Статус',
     active: 'активно',
@@ -563,10 +581,18 @@ function filtersSummary(state: SettingsState, lang: Language): string {
     `${t.minScore}: ${floor}%`,
     `${t.format}: ${formats}`,
     `${t.locations}: ${escapeHtml(state.locations.join(', ')) || t.anywhere}`,
+    `${t.workLanguages}: ${workLanguagesLine(state.workLanguages, lang) || t.any}`,
     `${t.employment}: ${employment}`,
     `${t.salary}: ${state.minSalaryUsd ? `$${state.minSalaryUsd}${t.perMonth}` : t.none}`,
     `${t.sourcesOff}: ${escapeHtml(state.mutedSources.join(', ')) || t.none}`,
   ].join('\n');
+}
+
+/** "English, Russian" in the account language, in the fixed order of the list. */
+function workLanguagesLine(codes: string[], lang: Language): string {
+  return WORK_LANGUAGES.filter((code) => codes.includes(code))
+    .map((code) => languageLabel(code, lang))
+    .join(', ');
 }
 
 /** "React, TypeScript, … +3": main skills first, as the profile stores them. */
@@ -746,6 +772,20 @@ export function renderScreen(
           back(lang, screen),
         ],
       };
+    case 'wl':
+      return {
+        text: t.wlHint,
+        keyboard: [
+          ...rows(
+            WORK_LANGUAGES.map((code) =>
+              button(`${mark(state.workLanguages.includes(code))}${languageLabel(code, lang)}`, `wl:${code}`),
+            ),
+            2,
+          ),
+          [button(`${mark(state.workLanguages.length === 0)}${t.bAnyLanguage}`, 'wl:any')],
+          back(lang, screen),
+        ],
+      };
     case 'flt':
       return {
         text: filtersSummary(state, lang),
@@ -758,7 +798,7 @@ export function renderScreen(
             : [[{ text: t.bResumeUpload, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:res` }]]),
           [button(t.bScore, 'open:ms'), button(t.bFormat, 'open:fmt')],
           [button(t.bLocation, 'open:loc'), button(t.bEmployment, 'open:emp')],
-          [button(t.bSalary, 'open:sal')],
+          [button(t.bSalary, 'open:sal'), button(t.bWorkLanguages, 'open:wl')],
           [button(t.bSources, 'open:src'), button(t.bSettings, 'menu')],
         ],
       };

@@ -24,6 +24,7 @@ const state = (over: Partial<SettingsState> = {}): SettingsState => ({
   minSalaryUsd: null,
   mutedSources: [],
   locations: [],
+  workLanguages: ['en', 'ru', 'uk'],
   timezone: 'Europe/Moscow',
   language: 'ru',
   profile: null,
@@ -231,6 +232,29 @@ describe('renderScreen', () => {
     expect(data(renderScreen('loc', state(), SLUGS).keyboard)).not.toContain('s:loc:clear');
   });
 
+  it('toggles working languages, with "any" clearing them (ADR-033)', () => {
+    const s = state({ workLanguages: ['en', 'ru'] });
+    expect(decide(s, ['s', 'wl', 'ru'], SLUGS)).toEqual({ patch: { workLanguages: ['en'] }, screen: 'wl' });
+    expect(decide(s, ['s', 'wl', 'es'], SLUGS)).toEqual({ patch: { workLanguages: ['en', 'ru', 'es'] }, screen: 'wl' });
+    expect(decide(s, ['s', 'wl', 'any'], SLUGS)).toEqual({ patch: { workLanguages: [] }, screen: 'wl' });
+    expect(decide(s, ['s', 'wl', 'xx'], SLUGS)).toEqual({ screen: 'wl' });
+  });
+
+  it('shows the working languages as checkboxes and on the filters screen', () => {
+    const { text, keyboard } = renderScreen('wl', state({ workLanguages: ['en', 'ru'] }), SLUGS);
+    expect(text).toContain('Языки, на которых ты можешь работать');
+    expect(keyboard[0]).toEqual([
+      { text: '✅ Английский', callbackData: 's:wl:en' },
+      { text: '✅ Русский', callbackData: 's:wl:ru' },
+    ]);
+    expect(data(keyboard)).toEqual(expect.arrayContaining(['s:wl:es', 's:wl:any', 's:open:flt']));
+    expect(renderScreen('flt', state({ workLanguages: ['ru', 'en'] }), SLUGS).text).toContain(
+      'Языки работы: Английский, Русский',
+    );
+    expect(renderScreen('flt', state({ workLanguages: [] }), SLUGS).text).toContain('Языки работы: любой');
+    expect(data(renderScreen('flt', state(), SLUGS).keyboard)).toContain('s:open:wl');
+  });
+
   it('asks for the resume on the filters screen when there is no profile yet', () => {
     const { text, keyboard } = renderScreen('flt', state(), SLUGS);
     expect(text).toContain('пришли его файлом PDF');
@@ -244,7 +268,7 @@ describe('renderScreen', () => {
   });
 
   it('leads back from a filter screen to the filters, from a delivery screen to the settings', () => {
-    for (const screen of ['fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc'] as const) {
+    for (const screen of ['fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc', 'wl'] as const) {
       expect(renderScreen(screen, state({ profile: PROFILE }), SLUGS).keyboard.at(-1)).toEqual([
         { text: '← Назад', callbackData: 's:open:flt' },
       ]);

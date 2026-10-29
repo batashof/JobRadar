@@ -21,6 +21,7 @@ import { parseSkillsInput } from '../candidate/render';
 import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
 import { digestSettings, plannerSettings, sources, users } from '../db/schema';
+import { DEFAULT_WORK_LANGUAGES } from '../matching/work-language';
 import {
   decide,
   parseTyped,
@@ -161,6 +162,7 @@ export class SettingsBotService implements OnModuleInit {
       minSalaryUsd: digest?.minSalaryUsd ?? null,
       mutedSources: digest?.mutedSources ?? [],
       locations: digest?.locations ?? [],
+      workLanguages: digest?.workLanguages ?? [...DEFAULT_WORK_LANGUAGES],
       timezone: planner?.timezone ?? defaultTimezone(language),
       language,
       profile: profile

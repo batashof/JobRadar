@@ -1,6 +1,7 @@
 import type { Language } from '@jobradar/shared';
 
 import { escapeHtml, type InlineKeyboard } from '../bot/telegram-api';
+import { languageLabel, vacancyLanguageList } from '../matching/work-language';
 import type { CardFit, ScoredCandidate } from './select';
 
 /** Message text and keyboards for the digest, kept pure and testable. */
@@ -255,6 +256,13 @@ function renderHead(item: ScoredCandidate, lang: Language, timezone: string): st
     item.employmentType ? `⏱ ${digestText(lang, `employment.${item.employmentType}`)}` : null,
   ].filter((value): value is string => Boolean(value));
   if (kind.length > 0) lines.push(escapeHtml(kind.join('  ·  ')));
+
+  // The language the work is in (v2.7.0): a posting written in Spanish says
+  // so before the reader opens it.
+  const languages = item.languages ? vacancyLanguageList(item.languages) : [];
+  if (languages.length > 0) {
+    lines.push(`🗣 ${escapeHtml(languages.map((code) => languageLabel(code, lang)).join(', '))}`);
+  }
 
   const pay = salary(item);
   const grade = item.seniority

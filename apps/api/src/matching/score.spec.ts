@@ -333,6 +333,21 @@ describe('passesPreferences', () => {
   });
 });
 
+describe('passesPreferences — working languages (ADR-033)', () => {
+  const prefs = { workFormats: [], employmentTypes: [], minSalaryUsd: null, locations: [], workLanguages: ['en', 'ru'] };
+  const posting = { workFormat: null, employmentType: null, salaryMin: null, salaryMax: null, salaryCurrency: null };
+
+  it('drops a posting in another language and keeps one in the user’s', () => {
+    expect(passesPreferences(prefs, { ...posting, languages: { text: ['es'], required: [] } })).toBe(false);
+    expect(passesPreferences(prefs, { ...posting, languages: { text: ['ru'], required: ['en'] } })).toBe(true);
+  });
+
+  it('checks nothing when the languages were not read or the user accepts any', () => {
+    expect(passesPreferences(prefs, posting)).toBe(true);
+    expect(passesPreferences({ ...prefs, workLanguages: [] }, { ...posting, languages: { text: ['es'], required: [] } })).toBe(true);
+  });
+});
+
 describe('matchesLocation', () => {
   it('matches whole words only', () => {
     expect(matchesLocation(['Riga'], { location: 'Rigaer Strasse, Berlin', workFormat: 'onsite' })).toBe(false);

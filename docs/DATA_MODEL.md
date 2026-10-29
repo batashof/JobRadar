@@ -345,6 +345,7 @@ One row per user, created when a link is started. `chat_id` stays null until the
 | min_salary_usd | integer nullable | monthly floor in USD; only USD-salaried postings are compared, values above 20 000 read as annual |
 | muted_sources | text[] not null default `{}` | source slugs switched off in `/filters` |
 | locations | text[] not null default `{}` | places an on-site or hybrid vacancy must be in, as typed in `/filters` (migration `0024_location_filter`, v2.5.0); remote vacancies and unknown locations pass; empty = anywhere |
+| work_languages | text[] not null default `{en,ru,uk}` | languages the user can work in, from `/filters` → 🗣 Languages (migration `0026_work_languages`, v2.7.0, ADR-033); a vacancy written only in other languages or requiring another one is not sent; an unknown language passes; empty = any |
 | created_at / updated_at | timestamptz | |
 
 The timezone these times are resolved in is **not** stored here: per-user timezone already exists as `planner_settings.timezone` (ADR-015 §7) and a second copy would drift. `GET /digest/settings` echoes it read-only.

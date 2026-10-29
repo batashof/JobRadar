@@ -6,6 +6,8 @@ import {
   type WorkFormat,
 } from '@jobradar/shared';
 
+import type { VacancyLanguages } from '../matching/work-language';
+
 /**
  * Ranking for the digest funnel, kept pure.
  *
@@ -64,6 +66,8 @@ export interface DigestCandidate {
   resumeScore: number;
   /** Lexical résumé relevance, 0..1; the one signal that needs nothing cached. */
   lexScore: number;
+  /** The posting's working languages, read from its text (v2.7.0, ADR-033). */
+  languages?: VacancyLanguages;
 }
 
 /**

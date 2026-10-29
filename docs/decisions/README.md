@@ -38,6 +38,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [030](030-bot-e2e-and-prod-smoke.md) | End-to-end bot scenarios in CI and a twice-daily production smoke check | Accepted |
 | [031](031-in-process-ingestion-queue.md) | The ingestion queue runs in process; Redis and BullMQ removed (Upstash command quota; amends ADR-001, ADR-006, ADR-007, ADR-030) | Accepted |
 | [032](032-title-role-gate.md) | Non-engineering titles (SEO, marketing, sales, HR, …) are another job family; the wrong-family cap is 30, below every floor (amends ADR-025 §5) | Accepted |
+| [033](033-vacancy-working-language.md) | A vacancy's working language is read from its text; `/filters` can hide other languages (amends ADR-025 §5) | Accepted |
 
 ## Template
 
