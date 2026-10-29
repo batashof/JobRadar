@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.6.4] — 2026-10-29
+
+### Fixed
+
+- **Vacancies for other professions no longer arrive** (ADR-032). "Senior SEO Specialist" with React, TypeScript and JavaScript in the text scored 86 for a frontend resume, because the formula knew only engineering job families and read the title as generic. Titles naming SEO, marketing, content, sales, recruiting, support or project management, and QA or design titles written loosely ("QA Automation Engineer", "UI/UX Designer"), now count as another job family unless the title also says developer or engineer.
+- A posting of another job family is capped at 30 instead of 40, below the lowest minimum fit in `/filters`, so it is never delivered.
+
 ## [2.6.3] — 2026-10-22
 
 ### Changed

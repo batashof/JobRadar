@@ -11,6 +11,7 @@ import {
   passesPreferences,
   roleFamily,
   type ScoringProfile,
+  titleFamilies,
   type ScoringVacancy,
   scoreVacancy,
   WRONG_FAMILY_CAP,
@@ -73,6 +74,8 @@ describe('roleFamily', () => {
     ['Fullstack Developer', 'fullstack'],
     ['Backend Engineer', 'backend'],
     ['React developer', null],
+    ['SEO Specialist', 'seo'],
+    ['Маркетолог', 'marketing'],
     [null, null],
   ])('%s → %s', (role, family) => {
     expect(roleFamily(role)).toBe(family);
@@ -142,6 +145,61 @@ describe('scoreVacancy', () => {
       { now },
     );
     expect(result.score).toBeLessThanOrEqual(WRONG_FAMILY_CAP);
+  });
+
+  it('drops non-engineering titles that list the candidate\'s stack', () => {
+    const description =
+      'Optimise our React and Next.js site: TypeScript, JavaScript, HTML, Core Web Vitals, Redux state.';
+    for (const title of [
+      'Senior SEO Specialist',
+      'SEO-специалист',
+      'Performance Marketing Manager',
+      'Content Manager (tech blog)',
+      'IT Recruiter',
+      'Sales Manager, SaaS',
+      'Customer Support Specialist',
+      'Project Manager',
+      'QA Automation Engineer',
+      'Manual Tester',
+      'UI/UX Designer',
+    ]) {
+      const result = scoreVacancy(frontend, vacancy({ title, description }), { now });
+      expect({ title, score: result.score }).toEqual({ title, score: expect.any(Number) });
+      expect(result.score).toBeLessThanOrEqual(WRONG_FAMILY_CAP);
+    }
+  });
+
+  it('keeps every wrong-family score below the lowest min-fit preset', () => {
+    expect(WRONG_FAMILY_CAP).toBeLessThan(40);
+  });
+
+  it('drops an SEO title for a resume of no known family too', () => {
+    const noFamily: ScoringProfile = { ...frontend, role: 'React developer' };
+    const result = scoreVacancy(
+      noFamily,
+      vacancy({ title: 'Senior SEO Specialist', description: 'React, TypeScript, JavaScript' }),
+      { now },
+    );
+    expect(result.score).toBeLessThanOrEqual(WRONG_FAMILY_CAP);
+  });
+
+  it('keeps engineering titles that name a business team', () => {
+    for (const title of [
+      'Senior Frontend Developer (SEO-friendly SSR)',
+      'Senior Software Engineer, Sales Tools',
+      'Senior Frontend Engineer — Marketing Platform',
+      'Senior React Developer, Content Editor',
+    ]) {
+      const result = scoreVacancy(frontend, vacancy({ title }), { now });
+      expect({ title, capped: result.score <= WRONG_FAMILY_CAP }).toEqual({ title, capped: false });
+    }
+  });
+
+  it('reads job families from titles', () => {
+    expect([...titleFamilies('Senior SEO Specialist')]).toEqual(['seo']);
+    expect([...titleFamilies('Software Engineer, Sales Tools')]).toEqual([]);
+    expect([...titleFamilies('QA Automation Engineer')]).toEqual(['qa']);
+    expect([...titleFamilies('Senior Frontend Developer')]).toEqual(['frontend']);
   });
 
   it('accepts a fullstack title for a frontend candidate', () => {
