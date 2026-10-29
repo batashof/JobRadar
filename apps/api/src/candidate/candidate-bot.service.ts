@@ -44,6 +44,12 @@ import {
 /** The dialog flow name this service owns in `bot_dialogs`. */
 const FLOW = 'profile';
 
+/** The skills answer of the no-resume wizard, which goes on to English (ADR-034). */
+const WIZARD_SKILLS_STEP = 'wizard-skills';
+
+/** `prompt_version` of a profile no prompt produced (ADR-034). */
+const MANUAL_PROMPT_VERSION = 0;
+
 /**
  * Providers a non-owner's resume may reach (ADR-025 §4): only those that do not
  * train on free-tier data. Groq does not; OpenRouter's free models depend on
@@ -56,7 +62,9 @@ const DEFAULT_RESUME_PROVIDERS = ['groq'];
  * Resume upload and evaluation in the chat (ADR-025, roadmap 5.2): a PDF sent
  * to the bot is stored, read by one LLM call (or the term fallback), shown back
  * as a resume review plus a profile card, and confirmed or corrected with
- * buttons and one typed answer (skills).
+ * buttons and one typed answer (skills). Without a resume, `/noresume` asks
+ * the same fields one by one and builds the profile from the answers alone
+ * (ADR-034): no file, no LLM call.
  */
 @Injectable()
 export class CandidateBotService implements OnModuleInit {
@@ -83,10 +91,11 @@ export class CandidateBotService implements OnModuleInit {
 
   onModuleInit(): void {
     this.bot.registerDocumentHandler((ctx, doc) => this.onDocument(ctx, doc));
-    this.bot.registerDialog(FLOW, (ctx, text) => this.onSkillsText(ctx, text));
+    this.bot.registerDialog(FLOW, (ctx, text, dialog) => this.onSkillsText(ctx, text, dialog.step));
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.profile, (ctx) => this.onCallback(ctx));
     this.bot.registerCommand('resume', (ctx) => this.showResume(ctx));
     this.bot.registerCommand('setup', (ctx) => this.showSetup(ctx));
+    this.bot.registerCommand('noresume', (ctx) => this.startManual(ctx));
   }
 
   // -------------------------------------------------------------------------
@@ -117,8 +126,86 @@ export class CandidateBotService implements OnModuleInit {
     const screen = setupScreen(ctx.language, {
       resume,
       profile: !profile ? 'none' : profile.confirmedAt ? 'confirmed' : 'unconfirmed',
+      manual: profile?.source === 'manual',
     });
     await this.bot.sendToUser(ctx.userId, screen.text, { parseMode: 'HTML', keyboard: screen.keyboard });
+  }
+
+  // -------------------------------------------------------------------------
+  // Without a resume (ADR-034)
+  // -------------------------------------------------------------------------
+
+  /**
+   * `/noresume` and "✍️ Without a resume": an empty profile, then role, grade,
+   * skills and English one step at a time. A profile read from a resume is
+   * replaced only after the user says so, since re-reading it costs an analysis.
+   */
+  async startManual(
+    ctx: { userId: string; language: BotMessageContext['language'] },
+    confirmed = false,
+  ): Promise<void> {
+    const current = await this.profiles.get(ctx.userId);
+    if (current && current.source !== 'manual' && !confirmed) {
+      await this.bot.sendToUser(ctx.userId, escapeHtml(profileText(ctx.language, 'manualReplace')), {
+        parseMode: 'HTML',
+        keyboard: [
+          [{ text: profileText(ctx.language, 'manualYes'), callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:man:y` }],
+          [{ text: profileText(ctx.language, 'manualKeep'), callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:card` }],
+        ],
+      });
+      return;
+    }
+    await this.profiles.replace(ctx.userId, {
+      resumeId: null,
+      source: 'manual',
+      promptVersion: MANUAL_PROMPT_VERSION,
+      role: null,
+      grade: null,
+      years: null,
+      skills: [],
+      english: null,
+      location: null,
+      salaryUsd: null,
+      evaluation: null,
+    });
+    await recordEvent(this.db, ctx.userId, 'profile_manual_started');
+    await this.bot.sendToUser(ctx.userId, escapeHtml(profileText(ctx.language, 'wizRole')), {
+      parseMode: 'HTML',
+      keyboard: pickerKeyboard(ctx.language, 'r', { wizard: true }),
+    });
+  }
+
+  /** One wizard pick: store it and ask the next question in the same message. */
+  private async wizardStep(
+    ctx: BotCallbackContext,
+    field: 'r' | 'g' | 'e',
+    value: string | undefined,
+  ): Promise<BotCallbackResult> {
+    if (field === 'r' && value && ROLE_TITLES[value]) {
+      await this.profiles.update(ctx.userId, { role: ROLE_TITLES[value] });
+      return {
+        editText: escapeHtml(profileText(ctx.language, 'wizGrade')),
+        editKeyboard: pickerKeyboard(ctx.language, 'g', { wizard: true }),
+      };
+    }
+    if (field === 'g' && value && (SENIORITY_LEVELS as readonly string[]).includes(value)) {
+      await this.profiles.update(ctx.userId, { grade: value });
+      await this.dialogs.open(ctx.chatId, {
+        userId: ctx.userId,
+        flow: FLOW,
+        step: WIZARD_SKILLS_STEP,
+        payload: {},
+      });
+      return { editText: escapeHtml(profileText(ctx.language, 'wizSkills')), editKeyboard: null };
+    }
+    if (field === 'e' && value) {
+      if ((ENGLISH_LEVELS as readonly string[]).includes(value)) {
+        await this.profiles.update(ctx.userId, { english: value });
+      }
+      const updated = await this.profiles.get(ctx.userId);
+      return updated ? this.cardResult(ctx, updated) : {};
+    }
+    return {};
   }
 
   // -------------------------------------------------------------------------
@@ -255,6 +342,10 @@ export class CandidateBotService implements OnModuleInit {
       await this.showSetup(ctx);
       return {};
     }
+    if (action === 'man') {
+      await this.startManual(ctx, value === 'y');
+      return value === 'y' ? { editKeyboard: null } : {};
+    }
     const profile = await this.profiles.get(ctx.userId);
     if (!profile) return { alert: profileText(ctx.language, 'noProfile') };
 
@@ -284,7 +375,12 @@ export class CandidateBotService implements OnModuleInit {
         await this.dialogs.open(ctx.chatId, { userId: ctx.userId, flow: FLOW, step: 'skills', payload: {} });
         await this.say(ctx, 'askSkills');
         return {};
+      case 'wr':
+      case 'wg':
+      case 'we':
+        return this.wizardStep(ctx, action.charAt(1) as 'r' | 'g' | 'e', value);
       case 'retry':
+        if (profile.source === 'manual') return {};
         return this.retry(ctx, profile);
       default:
         return {};
@@ -330,11 +426,18 @@ export class CandidateBotService implements OnModuleInit {
   }
 
   /** Typed skills list, the one free-text answer of the dialog. */
-  async onSkillsText(ctx: BotMessageContext, text: string): Promise<void> {
+  async onSkillsText(ctx: BotMessageContext, text: string, step = 'skills'): Promise<void> {
     const skills = parseSkillsInput(text);
     if (skills.length === 0) return this.say(ctx, 'badSkills');
     await this.profiles.update(ctx.userId, { skills });
     await this.dialogs.close(ctx.chatId);
+    if (step === WIZARD_SKILLS_STEP) {
+      await this.bot.sendToUser(ctx.userId, escapeHtml(profileText(ctx.language, 'wizEnglish')), {
+        parseMode: 'HTML',
+        keyboard: pickerKeyboard(ctx.language, 'e', { wizard: true }),
+      });
+      return;
+    }
     const profile = await this.profiles.get(ctx.userId);
     if (!profile) return this.say(ctx, 'noProfile');
     const card = this.card(ctx, profile);
@@ -346,7 +449,10 @@ export class CandidateBotService implements OnModuleInit {
   // -------------------------------------------------------------------------
 
   private card(ctx: { language: BotMessageContext['language'] }, profile: CandidateProfileRow) {
-    return profileCard(ctx.language, profile, { fallback: profile.source === 'fallback' });
+    return profileCard(ctx.language, profile, {
+      fallback: profile.source === 'fallback',
+      manual: profile.source === 'manual',
+    });
   }
 
   /** The card's field lines without the hint and buttons, for a card that is done. */

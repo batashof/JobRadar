@@ -2,7 +2,7 @@ import { renderStats, type StatsSnapshot, withShare } from './stats-logic';
 
 const snapshot = (over: Partial<StatsSnapshot> = {}): StatsSnapshot => ({
   users: { total: 40, new1d: 2, new7d: 9, active7d: 25, reachable: 37 },
-  funnel: { resume: 30, confirmed: 24, received: 20, applied: 5 },
+  funnel: { resume: 30, manual: 4, confirmed: 24, received: 20, applied: 5 },
   week: { cards: 310, recipients: 18, fallbackResumes: 1, blocked: 2, deleted: 1, feedback: 3 },
   deletedTotal: 4,
   sources: [
@@ -31,6 +31,7 @@ describe('renderStats', () => {
     expect(text).toContain('🟢 Активны за 7 дней: 25 · чат подключён: 37');
     expect(text).toContain('Запустили бота: 40');
     expect(text).toContain('Загрузили резюме: 30 (75%)');
+    expect(text).toContain('Задали профиль без резюме: 4 (10%)');
     expect(text).toContain('Подтвердили профиль: 24 (60%)');
     expect(text).toContain('Получили вакансии: 20 (50%)');
     expect(text).toContain('Отметили отклик: 5 (13%)');
@@ -47,7 +48,7 @@ describe('renderStats', () => {
     const text = renderStats(
       snapshot({
         users: { total: 0, new1d: 0, new7d: 0, active7d: 0, reachable: 0 },
-        funnel: { resume: 0, confirmed: 0, received: 0, applied: 0 },
+        funnel: { resume: 0, manual: 0, confirmed: 0, received: 0, applied: 0 },
         sources: [],
       }),
       'en',

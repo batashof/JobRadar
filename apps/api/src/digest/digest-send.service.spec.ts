@@ -719,7 +719,7 @@ describe("DigestSendService.sendOnRequest (/digest, the send-now button)", () =>
     await expect(service(db, bot).sendOnRequest("user-1", "user", "en")).resolves.toBe(0);
     expect(bot.sendToUser).toHaveBeenCalledWith(
       "user-1",
-      "Nothing to match on yet: send your resume as a PDF and confirm the profile.",
+      "Nothing to match on yet: send your resume as a PDF, or set the profile by hand with /noresume, and confirm it.",
     );
   });
 });

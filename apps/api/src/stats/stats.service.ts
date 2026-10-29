@@ -59,6 +59,8 @@ export class StatsService implements OnModuleInit {
           where t.chat_id is not null) as reachable,
         (select count(distinct r.user_id) from resumes r join u on u.id = r.user_id) as resume,
         (select count(*) from candidate_profiles c join u on u.id = c.user_id
+          where c.source = 'manual') as manual,
+        (select count(*) from candidate_profiles c join u on u.id = c.user_id
           where c.confirmed_at is not null) as confirmed,
         (select count(distinct d.user_id) from digest_items d join u on u.id = d.user_id) as received,
         (select count(distinct a.user_id) from applications a join u on u.id = a.user_id) as applied,
@@ -95,6 +97,7 @@ export class StatsService implements OnModuleInit {
       },
       funnel: {
         resume: num(c.resume),
+        manual: num(c.manual),
         confirmed: num(c.confirmed),
         received: num(c.received),
         applied: num(c.applied),

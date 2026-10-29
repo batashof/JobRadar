@@ -295,6 +295,59 @@ describe('a new tester, from /start to the first vacancy', () => {
   });
 });
 
+describe('a tester without a resume (ADR-034)', () => {
+  let user: ChatUser;
+  let userId: string;
+
+  beforeAll(async () => {
+    user = new ChatUser(e2e, 7_150_001, 'en', 'no_resume_tester');
+    await user.say('/start');
+    const [row] = await e2e.db.select().from(users).where(eq(users.telegramUserId, String(user.id)));
+    userId = row!.id;
+  });
+
+  it('builds a profile from four answers, with no file and no AI call', async () => {
+    e2e.telegram.reset();
+    await user.say('/noresume');
+    const role = await user.waitForMessage(/Step 1 of 4/);
+    await user.press(role, 'p:wr:frontend');
+    const grade = await user.waitForMessage(/Step 2 of 4/);
+    await user.press(grade, 'p:wg:senior');
+
+    e2e.telegram.reset();
+    await user.say('React, TypeScript, Next.js');
+    const english = await user.waitForMessage(/Step 4 of 4/);
+    await user.press(english, 'p:we:B2');
+
+    const edit = e2e.telegram.callsOf('editMessageText').at(-1);
+    expect(String(edit?.body.text)).toContain('Set by hand, without a resume');
+    const [profile] = await e2e.db.select().from(candidateProfiles).where(eq(candidateProfiles.userId, userId));
+    expect(profile).toMatchObject({
+      source: 'manual',
+      resumeId: null,
+      role: 'Frontend Developer',
+      grade: 'senior',
+      english: 'B2',
+      confirmedAt: null,
+    });
+    expect(profile!.skills.map((skill) => skill.name)).toEqual(['React', 'TypeScript', 'Next.js']);
+    expect(e2e.telegram.callsOf('getFile')).toHaveLength(0);
+  });
+
+  it('confirms the card and gets the matching vacancy on /digest', async () => {
+    const card = user.messages().find((m) => m.buttons.some((b) => b.callback_data === 'p:ok'));
+    expect(card).toBeDefined();
+    await user.press(card!, 'p:ok');
+    const confirmed = await eventsNamed(e2e.db, 'profile_confirmed');
+    expect(confirmed.at(-1)).toMatchObject({ user_id: userId, props: { source: 'manual' } });
+
+    e2e.telegram.reset();
+    await user.say('/digest');
+    await user.waitForMessage(/Senior Frontend Engineer/);
+    expect(user.messages().some((m) => /Accountant/.test(m.text))).toBe(false);
+  });
+});
+
 describe('a Russian-speaking tester', () => {
   it('gets the Russian interface from the Telegram client language', async () => {
     const user = new ChatUser(e2e, 7_200_001, 'ru');

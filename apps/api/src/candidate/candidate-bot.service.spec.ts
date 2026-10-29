@@ -106,6 +106,7 @@ describe('CandidateBotService — upload', () => {
     expect(bot.registerCallback).toHaveBeenCalledWith('p', expect.any(Function));
     expect(bot.registerCommand).toHaveBeenCalledWith('resume', expect.any(Function));
     expect(bot.registerCommand).toHaveBeenCalledWith('setup', expect.any(Function));
+    expect(bot.registerCommand).toHaveBeenCalledWith('noresume', expect.any(Function));
   });
 
   it('refuses a file that is not a PDF, and one over 5 MB, without downloading', async () => {
@@ -259,7 +260,7 @@ describe('CandidateBotService — confirmation and edits', () => {
     const { service, profiles, ctx } = setup();
     profiles.get.mockResolvedValue(null);
     expect(await service.onCallback(press(ctx, ['p', 'ok']))).toEqual({
-      alert: 'Сначала пришли резюме в PDF.',
+      alert: 'Сначала пришли резюме в PDF или задай профиль вручную: /noresume.',
     });
   });
 });
@@ -294,7 +295,9 @@ describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
     const [, text, options] = bot.sendToUser.mock.calls[0];
     expect(text).toContain('Резюме ещё не загружено');
     expect(text).toContain('📎');
-    expect(options.keyboard[0].map((b: { callbackData: string }) => b.callbackData)).toEqual(['p:setup']);
+    expect(text).toContain('✍️ Без резюме');
+    const data = options.keyboard.map((row: { callbackData: string }[]) => row.map((b) => b.callbackData));
+    expect(data).toEqual([['p:man'], ['p:setup']]);
   });
 
   it('walks a brand-new account through setup from step one', async () => {
@@ -309,7 +312,7 @@ describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
     expect(text).toContain('Первые шаги в JobRadar');
     expect(text).toContain('2. ⬜ Профиль: появится после резюме');
     const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
-    expect(data).toEqual(['p:res', 's:open:flt', 's:menu']);
+    expect(data).toEqual(['p:res', 'p:man', 's:open:flt', 's:menu']);
   });
 
   it('ticks the done steps and offers the first send once the profile is confirmed', async () => {
@@ -324,5 +327,132 @@ describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
     const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
     expect(data).toContain('p:card');
     expect(data.at(-1)).toBe('d:n');
+  });
+});
+
+describe('CandidateBotService — without a resume (ADR-034)', () => {
+  const press = (ctx: BotMessageContext, parts: string[]): BotCallbackContext => ({ ...ctx, messageId: 7, parts });
+  const manualProfile: CandidateProfileRow = {
+    ...storedProfile,
+    resumeId: null,
+    source: 'manual',
+    promptVersion: 0,
+    role: null,
+    grade: null,
+    years: null,
+    skills: [],
+    english: null,
+  };
+
+  it('starts with an empty manual profile and the role step, no file and no LLM', async () => {
+    const { service, bot, llm, profiles, writes, ctx } = setup();
+    profiles.get.mockResolvedValue(null);
+
+    await service.startManual(ctx);
+
+    expect(profiles.replace).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ source: 'manual', resumeId: null, promptVersion: 0, skills: [], evaluation: null }),
+    );
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(writes[0]?.values).toMatchObject({ name: 'profile_manual_started' });
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('Шаг 1 из 4');
+    const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
+    expect(data).toContain('p:wr:frontend');
+    expect(data).not.toContain('p:card');
+  });
+
+  it('asks before replacing a profile read from a resume', async () => {
+    const { service, bot, profiles, ctx } = setup();
+
+    await service.startManual(ctx);
+
+    expect(profiles.replace).not.toHaveBeenCalled();
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('собран из резюме');
+    expect(options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData)).toEqual(['p:man:y', 'p:card']);
+
+    const result = await service.onCallback(press(ctx, ['p', 'man', 'y']));
+    expect(profiles.replace).toHaveBeenCalledWith('user-1', expect.objectContaining({ source: 'manual' }));
+    expect(result).toEqual({ editKeyboard: null });
+  });
+
+  it('starts over at once when the current profile is already manual', async () => {
+    const { service, profiles, ctx } = setup();
+    profiles.get.mockResolvedValue(manualProfile);
+    await service.onCallback(press(ctx, ['p', 'man']));
+    expect(profiles.replace).toHaveBeenCalled();
+  });
+
+  it('walks role → grade → skills → English → the card', async () => {
+    const { service, bot, dialogs, profiles, ctx } = setup();
+    profiles.get.mockResolvedValue(manualProfile);
+
+    const grade = await service.onCallback(press(ctx, ['p', 'wr', 'frontend']));
+    expect(profiles.update).toHaveBeenCalledWith('user-1', { role: 'Frontend Developer' });
+    expect(grade.editText).toContain('Шаг 2 из 4');
+    expect(grade.editKeyboard?.flat().map((b) => b.callbackData)).toContain('p:wg:senior');
+
+    const skills = await service.onCallback(press(ctx, ['p', 'wg', 'senior']));
+    expect(profiles.update).toHaveBeenCalledWith('user-1', { grade: 'senior' });
+    expect(dialogs.open).toHaveBeenCalledWith('555', expect.objectContaining({ flow: 'profile', step: 'wizard-skills' }));
+    expect(skills).toEqual({ editText: expect.stringContaining('Шаг 3 из 4'), editKeyboard: null });
+
+    await service.onSkillsText(ctx, 'React, TypeScript', 'wizard-skills');
+    expect(dialogs.close).toHaveBeenCalledWith('555');
+    const [, englishText, englishOptions] = bot.sendToUser.mock.calls.at(-1)!;
+    expect(englishText).toContain('Шаг 4 из 4');
+    const english = englishOptions.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
+    expect(english).toEqual(expect.arrayContaining(['p:we:B2', 'p:we:-']));
+
+    profiles.get.mockResolvedValue({
+      ...manualProfile,
+      role: 'Frontend Developer',
+      grade: 'senior',
+      skills: [{ name: 'React', weight: 'core' }],
+      english: 'B2',
+    });
+    const card = await service.onCallback(press(ctx, ['p', 'we', 'B2']));
+    expect(profiles.update).toHaveBeenCalledWith('user-1', { english: 'B2' });
+    expect(card.editText).toContain('Твой профиль');
+    expect(card.editText).toContain('Задан вручную, без резюме');
+    const buttons = card.editKeyboard!.flat().map((b) => b.callbackData);
+    expect(buttons[0]).toBe('p:ok');
+    // Nothing to analyse again without a resume.
+    expect(buttons).not.toContain('p:retry');
+  });
+
+  it('lets English be skipped, and ignores a role or grade off the list', async () => {
+    const { service, profiles, ctx } = setup();
+    profiles.get.mockResolvedValue(manualProfile);
+
+    expect(await service.onCallback(press(ctx, ['p', 'wr', 'astronaut']))).toEqual({});
+    expect(await service.onCallback(press(ctx, ['p', 'wg', 'guru']))).toEqual({});
+    expect(profiles.update).not.toHaveBeenCalled();
+
+    const card = await service.onCallback(press(ctx, ['p', 'we', '-']));
+    expect(profiles.update).not.toHaveBeenCalled();
+    expect(card.editText).toContain('Твой профиль');
+  });
+
+  it('does not re-analyse a manual profile', async () => {
+    const { service, llm, profiles, ctx } = setup();
+    profiles.get.mockResolvedValue(manualProfile);
+    expect(await service.onCallback(press(ctx, ['p', 'retry']))).toEqual({});
+    expect(llm.complete).not.toHaveBeenCalled();
+  });
+
+  it('marks the resume step done in /setup for a manual profile', async () => {
+    const { service, bot, resumes, profiles, ctx } = setup();
+    resumes.getActive.mockResolvedValue(null);
+    profiles.get.mockResolvedValue({ ...manualProfile, confirmedAt: new Date() });
+
+    await service.showSetup(ctx);
+
+    const [, text, options] = bot.sendToUser.mock.calls[0];
+    expect(text).toContain('1. ✅ Резюме: не нужно, профиль задан вручную');
+    expect(text).toContain('2. ✅ Профиль подтверждён');
+    expect(options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData)).not.toContain('p:man');
   });
 });

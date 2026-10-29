@@ -13,6 +13,8 @@ export type EventName =
   | 'resume_uploaded'
   | 'resume_analyzed'
   | 'profile_confirmed'
+  /** `/noresume` began a profile set by hand (ADR-034); `profile_confirmed` follows with `source: manual`. */
+  | 'profile_manual_started'
   | 'bot_blocked'
   | 'settings_changed'
   /** A bot update or button failed (v2.6.0); props: `where`, `message`. */
