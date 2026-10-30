@@ -119,6 +119,8 @@ export interface JudgeProvider {
   url: string;
   key: string;
   model: string;
+  /** Extra request headers the provider wants. */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -134,6 +136,17 @@ export function judgeProviders(env: NodeJS.ProcessEnv): JudgeProvider[] {
           url: 'https://models.github.ai/inference/chat/completions',
           key: env.GITHUB_TOKEN,
           model: env.AUDIT_GITHUB_MODEL || 'openai/gpt-4.1-mini',
+          headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+        }
+      : null,
+    // The older Azure-hosted endpoint of the same free tier, same token. The
+    // first run (2026-10-30) got a plain-text "OK" from the one above.
+    env.GITHUB_TOKEN
+      ? {
+          name: 'github-models-azure',
+          url: 'https://models.inference.ai.azure.com/chat/completions',
+          key: env.GITHUB_TOKEN,
+          model: env.AUDIT_AZURE_MODEL || 'gpt-4o-mini',
         }
       : null,
     env.GROQ_API_KEY
@@ -185,7 +198,11 @@ export async function callJudge(
     try {
       const res = await fetchImpl(provider.url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${provider.key}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${provider.key}`,
+          'Content-Type': 'application/json',
+          ...provider.headers,
+        },
         body: JSON.stringify({
           model: provider.model,
           messages,
@@ -202,9 +219,17 @@ export async function callJudge(
         dead.add(provider.name);
         continue;
       }
-      const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const content = body.choices?.[0]?.message?.content;
+      const raw = await res.text();
+      let content: string | undefined;
+      try {
+        const body = JSON.parse(raw) as { choices?: { message?: { content?: string } }[] };
+        content = body.choices?.[0]?.message?.content;
+      } catch {
+        content = undefined;
+      }
       if (!content) {
+        const type = res.headers.get('content-type') ?? '-';
+        console.warn(`judge ${provider.name}: no answer (${type}) ${raw.slice(0, 200)}`);
         dead.add(provider.name);
         continue;
       }

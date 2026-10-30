@@ -54,6 +54,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       AUDIT_GITHUB_MODEL: ${{ vars.AUDIT_GITHUB_MODEL }}
+      AUDIT_AZURE_MODEL: ${{ vars.AUDIT_AZURE_MODEL }}
     steps:
       - uses: actions/checkout@v7
         with:
