@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.11.0] — 2026-10-30
+
+### Changed
+
+- Matching: for a frontend profile, a vacancy title naming a backend language the profile lacks (Python, Java, .NET, PHP, Go, Ruby, …) is capped below every min-fit preset and not delivered; fullstack titles on Node.js stay, and adding the language to the profile's skills brings such titles back (ADR-036).
+- Quality audit: such drops are reported as `foreign-stack`, and a judge who disagrees is shown as the developer's rule.
+
 ## [2.10.2] — 2026-10-30
 
 ### Fixed

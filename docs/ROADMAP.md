@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0; 5.10 settings and filters apart in v2.4.0; 5.11 vacancy card and location filter in v2.5.0; 5.14 working language of a vacancy in v2.7.0; 5.15 a profile without a resume in v2.8.0; 5.16 a daily delivery quality audit in v2.9.0 (ADR-035); 5.17 resume profile accuracy in v2.10.0. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0; 5.10 settings and filters apart in v2.4.0; 5.11 vacancy card and location filter in v2.5.0; 5.14 working language of a vacancy in v2.7.0; 5.15 a profile without a resume in v2.8.0; 5.16 a daily delivery quality audit in v2.9.0 (ADR-035); 5.17 resume profile accuracy in v2.10.0; 5.18 backend-stack rule in v2.11.0 (ADR-036). Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -266,6 +266,12 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 - [x] The card edits the years by hand; skills take `+Skill` / `-Skill`.
 
 **Exit criterion:** a resume that says "8+ years" with JavaScript in its skills gets a profile with 8 years and JavaScript.
+
+### 5.18 Backend-stack rule for frontend profiles (v2.11.0) ✅
+
+- [x] A title naming a backend language the frontend profile lacks is capped; Node.js fullstack and the profile's own languages stay (ADR-036).
+
+**Exit criterion:** "Full-stack Python Developer" is not delivered to a React profile without Python; "Fullstack React/Node.js" is.
 
 ### Later (not in 2.0.0)
 

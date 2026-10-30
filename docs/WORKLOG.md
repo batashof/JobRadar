@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — Backend-stack rule for frontend profiles (v2.11.0)
+- Full audit run (120 judged by Groq): 638 vacancies, 39 delivered, 59% of deliveries a fit, 16 false positives (6 another family, 4 fullstack, 3 skills, 3 non-engineering), 1 false negative; the audit auto-merged PR #47 (`media buyer` → marketing).
+- Developer's rule: a fullstack job in a backend language the profile lacks is not wanted, Node.js fullstack is, and adding the language to skills brings them back. `foreignBackendStack` in `score.ts` caps such titles for frontend profiles (`cap: 'stack'`); the audit reports `foreign-stack` / `stack-policy` (ADR-036).
+- Next step: watch the next audits; generic "Senior Software Engineer" titles with a backend body are still a miss.
+
 ## 2026-10-30 — Quality audit waits out rate limits (v2.10.2)
 - Run with the developer's Groq and Gemini keys: Groq judged 32 vacancies, then 429 on 8000 tokens a minute; Gemini 503 "high demand". Findings: 69% of judged deliveries a fit, 10 false positives (4 backend-heavy fullstack, 3 non-frontend engineering roles, 1 AI/ML, 2 QA/interviewer), no false negatives, no dictionary fix.
 - `callJudge` retries 429 and 503 up to four times (Retry-After, else 15/30/45 s), gives up on a wait over 65 s.

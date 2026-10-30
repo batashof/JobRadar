@@ -58,6 +58,18 @@ export const COMPANY_WEIGHT_BOUNDS = { min: -1, max: 0.5 } as const;
  * on the wrong framework is a different job day to day.
  */
 export const TITLE_STACK_MISMATCH = 0.5;
+
+/**
+ * Server-side stacks other than JavaScript's. A title that names one is a job
+ * in that language: "Full-stack Python Developer" is a Python job with some
+ * frontend, not a frontend job (ADR-036).
+ */
+export const BACKEND_STACK_SKILLS = [
+  'python', 'django', 'flask', 'fastapi', 'java', 'spring', 'kotlin', 'scala', 'go', 'rust',
+  'c#', '.net', 'php', 'laravel', 'symfony', 'ruby', 'rails', 'elixir',
+];
+/** The JavaScript server side: a fullstack title naming it stays close to frontend. */
+export const JS_SERVER_SKILLS = ['node.js', 'nestjs', 'express', 'deno', 'bun'];
 /** Credit for a posting skill the candidate has only an adjacent technology for. */
 const ADJACENT_CREDIT = 0.5;
 /** A posting naming no known technology says nothing either way about skills. */
@@ -100,7 +112,7 @@ export interface VacancyScore {
   /** Every known skill key the posting mentions, for feedback updates. */
   vacancySkills: string[];
   /** Which ceiling held the score down, when one did (read by the quality audit, ADR-035). */
-  cap?: 'family' | 'grade';
+  cap?: 'family' | 'grade' | 'stack';
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +237,26 @@ export function titleFamilies(title: string, families: TitleFamily[] = TITLE_FAM
 }
 
 /** Families a candidate of `family` can take a role of, besides their own. */
+/**
+ * The backend language a title names that a frontend candidate does not have
+ * ("Full-stack Python Developer", "Fullstack (Java and Angular/React)"), or
+ * null. A frontend title, a JavaScript server side ("Fullstack React/Node.js")
+ * or the language in the candidate's own skills (or a framework of it) clears
+ * it: the candidate who lists Python takes Python fullstack jobs (ADR-036).
+ */
+export function foreignBackendStack(
+  title: string,
+  family: string | null,
+  ownKeys: Set<string>,
+): string | null {
+  if (family !== 'frontend') return null;
+  if (titleFamilies(title).has('frontend')) return null;
+  const named = detectVacancySkills(title, '');
+  if (named.some((key) => JS_SERVER_SKILLS.includes(key))) return null;
+  const owned = (key: string) => ownKeys.has(key) || relatedSkills(key).some((other) => ownKeys.has(other));
+  return named.find((key) => BACKEND_STACK_SKILLS.includes(key) && !owned(key)) ?? null;
+}
+
 const COMPATIBLE: Record<string, string[]> = {
   frontend: ['fullstack'],
   backend: ['fullstack'],
@@ -348,7 +380,9 @@ export function scoreVacancy(
 
   const skills = Math.min(1, 0.5 * coverage + 0.5 * coreUse);
   const coreKeys = [...own.entries()].filter(([, w]) => w === 1).map(([key]) => key);
-  const title = titleSignal(vacancy.title, roleFamily(profile.role), coreKeys, new Set(own.keys()));
+  const family = roleFamily(profile.role);
+  const title = titleSignal(vacancy.title, family, coreKeys, new Set(own.keys()));
+  const foreignStack = foreignBackendStack(vacancy.title, family, new Set(own.keys()));
   const grade = gradeSignal(profile.grade, vacancy);
   const freshness = freshnessSignal(vacancy.publishedAt, options.now);
 
@@ -367,6 +401,10 @@ export function scoreVacancy(
   if (title.wrongFamily && score > WRONG_FAMILY_CAP) {
     score = WRONG_FAMILY_CAP;
     cap = 'family';
+  }
+  if (foreignStack && !title.wrongFamily && score > WRONG_FAMILY_CAP) {
+    score = WRONG_FAMILY_CAP;
+    cap = 'stack';
   }
 
   return {
