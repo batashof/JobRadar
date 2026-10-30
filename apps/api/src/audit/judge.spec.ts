@@ -45,16 +45,13 @@ describe('judgeProviders', () => {
   it('puts GitHub Models first and skips providers without a key', () => {
     expect(judgeProviders({ GITHUB_TOKEN: 't', GEMINI_API_KEY: 'g' }).map((p) => p.name)).toEqual([
       'github-models',
-      'github-models-azure',
       'gemini',
     ]);
   });
 });
 
 describe('callJudge', () => {
-  const providers = judgeProviders({ GITHUB_TOKEN: 't', GROQ_API_KEY: 'g' }).filter(
-    (p) => p.name !== 'github-models-azure',
-  );
+  const providers = judgeProviders({ GITHUB_TOKEN: 't', GROQ_API_KEY: 'g' });
   const ok = (content: string) =>
     new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
 

@@ -136,17 +136,10 @@ export function judgeProviders(env: NodeJS.ProcessEnv): JudgeProvider[] {
           url: 'https://models.github.ai/inference/chat/completions',
           key: env.GITHUB_TOKEN,
           model: env.AUDIT_GITHUB_MODEL || 'openai/gpt-4.1-mini',
+          // On 2026-10-30 this endpoint answered a plain-text "OK" from
+          // Actions, with and without these headers; such an answer now falls
+          // over to the app's own free keys.
           headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
-        }
-      : null,
-    // The older Azure-hosted endpoint of the same free tier, same token. The
-    // first run (2026-10-30) got a plain-text "OK" from the one above.
-    env.GITHUB_TOKEN
-      ? {
-          name: 'github-models-azure',
-          url: 'https://models.inference.ai.azure.com/chat/completions',
-          key: env.GITHUB_TOKEN,
-          model: env.AUDIT_AZURE_MODEL || 'gpt-4o-mini',
         }
       : null,
     env.GROQ_API_KEY
