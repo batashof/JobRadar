@@ -1,0 +1,119 @@
+name: Quality audit
+
+# Daily delivery quality audit (ADR-035): replays the author's digest funnel
+# over the last day's vacancies, has a free LLM judge them (GitHub Models with
+# this workflow's own token, the app's free keys as fallback) and reports what
+# was sent but is not a fit and what was held back but is one. The report is
+# the run summary and an artifact; a short version goes to the author's
+# Telegram chat. Dictionary words the clear cases call for are tested here,
+# opened as a pull request and merged (the developer's choice, 2026-10-30), so
+# Render deploys them. Set the repository variable AUDIT_AUTO_MERGE to "false"
+# to leave the PR for review instead.
+#
+# Secrets come from the `main - jobradar-api` environment. A missing one skips
+# its part. GITHUB_TOKEN can open the PR only with "Allow GitHub Actions to
+# create and approve pull requests" on; a PR it opens does not trigger CI, so
+# the same checks run in this job. An optional AUDIT_PR_TOKEN (fine-grained
+# PAT: contents + pull requests) opens it as a person instead, and CI runs.
+on:
+  schedule:
+    - cron: '0 4 * * *' # 07:00 in Minsk
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'Hours of vacancies to audit'
+        default: '24'
+      budget:
+        description: 'Vacancies the LLM judges at most'
+        default: '120'
+      apply:
+        description: 'Open a PR with dictionary fixes'
+        type: boolean
+        default: true
+
+concurrency:
+  group: quality-audit
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  models: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: 'main - jobradar-api'
+    env:
+      DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
+      DATABASE_CA_CERT_PROD: ${{ secrets.DATABASE_CA_CERT_PROD }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      AUDIT_GITHUB_MODEL: ${{ vars.AUDIT_GITHUB_MODEL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.AUDIT_PR_TOKEN || github.token }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The script imports @jobradar/shared, which resolves to its built dist/.
+      - name: Audit
+        run: |
+          pnpm --filter @jobradar/shared build
+          apply=""
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.apply }}" = "true" ]; then apply="--apply"; fi
+          pnpm --filter @jobradar/api audit:quality --prod $apply \
+            --hours=${{ inputs.hours || '24' }} --budget=${{ inputs.budget || '120' }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-audit
+          path: apps/api/audit-out/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Look for dictionary fixes
+        id: diff
+        run: git diff --quiet -- apps/api/src/matching/dictionaries || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # The same checks CI runs, since a PR opened with GITHUB_TOKEN gets none.
+      - name: Verify the fixes
+        if: steps.diff.outputs.changed == 'true'
+        run: pnpm build && pnpm lint && pnpm typecheck && pnpm test
+
+      - name: Open the pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUDIT_PR_TOKEN || github.token }}
+          AUTO_MERGE: ${{ vars.AUDIT_AUTO_MERGE || 'true' }}
+        run: |
+          day=$(date -u +%F)
+          branch="audit/${day}-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add apps/api/src/matching/dictionaries
+          git commit -m "fix(matching): title words from the quality audit (${day})"
+          git push origin "$branch"
+          url=$(gh pr create --base main --head "$branch" \
+            --title "fix(matching): title words from the quality audit (${day})" \
+            --body-file apps/api/audit-out/pr-body.md)
+          echo "Pull request: $url" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$AUTO_MERGE" = "true" ]; then
+            gh pr merge "$url" --squash --delete-branch \
+              || echo "::warning::The merge was refused (branch protection?); the PR waits for review."
+          fi

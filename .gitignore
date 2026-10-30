@@ -11,3 +11,4 @@ coverage/
 *.tsbuildinfo
 .vercel
 .env*
+audit-out/

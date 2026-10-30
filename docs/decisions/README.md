@@ -40,6 +40,7 @@ Numbered, immutable records of significant decisions. To change a decision, add 
 | [032](032-title-role-gate.md) | Non-engineering titles (SEO, marketing, sales, HR, …) are another job family; the wrong-family cap is 30, below every floor (amends ADR-025 §5) | Accepted |
 | [033](033-vacancy-working-language.md) | A vacancy's working language is read from its text; `/filters` can hide other languages (amends ADR-025 §5) | Accepted |
 | [034](034-profile-without-a-resume.md) | A candidate profile can be set by hand with `/noresume`, without a resume or an LLM call (amends ADR-025 §1–2) | Accepted |
+| [035](035-daily-quality-audit.md) | A daily delivery quality audit with a free LLM as an offline judge; only dictionary words are fixed by code (amends ADR-026, ADR-032) | Accepted |
 
 ## Template
 

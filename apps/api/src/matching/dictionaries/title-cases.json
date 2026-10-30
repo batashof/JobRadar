@@ -1,0 +1,13 @@
+[
+  { "title": "Senior SEO Specialist", "families": ["seo"] },
+  { "title": "Software Engineer, Sales Tools", "families": [] },
+  { "title": "QA Automation Engineer", "families": ["qa"] },
+  { "title": "Senior Frontend Developer", "families": ["frontend"] },
+  { "title": "Full-Stack Engineer (React, Node.js)", "families": ["fullstack"] },
+  { "title": "Senior React Developer", "families": [] },
+  { "title": "Marketing Manager", "families": ["marketing"] },
+  { "title": "Frontend Engineer, Growth Marketing", "families": ["frontend"] },
+  { "title": "Technical Recruiter", "families": ["hr"] },
+  { "title": "Customer Success Manager", "families": ["support"] },
+  { "title": "Product Designer", "families": ["design"] }
+]

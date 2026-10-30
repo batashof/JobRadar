@@ -15,6 +15,7 @@ import {
   type WorkFormat,
 } from '@jobradar/shared';
 
+import titleTermsJson from './dictionaries/title-terms.json';
 import { DESCRIPTION_SCAN_CHARS, ROLE_FAMILIES } from './resume-terms';
 import { matchesWorkLanguages, type VacancyLanguages } from './work-language';
 
@@ -98,6 +99,8 @@ export interface VacancyScore {
   vacancyLevel: SeniorityLevel | null;
   /** Every known skill key the posting mentions, for feedback updates. */
   vacancySkills: string[];
+  /** Which ceiling held the score down, when one did (read by the quality audit, ADR-035). */
+  cap?: 'family' | 'grade';
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +115,7 @@ const patternCache = new Map<string, RegExp>();
  * JavaScript, and reading it as such made a Vue title look like the
  * candidate's stack.
  */
-function phrasePattern(phrase: string): RegExp {
+export function phrasePattern(phrase: string): RegExp {
   let pattern = patternCache.get(phrase);
   if (!pattern) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -137,62 +140,57 @@ export function detectVacancySkills(title: string, description: string): string[
 // ---------------------------------------------------------------------------
 
 /**
- * Words a title uses for an engineering family that are too loose for a
- * resume: "QA Automation Engineer" and "Manual Tester" are QA jobs, but a
- * frontend resume says "QA" and "designer" in passing.
+ * The title words of the job families, kept as data in
+ * `dictionaries/title-terms.json` so the daily quality audit (ADR-035) can add
+ * a word without touching code:
+ *   - `titleOnly`: words a title uses for an engineering family that are too
+ *     loose for a resume: "QA Automation Engineer" and "Manual Tester" are QA
+ *     jobs, but a frontend resume says "QA" and "designer" in passing;
+ *   - `nonEngineering`: the non-engineering jobs that boards and channels also
+ *     post. A non-engineering title ("Senior SEO Specialist") still lists React
+ *     and TypeScript when the site it works on is built with them, and before
+ *     these families existed such a title read as generic and passed on skills
+ *     alone (ADR-032). Kept out of ROLE_FAMILIES because that list also reads
+ *     resumes, where "worked with the marketing team" is not a career.
  */
-const TITLE_ONLY_TERMS: Record<string, string[]> = {
-  qa: ['qa', 'aqa', 'tester', 'test automation', 'тестировщик', 'тестирования'],
-  design: ['designer', 'дизайнер', 'ux/ui', 'ui/ux'],
-  analytics: ['analyst', 'аналитик'],
-};
+export interface TitleTerms {
+  titleOnly: Record<string, string[]>;
+  nonEngineering: Record<string, string[]>;
+}
 
-/**
- * Job families as a title names them: ROLE_FAMILIES plus title-only words and
- * the non-engineering jobs that boards and channels also post. A
- * non-engineering title ("Senior SEO Specialist") still lists React and
- * TypeScript when the site it works on is built with them, and before these
- * families existed such a title read as generic and passed on skills alone.
- * Kept out of ROLE_FAMILIES because that list also reads resumes, where
- * "worked with the marketing team" is not a career.
- */
-export const TITLE_FAMILIES: { family: string; terms: string[] }[] = [
-  ...ROLE_FAMILIES.map((entry) => ({
-    family: entry.family,
-    terms: [...entry.terms, ...(TITLE_ONLY_TERMS[entry.family] ?? [])],
-  })),
-  { family: 'seo', terms: ['seo', 'сео'] },
-  {
-    family: 'marketing',
-    terms: ['marketing', 'marketer', 'smm', 'ppc', 'growth manager', 'маркетинг', 'маркетолог', 'таргетолог'],
-  },
-  {
-    family: 'content',
-    terms: ['copywriter', 'content manager', 'content writer', 'editor', 'копирайтер', 'контент', 'редактор'],
-  },
-  {
-    family: 'sales',
-    terms: ['sales', 'account manager', 'account executive', 'business development', 'менеджер по продажам', 'продажи'],
-  },
-  { family: 'hr', terms: ['recruiter', 'recruitment', 'talent acquisition', 'sourcer', 'hr', 'рекрутер'] },
-  {
-    family: 'support',
-    terms: ['customer support', 'customer success', 'support specialist', 'call center', 'поддержка', 'поддержки'],
-  },
-  {
-    family: 'management',
-    terms: ['project manager', 'delivery manager', 'scrum master', 'руководитель проекта', 'руководитель проектов'],
-  },
-];
+export type TitleFamily = { family: string; terms: string[] };
+
+/** Job families as a title names them: ROLE_FAMILIES plus the dictionary's words. */
+export function buildTitleFamilies(terms: TitleTerms): TitleFamily[] {
+  return [
+    ...ROLE_FAMILIES.map((entry) => ({
+      family: entry.family,
+      terms: [...entry.terms, ...(terms.titleOnly[entry.family] ?? [])],
+    })),
+    ...Object.entries(terms.nonEngineering).map(([family, words]) => ({ family, terms: words })),
+  ];
+}
+
+export const TITLE_TERMS: TitleTerms = titleTermsJson;
+
+export const TITLE_FAMILIES: TitleFamily[] = buildTitleFamilies(TITLE_TERMS);
 
 /** Families no engineering resume belongs to. */
-export const NON_ENGINEERING_FAMILIES = new Set(['seo', 'marketing', 'content', 'sales', 'hr', 'support', 'management']);
+export const NON_ENGINEERING_FAMILIES = new Set(Object.keys(TITLE_TERMS.nonEngineering));
 
 /** Words that make a title an engineering job whatever team it serves. */
 const ENGINEERING_WORDS = [
   'developer', 'engineer', 'programmer', 'dev', 'разработчик', 'программист', 'инженер',
   'desenvolvedor', 'développeur', 'entwickler', 'desarrollador', 'programista',
 ];
+
+const ROLE_FAMILY_NAMES = new Set(ROLE_FAMILIES.map((entry) => entry.family));
+
+/** Whether a title names an engineering job ("developer", "engineer", …). */
+export function hasEngineeringWord(title: string): boolean {
+  const text = title.toLowerCase();
+  return ENGINEERING_WORDS.some((word) => phrasePattern(word).test(text));
+}
 
 /** Job family of a free-text role ("Senior Frontend Developer" → frontend). */
 export function roleFamily(role: string | null): string | null {
@@ -211,13 +209,16 @@ export function roleFamily(role: string | null): string | null {
  * the title has no engineering word: "Software Engineer, Sales Tools" is an
  * engineering job, "Senior SEO Specialist" is not.
  */
-export function titleFamilies(title: string): Set<string> {
+export function titleFamilies(title: string, families: TitleFamily[] = TITLE_FAMILIES): Set<string> {
   const text = title.toLowerCase();
-  const engineering = ENGINEERING_WORDS.some((word) => phrasePattern(word).test(text));
+  const engineering = hasEngineeringWord(title);
+  const nonEngineering = new Set(
+    families.filter((family) => !ROLE_FAMILY_NAMES.has(family.family)).map((family) => family.family),
+  );
   return new Set(
-    TITLE_FAMILIES.filter(
+    families.filter(
       (family) =>
-        !(engineering && NON_ENGINEERING_FAMILIES.has(family.family)) &&
+        !(engineering && nonEngineering.has(family.family)) &&
         family.terms.some((term) => phrasePattern(term).test(text)),
     ).map((family) => family.family),
   );
@@ -358,8 +359,15 @@ export function scoreVacancy(
         SCORE_WEIGHTS.grade * grade.value +
         SCORE_WEIGHTS.freshness * freshness) +
     feedbackPoints(weights, vacancy.company, vacancySkills);
-  if (title.wrongFamily) score = Math.min(score, WRONG_FAMILY_CAP);
-  if (grade.fit === 'far') score = Math.min(score, FAR_GRADE_CAP);
+  let cap: VacancyScore['cap'];
+  if (grade.fit === 'far' && score > FAR_GRADE_CAP) {
+    score = FAR_GRADE_CAP;
+    cap = 'grade';
+  }
+  if (title.wrongFamily && score > WRONG_FAMILY_CAP) {
+    score = WRONG_FAMILY_CAP;
+    cap = 'family';
+  }
 
   return {
     score: Math.round(Math.max(0, Math.min(100, score))),
@@ -369,6 +377,7 @@ export function scoreVacancy(
     grade: grade.fit,
     vacancyLevel: grade.level,
     vacancySkills,
+    ...(cap ? { cap } : {}),
   };
 }
 

@@ -9,6 +9,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.9.0] — 2026-10-30
+
+### Added
+
+- **Daily delivery quality audit** (ADR-035): the `Quality audit` workflow replays the author's digest funnel every morning over the last day's vacancies, delivered or not, and has a free LLM (GitHub Models, the app's free keys as fallback) judge up to 120 of them. The report lists what was sent but is not a fit and what was held back but is one, with the cause (not an engineering job, another family, fullstack for a frontend profile, language, grade, skills); it is the run summary, a 90-day artifact and a short message in the author's Telegram chat.
+- Title words the clear cases call for are added by code, checked against a regression set and the day's engineering titles, tested in the job, opened as a pull request and merged automatically, so they deploy the same morning (`AUDIT_AUTO_MERGE=false` turns that off). Rules (such as fullstack for frontend) are only reported.
+- `pnpm --filter @jobradar/api audit:quality [--prod] [--apply] [--hours=24] [--budget=120]`.
+
+### Changed
+
+- The title words of the job families live in `apps/api/src/matching/dictionaries/title-terms.json`, with `title-cases.json` as their regression set; `scoreVacancy` reports which cap held a score down.
+
 ## [2.8.0] — 2026-10-29
 
 ### Added
