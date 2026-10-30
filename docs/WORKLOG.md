@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — Daily delivery quality audit (v2.9.0)
+- Developer asked for an agent that checks every day, on their own profile, every vacancy that arrived, delivered or not; example: fullstack vacancies reaching a frontend resume on shared skills.
+- `Quality audit` workflow (daily 07:00 Minsk): `scripts/quality-audit.ts` replays the author's funnel with drop reasons (`src/audit/decide.ts`), a free LLM judges up to 120 vacancies (GitHub Models via `GITHUB_TOKEN`, fallback Groq/Gemini/OpenRouter; `src/audit/judge.ts`), findings and title-word fixes in `src/audit/findings.ts`, report to the run summary, an artifact and the author's Telegram. ADR-035.
+- Title words moved to `matching/dictionaries/title-terms.json` with `title-cases.json` as a regression set; fixes are tested in the job and opened as a PR and merged by the workflow (developer chose full auto-merge; `AUDIT_AUTO_MERGE=false` turns it off).
+- Not run against prod from the session (no prod access here); first real run is the first scheduled one after the merge.
+- Next step: turn on "Allow GitHub Actions to create and approve pull requests"; after a week of reports decide the fullstack-for-frontend rule.
+
 ## 2026-10-29 — Profile without a resume (v2.8.0)
 - Developer asked to search for work "anonymously": no resume upload, only parameters.
 - `/noresume` wizard in `CandidateBotService`: an empty `manual` profile, then role → grade → skills (the `profile` dialog, step `wizard-skills`) → English (skippable) → the usual card. No LLM, no file, no migration (`source = 'manual'`, `prompt_version = 0`). ADR-034.

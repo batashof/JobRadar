@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0; 5.10 settings and filters apart in v2.4.0; 5.11 vacancy card and location filter in v2.5.0; 5.14 working language of a vacancy in v2.7.0; 5.15 a profile without a resume in v2.8.0. Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
+> **Current phase: 5 — Telegram-only product (ADR-024, ADR-025). v2.0.0 released 2026-10-16 with the website kept as the author's cabinet (ADR-028); 5.7 bot UX polish done in v2.0.1; 5.8 delivery without the LLM in v2.1.0 (ADR-029); 5.9 onboarding in the bot in v2.3.0; 5.10 settings and filters apart in v2.4.0; 5.11 vacancy card and location filter in v2.5.0; 5.14 working language of a vacancy in v2.7.0; 5.15 a profile without a resume in v2.8.0; 5.16 a daily delivery quality audit in v2.9.0 (ADR-035). Remaining: testers (developer), optional sources, the website's removal when the developer asks.** Phase 4 is deployed and closed (2026-10-15); its open items are listed under phase 4 as dropped or moved. v1.0 released 2026-07-20.
 > Iron rule: **phase N+1 does not start until the current phase is deployed.** Update the marker above and tick checkboxes as work lands.
 
 ## Phase 0 — Foundation (~1 week)
@@ -251,6 +251,13 @@ The developer's notes of 2026-10-15, to do once the current plan is done:
 - [x] `/stats` counts profiles set by hand.
 
 **Exit criterion:** a new user who never sends a file confirms a profile and receives matching vacancies.
+
+### 5.16 Daily delivery quality audit (v2.9.0) ✅
+
+- [x] `Quality audit` workflow: the author's funnel replayed over the last day's vacancies, a free LLM judge, the report in the run summary and Telegram (ADR-035).
+- [x] Title words of the job families as data (`matching/dictionaries/`), a regression set, fixes opened as a pull request.
+
+**Exit criterion:** every morning the author gets a summary of what was sent wrongly and what was missed, and title-word misses arrive as a tested PR.
 
 ### Later (not in 2.0.0)
 
