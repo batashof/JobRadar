@@ -39,6 +39,13 @@ describe('findIssues', () => {
     expect(found[0]).toMatchObject({ kind: 'false-negative', cause: 'family' });
   });
 
+  it('calls a backend-stack drop the judge likes the developer\'s own rule', () => {
+    const d = one('Fullstack Developer (Java and Angular/React)');
+    expect(d.reason).toBe('foreign-stack');
+    const [f] = findIssues('frontend', [judgedPair(d, { family: 'fullstack', fit: 72 })]);
+    expect(f).toMatchObject({ kind: 'false-negative', cause: 'stack-policy' });
+  });
+
   it('says nothing when the judge agrees', () => {
     expect(findIssues('frontend', [judgedPair(one('Senior Frontend Developer'), { fit: 90 })])).toEqual([]);
   });

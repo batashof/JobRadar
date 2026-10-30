@@ -48,8 +48,16 @@ export type DropReason =
   | 'language'
   | 'too-junior'
   | 'wrong-family'
+  | 'foreign-stack'
   | 'far-grade'
   | 'below-floor';
+
+/** The drop reason of each ceiling the formula applies. */
+const CAP_REASON: Record<NonNullable<VacancyScore['cap']>, DropReason> = {
+  family: 'wrong-family',
+  stack: 'foreign-stack',
+  grade: 'far-grade',
+};
 
 export const USER_FILTER_REASONS: ReadonlySet<DropReason> = new Set([
   'location',
@@ -112,13 +120,7 @@ export function decide(
       dropTooJunior([vacancy], input.profile.grade).length === 0
         ? 'too-junior'
         : (preferenceMiss(input.prefs, vacancy) ??
-          (result.score >= input.minScore
-            ? null
-            : result.cap === 'family'
-              ? 'wrong-family'
-              : result.cap === 'grade'
-                ? 'far-grade'
-                : 'below-floor'));
+          (result.score >= input.minScore ? null : result.cap ? CAP_REASON[result.cap] : 'below-floor'));
     return { vacancy, score: result.score, delivered: reason === null, reason, titleFamilies: families, result };
   });
 }
