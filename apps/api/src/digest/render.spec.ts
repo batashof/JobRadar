@@ -256,10 +256,10 @@ describe("renderCardParts", () => {
 describe("renderKeyboard", () => {
   it("offers one full-width button: Apply via the board, linking the original posting", () => {
     expect(renderKeyboard(item(), "ru")).toEqual([
-      [{ text: "Откликнуться через RemoteOK", url: "https://acme.test/jobs/1" }],
+      [{ text: "🚀 Откликнуться через RemoteOK", url: "https://acme.test/jobs/1" }],
     ]);
     expect(renderKeyboard(item(), "en")).toEqual([
-      [{ text: "Apply via RemoteOK", url: "https://acme.test/jobs/1" }],
+      [{ text: "🚀 Apply via RemoteOK", url: "https://acme.test/jobs/1" }],
     ]);
   });
 
@@ -274,10 +274,10 @@ describe("renderKeyboard", () => {
 
 describe("applyLabel", () => {
   it("names the board the posting came from", () => {
-    expect(applyLabel("dou", "ru")).toBe("Откликнуться через DOU");
-    expect(applyLabel("djinni", "en")).toBe("Apply via Djinni");
-    expect(applyLabel("ats", "ru")).toBe("Откликнуться через сайт компании");
-    expect(applyLabel("newboard", "en")).toBe("Apply via Newboard");
-    expect(applyLabel(null, "ru")).toBe("Откликнуться");
+    expect(applyLabel("dou", "ru")).toBe("🚀 Откликнуться через DOU");
+    expect(applyLabel("djinni", "en")).toBe("🚀 Apply via Djinni");
+    expect(applyLabel("ats", "ru")).toBe("🚀 Откликнуться через сайт компании");
+    expect(applyLabel("newboard", "en")).toBe("🚀 Apply via Newboard");
+    expect(applyLabel(null, "ru")).toBe("🚀 Откликнуться");
   });
 });

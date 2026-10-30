@@ -46,27 +46,27 @@ const TEXT = {
     unknown: 'not set',
     confirmHint: 'Is everything correct? Vacancies are picked by this profile.',
     ok: '✅ All correct',
-    editRole: '✏️ Role',
-    editGrade: '✏️ Grade',
-    editEnglish: '✏️ English',
-    editSkills: '✏️ Skills',
-    editYears: '✏️ Experience',
+    editRole: '💼 Role',
+    editGrade: '📈 Grade',
+    editEnglish: '🔤 English',
+    editSkills: '🧠 Skills',
+    editYears: '⏳ Experience',
     retry: '🔄 Analyse again',
-    back: '← Back',
+    back: '⬅️ Back',
     confirmed:
-      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Next: /filters for which vacancies to receive, /settings for when.',
+      'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Which vacancies to receive and when: /settings.',
     askSkills: 'Send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     badSkills: 'I did not find any skills in that. Send them separated by commas, e.g. React, TypeScript.',
     askSkillsEdit:
       'Now: {skills}\n\nTo add or remove one, send +Skill or -Skill, e.g. +JavaScript, -jQuery (an added one counts as main). To replace the whole list, send it separated by commas, the main ones first.',
     askYears: 'How many years of professional experience do you have? Send a number, e.g. 8.',
     badYears: 'Send the number of years as digits, from 0 to 50, e.g. 8.',
-    noProfile: 'Send your resume as a PDF first, or set the profile by hand: /noresume.',
+    noProfile: 'Send your resume as a PDF file first (📎 → File).',
     pickGrade: 'Pick your grade:',
     pickEnglish: 'Pick your English level:',
     pickRole: 'Pick your role:',
     resumeNone:
-      '📄 No resume yet.\n\nHow to add it: tap 📎 next to the message field → File → pick your resume as a PDF (up to 5 MB) and send it here. I will read it and build the profile vacancies are picked by.\n\nNo resume, or rather not share it? Press ✍️ Without a resume: pick the role, grade and skills by hand.',
+      '📄 No resume yet.\n\nHow to add it: tap 📎 next to the message field → File → pick your resume as a PDF (up to 5 MB) and send it here. I will read it and build the profile vacancies are picked by.',
     resumeCurrent: '📄 Your resume: <b>{file}</b>, uploaded {date}.',
     resumeReplace:
       'To replace it, send a new PDF here the same way (📎 → File). The profile is rebuilt from the new resume and waits for your confirmation.',
@@ -75,14 +75,13 @@ const TEXT = {
     bSetup: '🧭 First steps',
     setupTitle: 'First steps in JobRadar',
     setupResumeDone: 'Resume: {file}',
-    setupResumeTodo: 'Resume: send it here as a PDF file (📎 → File), or skip it with ✍️ Without a resume',
+    setupResumeTodo: 'Resume: send it here as a PDF file (📎 → File)',
     setupResumeManual: 'Resume: not needed, the profile is set by hand',
     setupProfileDone: 'Profile confirmed',
     setupProfileCheck: 'Profile: check the card and press "✅ All correct"',
-    setupProfileWait: 'Profile: appears after the resume or ✍️ Without a resume',
+    setupProfileWait: 'Profile: appears after the resume',
     setupDelivery: 'Delivery: new vacancies arrive as soon as they are posted, silent 22:00–08:00. Change it in ⚙️ Settings.',
     setupFilters: 'Filters: role, grade and skills come from the profile; work format, location, salary and minimum fit are up to you. All in 🎯 Filters.',
-    setupLinkedin: 'Optional: /linkedin brings vacancies from your own LinkedIn job alerts.',
     setupHint: 'Go through the buttons below in order.',
     bResume: '📄 Resume',
     bSettings: '⚙️ Settings',
@@ -92,14 +91,14 @@ const TEXT = {
     manualReplace:
       'Your profile was built from your resume. Setting it by hand replaces it; the resume stays, and sending it again rebuilds the profile from it. Continue?',
     manualYes: '✍️ Set by hand',
-    manualKeep: '← Keep the current one',
+    manualKeep: '↩️ Keep the current one',
     wizRole:
       'Without a resume: four questions, and vacancies are picked by your answers. Nothing personal is asked.\n\nStep 1 of 4: pick your role.',
     wizGrade: 'Step 2 of 4: pick your grade.',
     wizSkills: 'Step 3 of 4: send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     wizEnglish: 'Step 4 of 4: your English level.',
-    skip: 'Skip',
-    manualNote: 'Set by hand, without a resume. Work format, location and the vacancy\'s language are in /filters.',
+    skip: '⏭ Skip',
+    manualNote: 'Set by hand, without a resume. Work format, location and the vacancy\'s language are in /settings → 🎯 Filters.',
   },
   ru: {
     reading: 'Читаю резюме…',
@@ -127,27 +126,27 @@ const TEXT = {
     unknown: 'не указано',
     confirmHint: 'Всё верно? По этому профилю подбираются вакансии.',
     ok: '✅ Всё верно',
-    editRole: '✏️ Роль',
-    editGrade: '✏️ Грейд',
-    editEnglish: '✏️ Английский',
-    editSkills: '✏️ Навыки',
-    editYears: '✏️ Опыт',
+    editRole: '💼 Роль',
+    editGrade: '📈 Грейд',
+    editEnglish: '🔤 Английский',
+    editSkills: '🧠 Навыки',
+    editYears: '⏳ Опыт',
     retry: '🔄 Проанализировать снова',
-    back: '← Назад',
+    back: '⬅️ Назад',
     confirmed:
-      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Дальше: /filters — какие вакансии присылать, /settings — когда.',
+      'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Какие вакансии присылать и когда: /settings.',
     askSkills: 'Пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     badSkills: 'Не нашёл навыков в сообщении. Пришли их через запятую, например: React, TypeScript.',
     askSkillsEdit:
       'Сейчас: {skills}\n\nЧтобы добавить или убрать навык, пришли +Навык или -Навык, например: +JavaScript, -jQuery (добавленный считается основным). Чтобы заменить весь список, пришли его через запятую, основные первыми.',
     askYears: 'Сколько лет у тебя коммерческого опыта? Пришли число, например 8.',
     badYears: 'Пришли число лет цифрами, от 0 до 50, например 8.',
-    noProfile: 'Сначала пришли резюме в PDF или задай профиль вручную: /noresume.',
+    noProfile: 'Сначала пришли резюме файлом PDF (📎 → «Файл»).',
     pickGrade: 'Выбери грейд:',
     pickEnglish: 'Выбери уровень английского:',
     pickRole: 'Выбери роль:',
     resumeNone:
-      '📄 Резюме ещё не загружено.\n\nКак добавить: нажми 📎 рядом с полем ввода → «Файл» → выбери резюме в PDF (до 5 МБ) и отправь сюда. Я прочитаю его и соберу профиль, по которому подбираются вакансии.\n\nНет резюме или не хочешь им делиться? Нажми ✍️ Без резюме: роль, грейд и навыки выбираются вручную.',
+      '📄 Резюме ещё не загружено.\n\nКак добавить: нажми 📎 рядом с полем ввода → «Файл» → выбери резюме в PDF (до 5 МБ) и отправь сюда. Я прочитаю его и соберу профиль, по которому подбираются вакансии.',
     resumeCurrent: '📄 Твоё резюме: <b>{file}</b>, загружено {date}.',
     resumeReplace:
       'Чтобы заменить, пришли сюда новый PDF тем же способом (📎 → «Файл»). Профиль соберётся заново по новому резюме и будет ждать твоего подтверждения.',
@@ -156,14 +155,13 @@ const TEXT = {
     bSetup: '🧭 Первые шаги',
     setupTitle: 'Первые шаги в JobRadar',
     setupResumeDone: 'Резюме: {file}',
-    setupResumeTodo: 'Резюме: пришли его сюда файлом PDF (📎 → «Файл») или обойдись без него: ✍️ Без резюме',
+    setupResumeTodo: 'Резюме: пришли его сюда файлом PDF (📎 → «Файл»)',
     setupResumeManual: 'Резюме: не нужно, профиль задан вручную',
     setupProfileDone: 'Профиль подтверждён',
     setupProfileCheck: 'Профиль: проверь карточку и нажми «✅ Всё верно»',
-    setupProfileWait: 'Профиль: появится после резюме или ✍️ Без резюме',
+    setupProfileWait: 'Профиль: появится после резюме',
     setupDelivery: 'Доставка: новые вакансии приходят сразу после публикации, ночью (22:00–08:00) тишина. Поменять можно в ⚙️ Настройках.',
     setupFilters: 'Фильтры: роль, грейд и навыки берутся из профиля; формат работы, локация, зарплата и минимальное совпадение — по желанию. Всё в 🎯 Фильтрах.',
-    setupLinkedin: 'По желанию: /linkedin — вакансии из твоих оповещений LinkedIn.',
     setupHint: 'Пройди кнопки ниже по порядку.',
     bResume: '📄 Резюме',
     bSettings: '⚙️ Настройки',
@@ -173,14 +171,14 @@ const TEXT = {
     manualReplace:
       'Твой профиль собран из резюме. Если задать его вручную, он заменится; резюме останется, и если прислать его снова, профиль соберётся по нему. Продолжить?',
     manualYes: '✍️ Задать вручную',
-    manualKeep: '← Оставить текущий',
+    manualKeep: '↩️ Оставить текущий',
     wizRole:
       'Без резюме: четыре вопроса, и вакансии подбираются по твоим ответам. Ничего личного не спрашиваю.\n\nШаг 1 из 4: выбери роль.',
     wizGrade: 'Шаг 2 из 4: выбери грейд.',
     wizSkills: 'Шаг 3 из 4: пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     wizEnglish: 'Шаг 4 из 4: уровень английского.',
-    skip: 'Пропустить',
-    manualNote: 'Задан вручную, без резюме. Формат работы, локация и язык вакансии — в /filters.',
+    skip: '⏭ Пропустить',
+    manualNote: 'Задан вручную, без резюме. Формат работы, локация и язык вакансии — в /settings → 🎯 Фильтры.',
   },
 } as const;
 
@@ -195,6 +193,28 @@ export function profileText(
   for (const [name, value] of Object.entries(vars)) text = text.replaceAll(`{${name}}`, String(value));
   return text;
 }
+
+/** One icon per grade and per role (roadmap 5.20): every button carries one. */
+export const GRADE_ICONS: Record<string, string> = {
+  intern: '🌱',
+  junior: '🐣',
+  middle: '🧑‍💻',
+  senior: '🦉',
+  lead: '👑',
+};
+
+export const ROLE_ICONS: Record<string, string> = {
+  frontend: '🎨',
+  fullstack: '🧩',
+  backend: '🛠',
+  mobile: '📱',
+  devops: '🚢',
+  qa: '🐞',
+  data: '🗄',
+  design: '✒️',
+  product: '🧭',
+  analytics: '📊',
+};
 
 export const GRADE_LABELS: Record<string, { en: string; ru: string }> = {
   intern: { en: 'Intern', ru: 'Стажёр' },
@@ -270,9 +290,11 @@ export function profileCard(
       { text: profileText(lang, 'editYears'), callbackData: `${NS}:y` },
       { text: profileText(lang, 'editEnglish'), callbackData: `${NS}:e` },
     ],
-    [{ text: profileText(lang, 'editSkills'), callbackData: `${NS}:s` }],
-    // A profile set by hand has no resume to analyse again.
-    ...(options.manual ? [] : [[{ text: profileText(lang, 'retry'), callbackData: `${NS}:retry` }]]),
+    [
+      { text: profileText(lang, 'editSkills'), callbackData: `${NS}:s` },
+      // A profile set by hand has no resume to analyse again.
+      ...(options.manual ? [] : [{ text: profileText(lang, 'retry'), callbackData: `${NS}:retry` }]),
+    ],
   ];
   return { text, keyboard };
 }
@@ -290,12 +312,19 @@ export function pickerKeyboard(
   const action = options.wizard ? `w${field}` : field;
   const values: { text: string; value: string }[] =
     field === 'g'
-      ? SENIORITY_LEVELS.map((level) => ({ text: GRADE_LABELS[level]![lang], value: level }))
+      ? SENIORITY_LEVELS.map((level) => ({
+          text: `${GRADE_ICONS[level] ?? ''} ${GRADE_LABELS[level]![lang]}`.trim(),
+          value: level,
+        }))
       : field === 'e'
-        ? ENGLISH_LEVELS.map((level) => ({ text: level, value: level }))
-        : Object.entries(ROLE_TITLES).map(([family, title]) => ({ text: title, value: family }));
+        ? ENGLISH_LEVELS.map((level) => ({ text: `🗣 ${level}`, value: level }))
+        : Object.entries(ROLE_TITLES).map(([family, title]) => ({
+            text: `${ROLE_ICONS[family] ?? ''} ${title}`.trim(),
+            value: family,
+          }));
   const rows: InlineKeyboard = [];
-  const perRow = field === 'r' ? 2 : 3;
+  // Two per row everywhere (roadmap 5.20).
+  const perRow = 2;
   for (let i = 0; i < values.length; i += perRow) {
     rows.push(
       values
@@ -398,7 +427,8 @@ export function resumeScreen(
     ...(options.hasProfile ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
     btn(profileText(lang, 'bSetup'), `${NS}:setup`),
   ];
-  const keyboard: InlineKeyboard = resume ? [row] : [[btn(profileText(lang, 'bManual'), `${NS}:man`)], row];
+  // "✍️ Without a resume" (`p:man`) is hidden for now (roadmap 5.20); the flow still works.
+  const keyboard: InlineKeyboard = [row];
   return { text: parts.join('\n\n'), keyboard };
 }
 
@@ -434,7 +464,6 @@ export function setupScreen(
     `2. ${mark(state.profile === 'confirmed')} ${profileLine}`,
     `3. ${t('setupDelivery')}`,
     `4. ${t('setupFilters')}`,
-    `5. ${t('setupLinkedin')}`,
     '',
     t('setupHint'),
   ].join('\n');
@@ -445,7 +474,6 @@ export function setupScreen(
       btn(profileText(lang, 'bResume'), `${NS}:res`),
       ...(state.profile !== 'none' ? [btn(profileText(lang, 'bProfile'), `${NS}:card`)] : []),
     ],
-    ...(state.profile === 'none' ? [[btn(profileText(lang, 'bManual'), `${NS}:man`)]] : []),
     [btn(profileText(lang, 'bFilters'), `${s}:open:flt`), btn(profileText(lang, 'bSettings'), `${s}:menu`)],
     ...(state.profile === 'confirmed'
       ? [[btn(profileText(lang, 'bSendNow'), `${BOT_CALLBACK_NAMESPACES.digest}:n`)]]

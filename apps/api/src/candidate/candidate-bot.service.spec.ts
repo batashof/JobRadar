@@ -321,7 +321,7 @@ describe('CandidateBotService — confirmation and edits', () => {
     const { service, profiles, ctx } = setup();
     profiles.get.mockResolvedValue(null);
     expect(await service.onCallback(press(ctx, ['p', 'ok']))).toEqual({
-      alert: 'Сначала пришли резюме в PDF или задай профиль вручную: /noresume.',
+      alert: 'Сначала пришли резюме файлом PDF (📎 → «Файл»).',
     });
   });
 });
@@ -356,9 +356,10 @@ describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
     const [, text, options] = bot.sendToUser.mock.calls[0];
     expect(text).toContain('Резюме ещё не загружено');
     expect(text).toContain('📎');
-    expect(text).toContain('✍️ Без резюме');
+    // "Without a resume" is hidden for now (roadmap 5.20).
+    expect(text).not.toContain('Без резюме');
     const data = options.keyboard.map((row: { callbackData: string }[]) => row.map((b) => b.callbackData));
-    expect(data).toEqual([['p:man'], ['p:setup']]);
+    expect(data).toEqual([['p:setup']]);
   });
 
   it('walks a brand-new account through setup from step one', async () => {
@@ -373,7 +374,9 @@ describe('CandidateBotService — /resume and /setup (roadmap 5.9)', () => {
     expect(text).toContain('Первые шаги в JobRadar');
     expect(text).toContain('2. ⬜ Профиль: появится после резюме');
     const data = options.keyboard.flat().map((b: { callbackData: string }) => b.callbackData);
-    expect(data).toEqual(['p:res', 'p:man', 's:open:flt', 's:menu']);
+    expect(data).toEqual(['p:res', 's:open:flt', 's:menu']);
+    expect(text).not.toContain('Без резюме');
+    expect(text).not.toContain('/linkedin');
   });
 
   it('ticks the done steps and offers the first send once the profile is confirmed', async () => {

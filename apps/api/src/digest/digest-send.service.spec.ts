@@ -654,10 +654,10 @@ describe("DigestSendService buttons", () => {
     const result = await handler(ctx(["d", "a", "vac-1"]));
 
     expect(applications.markApplied).toHaveBeenCalledWith("user-1", "vac-1");
-    expect(result.alert).toBe("Добавлено в отклики — /applications");
+    expect(result.alert).toBe("Добавлено в отклики");
     // The card text is left as sent; only the keyboard changes.
     expect(result.editText).toBeUndefined();
-    expect(result.editKeyboard).toEqual([[{ text: "Откликнуться", url: "https://acme.test/1" }]]);
+    expect(result.editKeyboard).toEqual([[{ text: "🚀 Откликнуться", url: "https://acme.test/1" }]]);
     expect(writes).toHaveLength(0);
   });
 
@@ -676,7 +676,7 @@ describe("DigestSendService buttons", () => {
 
     const result = await handler(ctx(["d", "a", "vac-1"]));
 
-    expect(result.alert).toBe("Добавлено в отклики — /applications");
+    expect(result.alert).toBe("Добавлено в отклики");
     // No link on the posting: no buttons left.
     expect(result.editKeyboard).toEqual([]);
   });
@@ -719,7 +719,7 @@ describe("DigestSendService.sendOnRequest (/digest, the send-now button)", () =>
     await expect(service(db, bot).sendOnRequest("user-1", "user", "en")).resolves.toBe(0);
     expect(bot.sendToUser).toHaveBeenCalledWith(
       "user-1",
-      "Nothing to match on yet: send your resume as a PDF, or set the profile by hand with /noresume, and confirm it.",
+      "Nothing to match on yet: send your resume as a PDF and confirm the profile.",
     );
   });
 });

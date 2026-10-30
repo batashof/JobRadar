@@ -157,8 +157,10 @@ export class CandidateBotService implements OnModuleInit {
       await this.bot.sendToUser(ctx.userId, escapeHtml(profileText(ctx.language, 'manualReplace')), {
         parseMode: 'HTML',
         keyboard: [
-          [{ text: profileText(ctx.language, 'manualYes'), callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:man:y` }],
-          [{ text: profileText(ctx.language, 'manualKeep'), callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:card` }],
+          [
+            { text: profileText(ctx.language, 'manualYes'), callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:man:y` },
+            { text: profileText(ctx.language, 'manualKeep'), callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:card` },
+          ],
         ],
       });
       return;

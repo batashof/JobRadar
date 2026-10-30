@@ -194,6 +194,11 @@ export class TelegramApi {
     });
   }
 
+  /** Drops a chat's own command list, so the chat falls back to the default one. */
+  async deleteMyCommands(options: { chatId: string }): Promise<void> {
+    await this.call('deleteMyCommands', { scope: { type: 'chat', chat_id: options.chatId } });
+  }
+
   private post(method: string, body: Record<string, unknown>): Promise<Response> {
     return fetch(`${API_BASE}/bot${this.token}/${method}`, {
       method: 'POST',

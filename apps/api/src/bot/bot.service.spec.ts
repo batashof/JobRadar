@@ -543,7 +543,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
     expect(sentText()).toContain('https://job-radar-web-phi.vercel.app/privacy');
   });
 
-  it('lists /interview in /help for the owner only (ADR-024 §3)', async () => {
+  it('lists the author tools in /help for the owner only (ADR-024 §3)', async () => {
     const owner = makeDb();
     owner.queue(telegramAccounts, [{ userId: 'user-1' }]);
     owner.queue(users, [{ language: 'en', role: 'owner' }]);
@@ -551,8 +551,12 @@ describe('BotService registration in the bot (ADR-024)', () => {
     await new BotService(owner.db, config('123:abc'), new BotDialogs(owner.db)).handleUpdate({
       message: { text: '/help', chat, from: { id: 555 } },
     });
-    expect(sentText()).toContain('/interview');
+    expect(sentText()).toContain('/stats');
     expect(sentText()).toContain('/settings');
+    // Hidden commands (roadmap 5.20) are not advertised, even to the owner.
+    for (const hidden of ['/plan', '/gmail', '/applications', '/linkedin', '/noresume']) {
+      expect(sentText()).not.toContain(hidden);
+    }
 
     fetchMock.mockClear();
     const user = makeDb();
@@ -562,7 +566,7 @@ describe('BotService registration in the bot (ADR-024)', () => {
       message: { text: '/help', chat, from: { id: 555 } },
     });
     expect(sentText()).toContain('/settings');
-    expect(sentText()).not.toContain('/interview');
+    expect(sentText()).not.toContain('/stats');
   });
 });
 
@@ -602,7 +606,15 @@ describe('BotService account deletion (ADR-024 §8)', () => {
       expect.objectContaining({ table: events, values: expect.objectContaining({ name: 'account_deleted' }) }),
       expect.objectContaining({ kind: 'delete', table: users }),
     ]);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).text).toContain('удалены');
+    const sent = fetchMock.mock.calls.map(([url, init]: [string, RequestInit]) => ({
+      method: url.split('/').pop(),
+      body: JSON.parse(init.body as string),
+    }));
+    // The chat falls back to the guest menu, /start included (roadmap 5.20).
+    expect(sent.find((c) => c.method === 'deleteMyCommands')?.body).toEqual({
+      scope: { type: 'chat', chat_id: '555' },
+    });
+    expect(sent.find((c) => c.method === 'editMessageText')?.body.text).toContain('удалены');
   });
 
   it('never deletes the owner account from the chat', async () => {

@@ -9,6 +9,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.13.0] — 2026-10-30
+
+### Changed
+
+- **A short bot menu.** A chat without an account sees `/start`, `/help` and `/privacy`; a linked chat gets its own menu (Telegram's `chat` scope, in the account language) with `/setup`, `/digest`, `/settings`, `/help`, `/privacy`, `/feedback` and `/delete`, so `/start` disappears once the account exists and comes back after `/stop` or `/delete`. The owner's adds `/stats`, `/triage` and `/testmode`.
+- `/settings` opens everything else: 👤 Profile (new), 📄 Resume, 🎯 Filters, and 🎤 Interview for the owner. `/resume`, `/filters` and `/stop` still answer but are not in the menu.
+- `/applications`, `/linkedin`, `/noresume`, `/plan` and `/gmail` are hidden from the menu, `/help`, `/setup`, the resume screen and the bot's texts; their code and handlers stay, and typing the command still works.
+- Every button sits two per row and carries its own icon: options show ✅ when picked and their own icon otherwise; duplicate icons fixed (🎯 was both Filters and Minimum fit, 💼 Format, 📝 Employment), Apply is 🚀, the delete and test-mode confirmations have 🗑 / 🧪 / ↩️.
+
 ## [2.12.0] — 2026-10-30
 
 ### Added
