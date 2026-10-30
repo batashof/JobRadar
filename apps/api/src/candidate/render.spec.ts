@@ -1,4 +1,11 @@
-import { evaluationMessage, parseSkillsInput, pickerKeyboard, profileCard } from './render';
+import {
+  editSkillsInput,
+  evaluationMessage,
+  parseSkillsInput,
+  parseYearsInput,
+  pickerKeyboard,
+  profileCard,
+} from './render';
 
 const profile = {
   role: 'Frontend <Dev>',
@@ -25,10 +32,10 @@ describe('profileCard', () => {
 
   it('offers confirm, edit and re-analysis buttons under the profile namespace', () => {
     const data = profileCard('en', profile).keyboard.flat().map((b) => b.callbackData);
-    expect(data).toEqual(['p:ok', 'p:r', 'p:g', 'p:e', 'p:s', 'p:retry']);
+    expect(data).toEqual(['p:ok', 'p:r', 'p:g', 'p:y', 'p:e', 'p:s', 'p:retry']);
     // Edit buttons say they edit (roadmap 5.7), not just name a field.
     const texts = profileCard('ru', profile).keyboard.flat().map((b) => b.text);
-    expect(texts).toEqual(expect.arrayContaining(['✏️ Роль', '✏️ Грейд', '✏️ Английский', '✏️ Навыки']));
+    expect(texts).toEqual(expect.arrayContaining(['✏️ Роль', '✏️ Грейд', '✏️ Опыт', '✏️ Английский', '✏️ Навыки']));
   });
 
   it('warns when the profile came from the fallback, not the analysis', () => {
@@ -83,5 +90,40 @@ describe('parseSkillsInput', () => {
   it('drops bullets, blanks and duplicates', () => {
     expect(parseSkillsInput('- React\n• react\n,, Vue').map((s) => s.name)).toEqual(['React', 'Vue']);
     expect(parseSkillsInput(' , ; ')).toEqual([]);
+  });
+});
+
+describe('editSkillsInput', () => {
+  const current = [
+    { name: 'React', weight: 'core' as const },
+    { name: 'TypeScript', weight: 'core' as const },
+    { name: 'jQuery', weight: 'familiar' as const },
+  ];
+
+  it('adds with + as a main skill and removes with -, any spelling of the same skill', () => {
+    expect(editSkillsInput(current, '+JavaScript, -jquery, +reactjs')).toEqual([
+      { name: 'React', weight: 'core' },
+      { name: 'TypeScript', weight: 'core' },
+      { name: 'JavaScript', weight: 'core' },
+    ]);
+  });
+
+  it('replaces the whole list when the answer is a plain list', () => {
+    expect(editSkillsInput(current, 'Vue, Nuxt')).toEqual([
+      { name: 'Vue', weight: 'core' },
+      { name: 'Nuxt', weight: 'core' },
+    ]);
+  });
+});
+
+describe('parseYearsInput', () => {
+  it('reads "8", "8+" and "8 лет", refuses words and implausible numbers', () => {
+    expect(parseYearsInput('8')).toBe(8);
+    expect(parseYearsInput(' 8+ ')).toBe(8);
+    expect(parseYearsInput('8 лет')).toBe(8);
+    expect(parseYearsInput('0')).toBe(0);
+    expect(parseYearsInput('eight')).toBeNull();
+    expect(parseYearsInput('99')).toBeNull();
+    expect(parseYearsInput('2017-2026')).toBeNull();
   });
 });

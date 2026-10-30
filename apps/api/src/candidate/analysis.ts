@@ -1,15 +1,19 @@
 import {
   CANDIDATE_SKILLS_MAX,
   type CandidateSkill,
+  canonicalSkill,
   detectSeniority,
   type Language,
   type ResumeAnalysis,
   resumeAnalysisSchema,
   type SeniorityLevel,
+  SKILL_DICTIONARY,
+  skillTextPatterns,
 } from '@jobradar/shared';
 
 import type { LlmRequest } from '../llm/llm.types';
 import { extractResumeTerms, ROLE_FAMILIES } from '../matching/resume-terms';
+import { phrasePattern } from '../matching/score';
 
 /**
  * The one LLM call a non-owner ever costs (ADR-025 §1): resume text in, a
@@ -18,7 +22,7 @@ import { extractResumeTerms, ROLE_FAMILIES } from '../matching/resume-terms';
  */
 
 /** Bump when the prompt or the expected JSON changes; stored on every profile. */
-export const ANALYSIS_PROMPT_VERSION = 1;
+export const ANALYSIS_PROMPT_VERSION = 2;
 
 /** Resumes are 1–3 pages; this keeps a pathological PDF inside a free tier's context. */
 const RESUME_CHARS_LIMIT = 12_000;
@@ -26,7 +30,11 @@ const RESUME_CHARS_LIMIT = 12_000;
 /** Skills taken as `core` in the fallback profile; the rest are `familiar`. */
 const FALLBACK_CORE_SKILLS = 6;
 
-export function buildAnalysisPrompt(resumeText: string, language: Language): LlmRequest {
+export function buildAnalysisPrompt(
+  resumeText: string,
+  language: Language,
+  today: Date = new Date(),
+): LlmRequest {
   const text =
     resumeText.length <= RESUME_CHARS_LIMIT ? resumeText : resumeText.slice(0, RESUME_CHARS_LIMIT);
   const lang = language === 'ru' ? 'Russian' : 'English';
@@ -36,8 +44,8 @@ export function buildAnalysisPrompt(resumeText: string, language: Language): Llm
       'Fields:',
       '- "role": the job they are after, short, in English (e.g. "Frontend Developer").',
       '- "grade": one of "intern", "junior", "middle", "senior", "lead", or null if unclear. Judge from responsibilities and years, not only from titles.',
-      '- "years": total years of professional experience as an integer, or null.',
-      '- "skills": technologies, frameworks and tools they actually used, most important first, at most 20. Each is {"name": canonical name such as "React", "TypeScript", "Node.js", "weight": "core" | "familiar"}. "core" = used in the main recent work; "familiar" = mentioned or used briefly.',
+      `- "years": total years of professional experience as an integer, or null. If the resume states it ("8+ years", "более 8 лет"), use that number. Otherwise count from the start of the first professional job to today, ${today.toISOString().slice(0, 10)}; a job "to present" runs until today. Never round down a stated "N+".`,
+      '- "skills": technologies, frameworks and tools they actually used, most important first, at most 20. Each is {"name": canonical name such as "React", "TypeScript", "Node.js", "weight": "core" | "familiar"}. "core" = used in the main recent work; "familiar" = mentioned or used briefly. List every language on its own: JavaScript and TypeScript are two skills, never fold one into the other or into a framework. Everything in the resume\'s skills section belongs here.',
       '- "english": CEFR level "A1".."C2" when the resume states or clearly shows it, else null.',
       '- "location": city and/or country they live in, or null.',
       '- "salaryUsd": desired monthly salary in USD if stated, else null.',
@@ -65,6 +73,72 @@ export function parseAnalysis(reply: string): ResumeAnalysis | null {
   const result = resumeAnalysisSchema.safeParse(raw);
   if (!result.success) return null;
   return { ...result.data, skills: dedupeSkills(result.data.skills) };
+}
+
+/**
+ * Checks the model's profile against the resume text, where a model is known
+ * to slip: it computes years from dates against its own idea of "today" (7
+ * for a resume that says "8+ years"), and drops a language it reads as implied
+ * by another (JavaScript next to TypeScript). The text wins in both cases; the
+ * model's evaluation and everything else stay as they are.
+ */
+export function reconcileAnalysis(analysis: ResumeAnalysis, resumeText: string): ResumeAnalysis {
+  const stated = statedYears(resumeText);
+  const years =
+    stated !== null && (analysis.years === null || stated > analysis.years) ? stated : analysis.years;
+  return { ...analysis, years, skills: completeSkills(analysis.skills, resumeText) };
+}
+
+/** "8+ years", "over 8 years", "более 8 лет": a number of years next to a years word. */
+const STATED_YEARS = /(?<![\p{L}\p{N}.])(\d{1,2})\s*\+?\s*(?:years?|yrs?|лет|года?)(?![\p{L}])/giu;
+
+/** A total of years a resume says outright ("8+ years of experience"), or null. */
+export function statedYears(resumeText: string): number | null {
+  let max: number | null = null;
+  for (const match of resumeText.matchAll(STATED_YEARS)) {
+    const n = Number(match[1]);
+    // A lone year count above a working life is a date or a typo, not experience.
+    if (n >= 1 && n <= 50 && (max === null || n > max)) max = n;
+  }
+  return max;
+}
+
+/** A skill the model left out becomes `core` at this many mentions in the resume. */
+export const MISSED_SKILL_CORE_MENTIONS = 3;
+
+/** How often the resume names a dictionary skill, by any of its spellings. */
+function skillMentions(key: string, text: string): number {
+  return skillTextPatterns(key).reduce((sum, phrase) => {
+    const global = new RegExp(phrasePattern(phrase).source, 'giu');
+    return sum + (text.match(global)?.length ?? 0);
+  }, 0);
+}
+
+/**
+ * The model's skills plus the dictionary skills the resume names that the model
+ * left out: `core` when named often, else `familiar`. Added core skills go
+ * after the model's core ones, so with a full list they push out the model's
+ * least important `familiar` ones, never its core ones.
+ */
+export function completeSkills(skills: CandidateSkill[], resumeText: string): CandidateSkill[] {
+  const listed = new Set(skills.map((s) => canonicalSkill(s.name)));
+  const missed = SKILL_DICTIONARY.filter((entry) => !listed.has(entry.key))
+    .map((entry) => ({ entry, count: skillMentions(entry.key, resumeText) }))
+    .filter((m) => m.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .map(({ entry, count }) => ({
+      name: entry.label,
+      weight: count >= MISSED_SKILL_CORE_MENTIONS ? ('core' as const) : ('familiar' as const),
+    }));
+  if (missed.length === 0) return skills;
+  const byWeight = (list: CandidateSkill[], weight: CandidateSkill['weight']) =>
+    list.filter((s) => s.weight === weight);
+  return [
+    ...byWeight(skills, 'core'),
+    ...byWeight(missed, 'core'),
+    ...byWeight(skills, 'familiar'),
+    ...byWeight(missed, 'familiar'),
+  ].slice(0, CANDIDATE_SKILLS_MAX);
 }
 
 /** Case-insensitive dedupe that keeps the first (more important) occurrence. */

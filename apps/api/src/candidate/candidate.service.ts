@@ -27,7 +27,7 @@ export interface ProfileWrite {
 }
 
 /** Fields the confirmation dialog can change (ADR-025 §2). */
-export type ProfilePatch = Partial<Pick<ProfileWrite, 'role' | 'grade' | 'english' | 'skills'>>;
+export type ProfilePatch = Partial<Pick<ProfileWrite, 'role' | 'grade' | 'years' | 'english' | 'skills'>>;
 
 /** Storage of the candidate profile: one row per user (`candidate_profiles`). */
 @Injectable()

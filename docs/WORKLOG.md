@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — Resume profile accuracy (v2.10.0)
+- Developer: the profile from their resume said 7 years instead of 8+ and had no JavaScript, one of their main skills.
+- Causes: the prompt did not give the model today's date, so it counted years from dates against its own idea of "now" and could ignore a stated "8+"; nothing checked the result against the text, and models fold JavaScript into TypeScript.
+- `candidate/analysis.ts`: prompt v2 (`ANALYSIS_PROMPT_VERSION = 2`) with the date, "take a stated N+", "JavaScript and TypeScript are two skills"; `reconcileAnalysis` after the parse: `statedYears` wins over a smaller count, `completeSkills` adds dictionary skills the resume names (core at 3+ mentions, after the model's core ones). Still one LLM call per upload (ADR-025).
+- Card: "✏️ Experience" (`p:y`, dialog step `years`); "✏️ Skills" shows the current list and takes `+Skill` / `-Skill`.
+- Next step: the developer presses "🔄 Analyse again" (or edits the card) so the stored profile is rebuilt with prompt v2; the daily audit then runs on the corrected profile.
+
 ## 2026-10-30 — Daily delivery quality audit (v2.9.0)
 - Developer asked for an agent that checks every day, on their own profile, every vacancy that arrived, delivered or not; example: fullstack vacancies reaching a frontend resume on shared skills.
 - `Quality audit` workflow (daily 07:00 Minsk): `scripts/quality-audit.ts` replays the author's funnel with drop reasons (`src/audit/decide.ts`), a free LLM judges up to 120 vacancies (GitHub Models via `GITHUB_TOKEN`, fallback Groq/Gemini/OpenRouter; `src/audit/judge.ts`), findings and title-word fixes in `src/audit/findings.ts`, report to the run summary, an artifact and the author's Telegram. ADR-035.
