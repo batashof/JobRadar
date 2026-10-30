@@ -5,7 +5,15 @@ import type { ConfigService } from '@nestjs/config';
 
 import { BotDialogs } from './bot-dialogs';
 import { BotService } from './bot.service';
-import { menuCommands, OWNER_COMMANDS, PUBLIC_COMMANDS } from './command-menu';
+import {
+  GUEST_COMMANDS,
+  guestMenu,
+  HIDDEN_COMMANDS,
+  HIDDEN_OWNER_COMMANDS,
+  menuCommands,
+  OWNER_COMMANDS,
+  PUBLIC_COMMANDS,
+} from './command-menu';
 
 const SRC = join(__dirname, '..');
 
@@ -32,14 +40,18 @@ function implementedCommands(): Set<string> {
 }
 
 describe('command menu', () => {
-  it('lists every command the bot answers, and nothing else', () => {
-    const menu = [...PUBLIC_COMMANDS, ...OWNER_COMMANDS].map(([command]) => command).sort();
-    expect(menu).toEqual([...implementedCommands()].sort());
+  it('lists every command the bot answers in a menu or as hidden, and nothing else', () => {
+    const known = new Set([
+      ...[...GUEST_COMMANDS, ...PUBLIC_COMMANDS, ...OWNER_COMMANDS].map(([command]) => command),
+      ...HIDDEN_COMMANDS,
+      ...HIDDEN_OWNER_COMMANDS,
+    ]);
+    expect([...known].sort()).toEqual([...implementedCommands()].sort());
   });
 
   it('keeps names and descriptions within Telegram limits', () => {
     for (const lang of ['en', 'ru'] as const) {
-      for (const entry of menuCommands(lang, true)) {
+      for (const entry of [...menuCommands(lang, true), ...guestMenu(lang)]) {
         expect(entry.command).toMatch(/^[a-z0-9_]{1,32}$/);
         expect(entry.description.length).toBeGreaterThan(0);
         expect(entry.description.length).toBeLessThanOrEqual(256);
@@ -47,14 +59,25 @@ describe('command menu', () => {
     }
   });
 
-  it('adds the author tools before /help for the owner only', () => {
-    expect(menuCommands('en').map((c) => c.command)).not.toContain('plan');
-    const owner = menuCommands('ru', true).map((c) => c.command);
-    expect(owner.slice(-7)).toEqual(['interview', 'plan', 'gmail', 'testmode', 'stats', 'triage', 'help']);
-    expect(menuCommands('ru')[0]).toEqual({
-      command: 'start',
-      description: 'Создать аккаунт или подключить чат',
-    });
+  it('shows /start only before an account exists', () => {
+    expect(guestMenu('en').map((c) => c.command)).toEqual(['start', 'help', 'privacy']);
+    expect(menuCommands('en').map((c) => c.command)).toEqual([
+      'setup',
+      'digest',
+      'settings',
+      'help',
+      'privacy',
+      'feedback',
+      'delete',
+    ]);
+    expect(guestMenu('ru')[0]).toEqual({ command: 'start', description: 'Создать аккаунт или подключить чат' });
+  });
+
+  it('adds /stats, /triage and /testmode for the owner only, and hides the rest', () => {
+    expect(menuCommands('en').map((c) => c.command)).not.toContain('stats');
+    expect(menuCommands('ru', true).map((c) => c.command).slice(-3)).toEqual(['stats', 'triage', 'testmode']);
+    const shown = menuCommands('en', true).map((c) => c.command);
+    for (const hidden of [...HIDDEN_COMMANDS, ...HIDDEN_OWNER_COMMANDS]) expect(shown).not.toContain(hidden);
   });
 });
 
@@ -71,10 +94,10 @@ describe('BotService.publishMenu', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
-  const makeDb = (owners: { chatId: string | null; language: string }[]) =>
+  const makeDb = (chats: { chatId: string | null; language: string; role: string }[]) =>
     ({
       select: () => ({
-        from: () => ({ innerJoin: () => ({ where: () => Promise.resolve(owners) }) }),
+        from: () => ({ innerJoin: () => ({ where: () => Promise.resolve(chats) }) }),
       }),
     }) as never;
 
@@ -86,20 +109,44 @@ describe('BotService.publishMenu', () => {
       body: JSON.parse(init.body as string),
     }));
 
-  it('sets the English default, the Russian list and each owner chat', async () => {
-    const db = makeDb([{ chatId: '42', language: 'ru' }]);
+  it('sets the guest default per language and the account menu of each linked chat', async () => {
+    const db = makeDb([
+      { chatId: '42', language: 'ru', role: 'owner' },
+      { chatId: '7', language: 'en', role: 'user' },
+    ]);
     const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
 
     await bot.publishMenu();
 
     const sent = calls();
-    expect(sent.map((c) => c.method)).toEqual(['setMyCommands', 'setMyCommands', 'setMyCommands']);
-    expect(sent[0]?.body).toEqual({ commands: menuCommands('en') });
-    expect(sent[1]?.body).toEqual({ commands: menuCommands('ru'), language_code: 'ru' });
+    expect(sent.map((c) => c.method)).toEqual(['setMyCommands', 'setMyCommands', 'setMyCommands', 'setMyCommands']);
+    expect(sent[0]?.body).toEqual({ commands: guestMenu('en') });
+    expect(sent[1]?.body).toEqual({ commands: guestMenu('ru'), language_code: 'ru' });
     expect(sent[2]?.body).toEqual({
       commands: menuCommands('ru', true),
       scope: { type: 'chat', chat_id: '42' },
     });
+    expect(sent[3]?.body).toEqual({ commands: menuCommands('en'), scope: { type: 'chat', chat_id: '7' } });
+  });
+
+  it('keeps going when one chat menu is refused', async () => {
+    fetchMock.mockImplementation((url: string, init: RequestInit) =>
+      Promise.resolve({
+        status: 400,
+        json: () =>
+          Promise.resolve(
+            String(init.body).includes('"chat_id":"42"')
+              ? { ok: false, error_code: 400, description: 'Bad Request: chat not found' }
+              : { ok: true, result: true },
+          ),
+      } as Response),
+    );
+    const db = makeDb([
+      { chatId: '42', language: 'ru', role: 'user' },
+      { chatId: '7', language: 'ru', role: 'user' },
+    ]);
+    await new BotService(db, config('123:abc'), new BotDialogs(db)).publishMenu();
+    expect(calls().map((c) => c.body.scope?.chat_id)).toEqual([undefined, undefined, '42', '7']);
   });
 
   it('does nothing without a bot token', async () => {

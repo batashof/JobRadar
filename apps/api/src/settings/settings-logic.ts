@@ -14,7 +14,7 @@ import {
 
 import { escapeHtml, type InlineKeyboard } from '../bot/telegram-api';
 import { ROLE_TITLES } from '../candidate/analysis';
-import { GRADE_LABELS } from '../candidate/render';
+import { GRADE_ICONS, GRADE_LABELS, ROLE_ICONS } from '../candidate/render';
 import { isWorkLanguage, languageLabel, WORK_LANGUAGES } from '../matching/work-language';
 
 /**
@@ -71,9 +71,11 @@ export interface SettingsState {
   language: Language;
   /** Null until a resume has been analysed. */
   profile: ProfileFilters | null;
+  /** The owner's settings also open the author tools (ADR-024 §3). */
+  owner?: boolean;
 }
 
-export type SettingsPatch = Partial<Omit<SettingsState, 'profile'>>;
+export type SettingsPatch = Partial<Omit<SettingsState, 'profile' | 'owner'>>;
 export type ProfilePatch = Partial<Pick<ProfileFilters, 'role' | 'grade'>>;
 
 export const SCREENS = [
@@ -329,18 +331,18 @@ const TEXT = {
     filtersTitle: '🎯 <b>Filters</b>: which vacancies arrive',
     fromResume: 'From the resume (tap to change)',
     manual: 'Your filters',
-    noProfile: 'Role, grade and skills are filled in from your resume: send it as a PDF file (📎 → File). Without a resume: /noresume.',
-    unconfirmed: 'The profile is not confirmed yet, so nothing is sent: /resume → 👤 Profile → "✅ All correct".',
+    noProfile: 'Role, grade and skills are filled in from your resume: send it as a PDF file (📎 → File).',
+    unconfirmed: 'The profile is not confirmed yet, so nothing is sent: /settings → 👤 Profile → "✅ All correct".',
     role: 'Role',
     grade: 'Grade',
     skills: 'Skills',
     unknown: 'not set',
-    filtersLine: 'Which vacancies: /filters',
+    filtersLine: 'Which vacancies: 🎯 Filters below. Profile and resume: 👤 Profile, 📄 Resume.',
     bFilters: '🎯 Filters',
     bSettings: '⚙️ Settings',
-    bRole: '✏️ Role',
-    bGrade: '✏️ Grade',
-    bSkills: '✏️ Skills',
+    bRole: '💼 Role',
+    bGrade: '📈 Grade',
+    bSkills: '🧠 Skills',
     roleHint: 'Your role: vacancies of another job family score low.',
     gradeHint: 'Your grade: vacancies two grades away score low.',
     delivery: 'Delivery',
@@ -379,19 +381,21 @@ const TEXT = {
     bTimes: '🕒 Send times',
     bQuiet: '🔕 Quiet hours',
     bTz: '🌍 Timezone',
-    bScore: '🎯 Minimum fit',
+    bScore: '📊 Minimum fit',
     bCap: '📦 Per send',
-    bFormat: '💼 Format',
-    bEmployment: '📝 Employment',
+    bFormat: '🏠 Format',
+    bEmployment: '⏱ Employment',
     bSalary: '💰 Salary',
     bSources: '📡 Sources',
     bLanguage: '🌐 Language: English',
-    bSendNow: '📥 Send vacancies now',
+    bSendNow: '📥 Send now',
     bResumeUpload: '📄 Resume',
+    bProfile: '👤 Profile',
+    bInterview: '🎤 Interview',
     bPause: '⏸ Pause',
     bResume: '▶️ Resume',
-    back: '← Back',
-    typeIt: '✏️ Type it',
+    back: '⬅️ Back',
+    typeIt: '⌨️ Type it',
     fmtHint: 'Formats to receive. None selected = any.',
     empHint: 'Employment to receive. None selected = any.',
     srcHint: 'Tap a source to switch it off or on.',
@@ -420,18 +424,18 @@ const TEXT = {
     filtersTitle: '🎯 <b>Фильтры</b>: какие вакансии присылать',
     fromResume: 'Из резюме (можно поменять)',
     manual: 'Твои фильтры',
-    noProfile: 'Роль, грейд и навыки заполнятся из резюме: пришли его файлом PDF (📎 → «Файл»). Без резюме: /noresume.',
-    unconfirmed: 'Профиль ещё не подтверждён, поэтому вакансии не приходят: /resume → 👤 Профиль → «✅ Всё верно».',
+    noProfile: 'Роль, грейд и навыки заполнятся из резюме: пришли его файлом PDF (📎 → «Файл»).',
+    unconfirmed: 'Профиль ещё не подтверждён, поэтому вакансии не приходят: /settings → 👤 Профиль → «✅ Всё верно».',
     role: 'Роль',
     grade: 'Грейд',
     skills: 'Навыки',
     unknown: 'не указано',
-    filtersLine: 'Какие вакансии: /filters',
+    filtersLine: 'Какие вакансии: 🎯 Фильтры ниже. Профиль и резюме: 👤 Профиль, 📄 Резюме.',
     bFilters: '🎯 Фильтры',
     bSettings: '⚙️ Настройки',
-    bRole: '✏️ Роль',
-    bGrade: '✏️ Грейд',
-    bSkills: '✏️ Навыки',
+    bRole: '💼 Роль',
+    bGrade: '📈 Грейд',
+    bSkills: '🧠 Навыки',
     roleHint: 'Твоя роль: вакансии другого направления получают низкий балл.',
     gradeHint: 'Твой грейд: вакансии на два грейда выше или ниже получают низкий балл.',
     delivery: 'Доставка',
@@ -470,19 +474,21 @@ const TEXT = {
     bTimes: '🕒 Время отправки',
     bQuiet: '🔕 Тихие часы',
     bTz: '🌍 Часовой пояс',
-    bScore: '🎯 Мин. совпадение',
+    bScore: '📊 Мин. совпадение',
     bCap: '📦 За раз',
-    bFormat: '💼 Формат',
-    bEmployment: '📝 Занятость',
+    bFormat: '🏠 Формат',
+    bEmployment: '⏱ Занятость',
     bSalary: '💰 Зарплата',
     bSources: '📡 Источники',
     bLanguage: '🌐 Язык: Русский',
-    bSendNow: '📥 Прислать вакансии сейчас',
+    bSendNow: '📥 Прислать сейчас',
     bResumeUpload: '📄 Резюме',
+    bProfile: '👤 Профиль',
+    bInterview: '🎤 Собеседование',
     bPause: '⏸ Пауза',
     bResume: '▶️ Возобновить',
-    back: '← Назад',
-    typeIt: '✏️ Ввести',
+    back: '⬅️ Назад',
+    typeIt: '⌨️ Ввести',
     fmtHint: 'Какие форматы присылать. Ничего не выбрано — любой.',
     empHint: 'Какую занятость присылать. Ничего не выбрано — любую.',
     srcHint: 'Нажми на источник, чтобы выключить или включить его.',
@@ -519,7 +525,11 @@ const button = (text: string, data: string) => ({ text, callbackData: `${ns}:${d
 const back = (lang: Language, screen: Screen = 'main') => [
   button(TEXT[lang].back, FILTER_SCREENS.includes(screen) ? 'open:flt' : 'menu'),
 ];
-const mark = (on: boolean) => (on ? '✅ ' : '');
+/** A picked option shows ✅, the others their own icon: every button has one (roadmap 5.20). */
+const mark = (on: boolean, icon = '▫️') => (on ? '✅ ' : `${icon} `);
+
+const FORMAT_ICONS: Record<WorkFormat, string> = { remote: '🌍', hybrid: '🔀', onsite: '🏢' };
+const EMPLOYMENT_ICONS: Record<EmploymentType, string> = { full_time: '🕘', part_time: '🕓', freelance: '🧾' };
 
 function rows<T>(items: T[], perRow: number): T[][] {
   const out: T[][] = [];
@@ -625,7 +635,12 @@ export function renderScreen(
       return {
         text: t.fmtHint,
         keyboard: [
-          WORK_FORMATS.map((f) => button(`${mark(state.workFormats.includes(f))}${t.formats[f]}`, `fmt:${f}`)),
+          ...rows(
+            WORK_FORMATS.map((f) =>
+              button(`${mark(state.workFormats.includes(f), FORMAT_ICONS[f])}${t.formats[f]}`, `fmt:${f}`),
+            ),
+            2,
+          ),
           back(lang, screen),
         ],
       };
@@ -633,8 +648,11 @@ export function renderScreen(
       return {
         text: t.empHint,
         keyboard: [
-          EMPLOYMENT_TYPES.map((e) =>
-            button(`${mark(state.employmentTypes.includes(e))}${t.employments[e]}`, `emp:${e}`),
+          ...rows(
+            EMPLOYMENT_TYPES.map((e) =>
+              button(`${mark(state.employmentTypes.includes(e), EMPLOYMENT_ICONS[e])}${t.employments[e]}`, `emp:${e}`),
+            ),
+            2,
           ),
           back(lang, screen),
         ],
@@ -657,7 +675,7 @@ export function renderScreen(
       return {
         text: t.msHint(state.mode),
         keyboard: [
-          ...rows(SCORE_PRESETS.map((n) => button(`${mark(n === current)}${n}%`, `ms:${n}`)), 3),
+          ...rows(SCORE_PRESETS.map((n) => button(`${mark(n === current, '📊')}${n}%`, `ms:${n}`)), 2),
           back(lang, screen),
         ],
       };
@@ -666,8 +684,11 @@ export function renderScreen(
       return {
         text: t.capHint,
         keyboard: [
-          CAP_PRESETS.map((n) =>
-            button(`${mark((state.maxItems ?? 0) === n)}${n === 0 ? '∞' : n}`, `cap:${n}`),
+          ...rows(
+            CAP_PRESETS.map((n) =>
+              button(`${mark((state.maxItems ?? 0) === n, '📦')}${n === 0 ? '∞' : n}`, `cap:${n}`),
+            ),
+            2,
           ),
           back(lang, screen),
         ],
@@ -678,26 +699,27 @@ export function renderScreen(
         keyboard: [
           ...rows(
             SALARY_PRESETS.map((n) =>
-              button(`${mark((state.minSalaryUsd ?? 0) === n)}${n === 0 ? t.none : `$${n}`}`, `sal:${n}`),
+              button(`${mark((state.minSalaryUsd ?? 0) === n, '💰')}${n === 0 ? t.none : `$${n}`}`, `sal:${n}`),
             ),
-            3,
+            2,
           ),
-          [button(t.typeIt, 'type:sal')],
-          back(lang, screen),
+          [button(t.typeIt, 'type:sal'), ...back(lang, screen)],
         ],
       };
     case 't':
       return {
         text: t.tHint,
         keyboard: [
-          ...TIME_PRESETS.map((times) => [
-            button(
-              `${mark(state.mode === 'scheduled' && compactTimes(times) === compactTimes(state.sendTimes))}${times.join(', ')}`,
-              `t:${compactTimes(times)}`,
+          ...rows(
+            TIME_PRESETS.map((times) =>
+              button(
+                `${mark(state.mode === 'scheduled' && compactTimes(times) === compactTimes(state.sendTimes), '🕒')}${times.join(', ')}`,
+                `t:${compactTimes(times)}`,
+              ),
             ),
-          ]),
-          [button(t.typeIt, 'type:t')],
-          back(lang, screen),
+            2,
+          ),
+          [button(t.typeIt, 'type:t'), ...back(lang, screen)],
         ],
       };
     case 'q':
@@ -707,14 +729,13 @@ export function renderScreen(
           ...rows(
             QUIET_PRESETS.map(([start, end]) =>
               button(
-                `${mark(state.quietStart === start && state.quietEnd === end)}${start === end ? t.quietOff : `${start}–${end}`}`,
+                `${mark(state.quietStart === start && state.quietEnd === end, start === end ? '🔔' : '🔕')}${start === end ? t.quietOff : `${start}–${end}`}`,
                 `q:${compactTimes([start!, end!])}`,
               ),
             ),
             2,
           ),
-          [button(t.typeIt, 'type:q')],
-          back(lang, screen),
+          [button(t.typeIt, 'type:q'), ...back(lang, screen)],
         ],
       };
     case 'tz':
@@ -723,12 +744,11 @@ export function renderScreen(
         keyboard: [
           ...rows(
             TIMEZONE_PRESETS.map((zone, index) =>
-              button(`${mark(state.timezone === zone)}${zone}`, `tz:${index}`),
+              button(`${mark(state.timezone === zone, '🌍')}${zone}`, `tz:${index}`),
             ),
             2,
           ),
-          [button(t.typeIt, 'type:tz')],
-          back(lang, screen),
+          [button(t.typeIt, 'type:tz'), ...back(lang, screen)],
         ],
       };
     case 'role':
@@ -737,7 +757,7 @@ export function renderScreen(
         keyboard: [
           ...rows(
             Object.entries(ROLE_TITLES).map(([family, title]) =>
-              button(`${mark(state.profile?.role === title)}${title}`, `role:${family}`),
+              button(`${mark(state.profile?.role === title, ROLE_ICONS[family])}${title}`, `role:${family}`),
             ),
             2,
           ),
@@ -750,9 +770,12 @@ export function renderScreen(
         keyboard: [
           ...rows(
             SENIORITY_LEVELS.map((level) =>
-              button(`${mark(state.profile?.grade === level)}${GRADE_LABELS[level]?.[lang] ?? level}`, `grade:${level}`),
+              button(
+                `${mark(state.profile?.grade === level, GRADE_ICONS[level])}${GRADE_LABELS[level]?.[lang] ?? level}`,
+                `grade:${level}`,
+              ),
             ),
-            3,
+            2,
           ),
           back(lang, screen),
         ],
@@ -765,11 +788,14 @@ export function renderScreen(
             state.locations.map((place, index) => button(`✖️ ${place}`, `loc:${index}`)),
             2,
           ),
-          [
-            ...(state.locations.length < LOCATIONS_MAX ? [button(t.bAddPlace, 'type:loc')] : []),
-            ...(state.locations.length > 0 ? [button(t.bClearPlaces, 'loc:clear')] : []),
-          ],
-          back(lang, screen),
+          ...rows(
+            [
+              ...(state.locations.length < LOCATIONS_MAX ? [button(t.bAddPlace, 'type:loc')] : []),
+              ...(state.locations.length > 0 ? [button(t.bClearPlaces, 'loc:clear')] : []),
+              ...back(lang, screen),
+            ],
+            2,
+          ),
         ],
       };
     case 'wl':
@@ -778,12 +804,14 @@ export function renderScreen(
         keyboard: [
           ...rows(
             WORK_LANGUAGES.map((code) =>
-              button(`${mark(state.workLanguages.includes(code))}${languageLabel(code, lang)}`, `wl:${code}`),
+              button(`${mark(state.workLanguages.includes(code), '🗣')}${languageLabel(code, lang)}`, `wl:${code}`),
             ),
             2,
           ),
-          [button(`${mark(state.workLanguages.length === 0)}${t.bAnyLanguage}`, 'wl:any')],
-          back(lang, screen),
+          [
+            button(`${mark(state.workLanguages.length === 0, '🌐')}${t.bAnyLanguage}`, 'wl:any'),
+            ...back(lang, screen),
+          ],
         ],
       };
     case 'flt':
@@ -793,13 +821,18 @@ export function renderScreen(
           ...(state.profile
             ? [
                 [button(t.bRole, 'open:role'), button(t.bGrade, 'open:grade')],
-                [button(t.bSkills, 'type:sk')],
+                [button(t.bSkills, 'type:sk'), button(t.bScore, 'open:ms')],
               ]
-            : [[{ text: t.bResumeUpload, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:res` }]]),
-          [button(t.bScore, 'open:ms'), button(t.bFormat, 'open:fmt')],
-          [button(t.bLocation, 'open:loc'), button(t.bEmployment, 'open:emp')],
-          [button(t.bSalary, 'open:sal'), button(t.bWorkLanguages, 'open:wl')],
-          [button(t.bSources, 'open:src'), button(t.bSettings, 'menu')],
+            : [
+                [
+                  { text: t.bResumeUpload, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:res` },
+                  button(t.bScore, 'open:ms'),
+                ],
+              ]),
+          [button(t.bFormat, 'open:fmt'), button(t.bLocation, 'open:loc')],
+          [button(t.bEmployment, 'open:emp'), button(t.bSalary, 'open:sal')],
+          [button(t.bWorkLanguages, 'open:wl'), button(t.bSources, 'open:src')],
+          [button(t.bSettings, 'menu')],
         ],
       };
     case 'main':
@@ -811,15 +844,23 @@ export function renderScreen(
           [button(t.bMode(state.mode), 'mode'), button(t.bTimes, 'open:t')],
           [button(t.bQuiet, 'open:q'), button(t.bTz, 'open:tz')],
           [button(t.bCap, 'open:cap'), button(state.enabled ? t.bPause : t.bResume, 'pause')],
-          [button(t.bLanguage, 'lang')],
-          // "Which vacancies" lives on its own screen (roadmap 5.10); the resume
-          // button is handled by the candidate module (`p:res`), which owns it.
+          // "Which vacancies" lives on its own screen (roadmap 5.10).
+          [button(t.bFilters, 'open:flt'), button(t.bLanguage, 'lang')],
+          // The profile card and the resume screen belong to the candidate
+          // module (`p:card`, `p:res`); /resume and /filters left the menu for
+          // these buttons (roadmap 5.20).
           [
-            button(t.bFilters, 'open:flt'),
+            { text: t.bProfile, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:card` },
             { text: t.bResumeUpload, callbackData: `${BOT_CALLBACK_NAMESPACES.profile}:res` },
           ],
-          // Handled by the digest module (`d:n`), which owns sending.
-          [{ text: t.bSendNow, callbackData: `${BOT_CALLBACK_NAMESPACES.digest}:${SEND_NOW_ACTION}` }],
+          // Sending is the digest module's (`d:n`); the interview menu (`i:h`)
+          // is the owner's only.
+          [
+            { text: t.bSendNow, callbackData: `${BOT_CALLBACK_NAMESPACES.digest}:${SEND_NOW_ACTION}` },
+            ...(state.owner
+              ? [{ text: t.bInterview, callbackData: `${BOT_CALLBACK_NAMESPACES.interview}:h` }]
+              : []),
+          ],
         ],
       };
   }

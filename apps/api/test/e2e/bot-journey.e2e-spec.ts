@@ -1,6 +1,12 @@
 import { eq, sql } from 'drizzle-orm';
 
-import { OWNER_COMMANDS, PUBLIC_COMMANDS } from '../../src/bot/command-menu';
+import {
+  HIDDEN_COMMANDS,
+  HIDDEN_OWNER_COMMANDS,
+  menuCommands,
+  OWNER_COMMANDS,
+  PUBLIC_COMMANDS,
+} from '../../src/bot/command-menu';
 import { botMessage } from '../../src/bot/messages';
 import { BotService } from '../../src/bot/bot.service';
 import { candidateProfiles, digestItems, digestSettings, reports, sources, telegramAccounts, users, vacancies } from '../../src/db/schema';
@@ -119,8 +125,14 @@ describe('a new tester, from /start to the first vacancy', () => {
   });
 
   it('signs up with a tagged /start link', async () => {
+    e2e.telegram.reset();
     await user.say('/start dou_chat');
     expect(user.last()?.text).toBe(botMessage('en', 'start.welcome'));
+    // The chat gets the account menu, without /start (roadmap 5.20).
+    const menu = e2e.telegram
+      .callsOf('setMyCommands')
+      .find((c) => (c.body.scope as { chat_id?: string } | undefined)?.chat_id === String(user.id));
+    expect(menu?.body.commands).toEqual(menuCommands('en'));
 
     const [row] = await e2e.db.select().from(users).where(eq(users.telegramUserId, String(user.id)));
     expect(row).toMatchObject({ role: 'user', language: 'en' });
@@ -237,10 +249,10 @@ describe('a new tester, from /start to the first vacancy', () => {
     expect(new Date(settings!.judgedThrough!).getTime()).toBeGreaterThan(now - 60 * 60_000);
   });
 
-  it('answers every command in the menu without an error', async () => {
+  it('answers every command in the menu, and the hidden ones, without an error', async () => {
     const errorsBefore = (await eventsNamed(e2e.db, 'error')).length;
     const skip = new Set(['start', 'delete', 'stop']);
-    for (const [command] of PUBLIC_COMMANDS) {
+    for (const command of [...PUBLIC_COMMANDS.map(([name]) => name), ...HIDDEN_COMMANDS]) {
       if (skip.has(command)) continue;
       e2e.telegram.reset();
       await user.say(`/${command}`);
@@ -251,7 +263,7 @@ describe('a new tester, from /start to the first vacancy', () => {
   });
 
   it('refuses the author tools to a regular user', async () => {
-    for (const [command] of OWNER_COMMANDS) {
+    for (const command of [...OWNER_COMMANDS.map(([name]) => name), ...HIDDEN_OWNER_COMMANDS]) {
       e2e.telegram.reset();
       await user.say(`/${command}`);
       const reply = await waitFor(() => user.messages()[0], `a reply to /${command}`);
@@ -292,6 +304,10 @@ describe('a new tester, from /start to the first vacancy', () => {
     await user.press(prompt, 'u:del:y');
 
     expect(user.last()?.text).toBe(botMessage('en', 'delete.done'));
+    // Back to the guest menu, where /start is.
+    expect(e2e.telegram.callsOf('deleteMyCommands').map((c) => c.body.scope)).toEqual([
+      { type: 'chat', chat_id: String(user.id) },
+    ]);
     expect(await e2e.db.select().from(users).where(eq(users.id, userId))).toEqual([]);
     expect(await e2e.db.select().from(candidateProfiles).where(eq(candidateProfiles.userId, userId))).toEqual([]);
   });

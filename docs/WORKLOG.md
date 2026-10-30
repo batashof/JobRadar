@@ -2,6 +2,13 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — A short bot menu, settings as the hub (v2.13.0)
+- Developer asked: menu = /start (only before an account), /setup, /digest, /settings, /help, /privacy, /feedback, /delete, plus /stats and /testmode for them alone; everything else from /settings with a new profile button; /applications, /plan, /linkedin, /gmail, /noresume hidden but kept; every button two per row with a fitting icon.
+- /digest checked: still registered and covered by the e2e journey (send now, nothing to match), kept in the menu. /delete already asked for a confirmation; its buttons got icons.
+- `bot/command-menu.ts`: `GUEST_COMMANDS` (default scope), `PUBLIC_COMMANDS` and `OWNER_COMMANDS` (per linked chat, `chat` scope, account language), `HIDDEN_COMMANDS` / `HIDDEN_OWNER_COMMANDS`. `BotService` sets the chat menu on link and on every start, `deleteMyCommands` on unlink and delete, `refreshMenu` after a language change. /triage from PR #49 stays in the owner's menu.
+- `/settings`: 👤 Profile (`p:card`), 🎤 Interview (`i:h`, owner only); filters and sub-screens two per row; ✅ for a picked option, its own icon otherwise; duplicate icons fixed.
+- Next step: after the deploy, check in Telegram that a linked chat shows seven commands and the owner's ten.
+
 ## 2026-10-30 — Bug and feedback inbox with a daily triage (v2.12.0)
 - Developer's screenshot: an alert `button s:open — answerCallbackQuery failed: fetch failed`. Cause: Node's fetch lost the connection to Telegram while answering the press; the answer threw before the screen edit, so "← Back" looked dead. Transient, but it cost the user the screen and woke the owner.
 - Fix: button answers are best-effort, idempotent Bot API calls are retried once after a network fault, errors name their cause; transient faults (network, timeouts, Telegram 429/5xx) get no instant alert.

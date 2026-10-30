@@ -69,7 +69,7 @@ export class SettingsBotService implements OnModuleInit {
 
   private async showMenu(ctx: BotMessageContext, which: Screen): Promise<void> {
     await this.dialogs.close(ctx.chatId);
-    const state = await this.load(ctx.userId, ctx.language);
+    const state = await this.load(ctx.userId, ctx.language, ctx.role);
     const screen = renderScreen(which, state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, screen.text, {
       parseMode: 'HTML',
@@ -78,7 +78,7 @@ export class SettingsBotService implements OnModuleInit {
   }
 
   private async onCallback(ctx: BotCallbackContext): Promise<BotCallbackResult> {
-    const state = await this.load(ctx.userId, ctx.language);
+    const state = await this.load(ctx.userId, ctx.language, ctx.role);
     const slugs = await this.sourceSlugs(ctx);
     const decision = decide(state, ctx.parts, slugs);
 
@@ -86,6 +86,8 @@ export class SettingsBotService implements OnModuleInit {
     if (decision.patch) {
       next = { ...state, ...decision.patch };
       await this.save(ctx.userId, decision.patch);
+      // The chat's command menu is in the account language (roadmap 5.20).
+      if (decision.patch.language) await this.bot.refreshMenu(ctx.userId);
     }
     if (decision.profilePatch && next.profile) {
       next = { ...next, profile: { ...next.profile, ...decision.profilePatch } };
@@ -122,7 +124,7 @@ export class SettingsBotService implements OnModuleInit {
       await this.save(ctx.userId, patch);
     }
     await this.dialogs.close(ctx.chatId);
-    const state = await this.load(ctx.userId, ctx.language);
+    const state = await this.load(ctx.userId, ctx.language, ctx.role);
     const home: Screen = step === 'loc' ? 'loc' : step === 'sal' || step === 'sk' ? 'flt' : 'main';
     const screen = renderScreen(home, state, await this.sourceSlugs(ctx));
     await this.bot.sendToUser(ctx.userId, `${settingsText(state.language, 'saved')}\n\n${screen.text}`, {
@@ -137,7 +139,7 @@ export class SettingsBotService implements OnModuleInit {
   }
 
   /** The current settings; defaults where a row is missing (an account older than 5.3). */
-  async load(userId: string, language: Language): Promise<SettingsState> {
+  async load(userId: string, language: Language, role?: string): Promise<SettingsState> {
     const [digest] = await this.db
       .select()
       .from(digestSettings)
@@ -173,6 +175,7 @@ export class SettingsBotService implements OnModuleInit {
             confirmed: profile.confirmedAt !== null,
           }
         : null,
+      owner: isOwnerRole(role),
     };
   }
 

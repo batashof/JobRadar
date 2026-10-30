@@ -18,7 +18,15 @@ import { isTransientError } from '../triage/triage-logic';
 import { DB, type Database } from '../db/db.module';
 import { digestSettings, plannerSettings, telegramAccounts, users } from '../db/schema';
 import { BotDialogs, type OpenDialog } from './bot-dialogs';
-import { menuCommands, OWNER_COMMANDS, PUBLIC_COMMANDS } from './command-menu';
+import {
+  GUEST_COMMANDS,
+  guestMenu,
+  HIDDEN_COMMANDS,
+  HIDDEN_OWNER_COMMANDS,
+  menuCommands,
+  OWNER_COMMANDS,
+  PUBLIC_COMMANDS,
+} from './command-menu';
 import {
   describeUpdate,
   type ParsedCommand,
@@ -169,30 +177,71 @@ export class BotService implements OnApplicationBootstrap {
   }
 
   /**
-   * Telegram's menu button (roadmap 5.7): the public commands per language,
-   * plus the author tools in each owner chat. Idempotent, so every deploy
-   * simply sets it again.
+   * Telegram's menu button (roadmap 5.7, 5.19): the default scope is the guest
+   * menu (/start, /help, /privacy) per client language, and every linked chat
+   * gets its own account menu in the account's language, the owner's with the
+   * author tools. Idempotent, so every deploy simply sets it again.
    */
   async publishMenu(): Promise<void> {
     if (!this.api) return;
-    const listed = new Set([...PUBLIC_COMMANDS, ...OWNER_COMMANDS].map(([command]) => command));
+    const listed = new Set([
+      ...[...GUEST_COMMANDS, ...PUBLIC_COMMANDS, ...OWNER_COMMANDS].map(([command]) => command),
+      ...HIDDEN_COMMANDS,
+      ...HIDDEN_OWNER_COMMANDS,
+    ]);
     const missing = [...this.commandHandlers.keys()].filter((command) => !listed.has(command));
     if (missing.length > 0) {
       this.logger.warn(`commands missing from the menu: ${missing.map((c) => `/${c}`).join(', ')}`);
     }
 
-    await this.api.setMyCommands(menuCommands('en'));
-    await this.api.setMyCommands(menuCommands('ru'), { languageCode: 'ru' });
+    await this.api.setMyCommands(guestMenu('en'));
+    await this.api.setMyCommands(guestMenu('ru'), { languageCode: 'ru' });
 
-    const owners = await this.db
-      .select({ chatId: telegramAccounts.chatId, language: users.language })
+    const chats = await this.db
+      .select({ chatId: telegramAccounts.chatId, language: users.language, role: users.role })
       .from(telegramAccounts)
       .innerJoin(users, eq(users.id, telegramAccounts.userId))
-      .where(and(eq(users.role, 'owner'), isNotNull(telegramAccounts.chatId)));
-    for (const owner of owners) {
-      if (!owner.chatId) continue;
-      const lang = owner.language === 'ru' ? 'ru' : 'en';
-      await this.api.setMyCommands(menuCommands(lang, true), { chatId: owner.chatId });
+      .where(isNotNull(telegramAccounts.chatId));
+    for (const chat of chats) {
+      if (chat.chatId) await this.setChatMenu(chat.chatId, chat.language, chat.role);
+    }
+  }
+
+  /**
+   * Sets the account menu of a user's linked chat again: after a link, or a
+   * language change in /settings. Best-effort, never throws.
+   */
+  async refreshMenu(userId: string): Promise<void> {
+    if (!this.api) return;
+    try {
+      const [row] = await this.db
+        .select({ chatId: telegramAccounts.chatId, language: users.language, role: users.role })
+        .from(telegramAccounts)
+        .innerJoin(users, eq(users.id, telegramAccounts.userId))
+        .where(and(eq(telegramAccounts.userId, userId), isNotNull(telegramAccounts.chatId)));
+      if (row?.chatId) await this.setChatMenu(row.chatId, row.language, row.role);
+    } catch (err) {
+      this.logger.warn(`menu not refreshed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private async setChatMenu(chatId: string, language: string | null, role: string | null): Promise<void> {
+    if (!this.api) return;
+    const lang: Language = language === 'en' ? 'en' : 'ru';
+    try {
+      await this.api.setMyCommands(menuCommands(lang, isOwnerRole(role)), { chatId });
+    } catch (err) {
+      this.logger.warn(`menu of chat ${chatId} not set: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** Back to the guest menu once a chat has no account: /stop, /delete, a block. */
+  private async clearChatMenu(chatId: string): Promise<void> {
+    if (!this.api) return;
+    try {
+      await this.api.deleteMyCommands({ chatId });
+    } catch (err) {
+      this.logger.warn(`menu of chat ${chatId} not cleared: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -286,6 +335,10 @@ export class BotService implements OnApplicationBootstrap {
 
   /** Drops the chat link. The row stays so a future link reuses the same key. */
   async unlink(userId: string): Promise<TelegramLinkStatus> {
+    const [linked] = await this.db
+      .select({ chatId: telegramAccounts.chatId })
+      .from(telegramAccounts)
+      .where(eq(telegramAccounts.userId, userId));
     await this.db
       .update(telegramAccounts)
       .set({
@@ -297,6 +350,7 @@ export class BotService implements OnApplicationBootstrap {
         updatedAt: new Date(),
       })
       .where(eq(telegramAccounts.userId, userId));
+    if (linked?.chatId) await this.clearChatMenu(linked.chatId);
     return this.linkStatus(userId);
   }
 
@@ -619,6 +673,7 @@ export class BotService implements OnApplicationBootstrap {
             .set({ telegramUserId: fromId, updatedAt: now })
             .where(eq(users.id, outcome.userId));
         }
+        await this.refreshMenu(outcome.userId);
         await this.replyToChat(chatId, 'link.done', await this.languageOf(outcome.userId));
     }
   }
@@ -674,6 +729,7 @@ export class BotService implements OnApplicationBootstrap {
         target: telegramAccounts.userId,
         set: { chatId, username, linkedAt: now, updatedAt: now },
       });
+    await this.refreshMenu(userId);
   }
 
   /** Plain text goes to the open dialog's flow; without one the bot says what it expects. */
@@ -755,6 +811,7 @@ export class BotService implements OnApplicationBootstrap {
     await recordEvent(this.db, ctx.userId, 'account_deleted');
     // Every table keyed to a user cascades on delete (schema.ts).
     await this.db.delete(users).where(eq(users.id, ctx.userId));
+    await this.clearChatMenu(ctx.chatId);
     return { editText: escapeHtml(botMessage(ctx.language, 'delete.done')), editKeyboard: null };
   }
 

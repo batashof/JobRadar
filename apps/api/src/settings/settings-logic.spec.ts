@@ -173,7 +173,7 @@ describe('parseTyped', () => {
 });
 
 describe('renderScreen', () => {
-  it('keeps "when" on the settings screen and points to /filters for "which"', () => {
+  it('keeps "when" on the settings screen and opens filters, profile and resume from it', () => {
     const { text, keyboard } = renderScreen(
       'main',
       state({ workFormats: ['remote'], minSalaryUsd: 3000, mutedSources: ['hh'] }),
@@ -181,12 +181,15 @@ describe('renderScreen', () => {
     );
     expect(text).toContain('Настройки</b>: когда присылать');
     expect(text).toContain('Доставка: сразу после публикации, тишина 22:00–08:00');
-    expect(text).toContain('/filters');
+    expect(text).toContain('🎯 Фильтры');
     expect(text).not.toContain('Формат');
     expect(text).not.toContain('Минимальное совпадение');
     expect(data(keyboard)).toEqual(
-      expect.arrayContaining(['s:mode', 's:open:t', 's:open:tz', 's:pause', 's:lang', 's:open:flt', 'p:res']),
+      expect.arrayContaining(['s:mode', 's:open:t', 's:open:tz', 's:pause', 's:lang', 's:open:flt', 'p:res', 'p:card']),
     );
+    // The interview prep is the owner's (ADR-024 §3).
+    expect(data(keyboard)).not.toContain('i:h');
+    expect(data(renderScreen('main', state({ owner: true }), SLUGS).keyboard)).toContain('i:h');
     for (const gone of ['s:open:ms', 's:open:fmt', 's:open:emp', 's:open:sal', 's:open:src', 'p:setup']) {
       expect(data(keyboard)).not.toContain(gone);
     }
@@ -269,12 +272,13 @@ describe('renderScreen', () => {
 
   it('leads back from a filter screen to the filters, from a delivery screen to the settings', () => {
     for (const screen of ['fmt', 'emp', 'src', 'ms', 'sal', 'role', 'grade', 'loc', 'wl'] as const) {
-      expect(renderScreen(screen, state({ profile: PROFILE }), SLUGS).keyboard.at(-1)).toEqual([
-        { text: '← Назад', callbackData: 's:open:flt' },
-      ]);
+      expect(renderScreen(screen, state({ profile: PROFILE }), SLUGS).keyboard.at(-1)).toContainEqual({
+        text: '⬅️ Назад',
+        callbackData: 's:open:flt',
+      });
     }
     for (const screen of ['cap', 't', 'q', 'tz'] as const) {
-      expect(renderScreen(screen, state(), SLUGS).keyboard.at(-1)?.[0]?.callbackData).toBe('s:menu');
+      expect(renderScreen(screen, state(), SLUGS).keyboard.at(-1)?.at(-1)?.callbackData).toBe('s:menu');
     }
     expect(data(renderScreen('flt', state(), SLUGS, 'sk').keyboard)).toEqual(['s:open:flt']);
     expect(data(renderScreen('sal', state(), SLUGS, 'sal').keyboard)).toEqual(['s:open:flt']);
@@ -303,19 +307,28 @@ describe('renderScreen', () => {
     expect(keyboard.flat().find((b) => b.callbackData === 's:mode')?.text).toBe('📬 Delivery: scheduled');
   });
 
-  it('lays the main menu out two buttons per row, each with an icon', () => {
+  it('lays every screen out two buttons per row, each with an icon (roadmap 5.20)', () => {
+    const s = state({ profile: PROFILE, locations: ['Минск'], owner: true });
+    for (const lang of ['ru', 'en'] as const) {
+      for (const screen of SCREENS) {
+        const { keyboard } = renderScreen(screen, { ...s, language: lang }, SLUGS);
+        expect(keyboard.every((row) => row.length >= 1 && row.length <= 2)).toBe(true);
+        for (const b of keyboard.flat()) expect(b.text).toMatch(/^\p{Extended_Pictographic}/u);
+      }
+    }
     const { keyboard } = renderScreen('main', state(), SLUGS);
-    expect(keyboard.every((row) => row.length <= 2)).toBe(true);
-    for (const b of keyboard.flat()) expect(b.text).toMatch(/^\p{Extended_Pictographic}/u);
     expect(keyboard.flat().find((b) => b.callbackData === 's:lang')?.text).toBe('🌐 Язык: Русский');
     expect(keyboard.flat().find((b) => b.callbackData === 's:mode')?.text).toBe('📬 Доставка: сразу');
   });
 
-  it('ends the main menu with a full-width "send now" button for the digest module', () => {
+  it('ends the main menu with "send now" for the digest module, and the interview for the owner', () => {
     const { keyboard } = renderScreen('main', state(), SLUGS);
-    expect(keyboard.at(-1)).toEqual([{ text: '📥 Прислать вакансии сейчас', callbackData: 'd:n' }]);
-    const en = renderScreen('main', state({ language: 'en' }), SLUGS).keyboard;
-    expect(en.at(-1)?.[0]?.text).toBe('📥 Send vacancies now');
+    expect(keyboard.at(-1)).toEqual([{ text: '📥 Прислать сейчас', callbackData: 'd:n' }]);
+    const en = renderScreen('main', state({ language: 'en', owner: true }), SLUGS).keyboard;
+    expect(en.at(-1)).toEqual([
+      { text: '📥 Send now', callbackData: 'd:n' },
+      { text: '🎤 Interview', callbackData: 'i:h' },
+    ]);
   });
 
   it('marks the selected options and keeps every callback within 64 bytes', () => {
@@ -324,9 +337,10 @@ describe('renderScreen', () => {
       const { keyboard } = renderScreen(screen, { ...s, profile: PROFILE }, SLUGS);
       for (const value of data(keyboard)) expect(Buffer.byteLength(value)).toBeLessThanOrEqual(64);
     }
-    expect(renderScreen('fmt', s, SLUGS).keyboard[0]?.find((b) => b.callbackData === 's:fmt:hybrid')?.text).toBe(
-      '✅ Гибрид',
-    );
+    const formats = renderScreen('fmt', s, SLUGS).keyboard.flat();
+    expect(formats.find((b) => b.callbackData === 's:fmt:hybrid')?.text).toBe('✅ Гибрид');
+    // An option not picked shows its own icon.
+    expect(formats.find((b) => b.callbackData === 's:fmt:remote')?.text).toBe('🌍 Удалённо');
     expect(data(renderScreen('src', s, SLUGS).keyboard)).toContain('s:src:telegram');
   });
 
