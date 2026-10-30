@@ -13,6 +13,8 @@ import {
 import { and, eq, isNotNull, isNull, lt, or } from 'drizzle-orm';
 
 import { recordEvent } from '../common/events';
+import { recordErrorReport } from '../triage/reports';
+import { isTransientError } from '../triage/triage-logic';
 import { DB, type Database } from '../db/db.module';
 import { digestSettings, plannerSettings, telegramAccounts, users } from '../db/schema';
 import { BotDialogs, type OpenDialog } from './bot-dialogs';
@@ -459,7 +461,9 @@ export class BotService implements OnApplicationBootstrap {
 
   /**
    * A failure a user ran into (v2.6.0): logged, counted as an `error` event for
-   * /stats, and sent to the owner's chat once per `ERROR_ALERT_WINDOW_MS`.
+   * /stats and in the triage inbox (ADR-037), and sent to the owner's chat once
+   * per `ERROR_ALERT_WINDOW_MS`. A transient fault (network, timeout, Telegram
+   * 429/5xx) gets no instant alert; the daily triage counts it instead.
    * `where` is a content-free label (`describeUpdate`); never throws.
    */
   async reportError(
@@ -469,8 +473,12 @@ export class BotService implements OnApplicationBootstrap {
     now: number = Date.now(),
   ): Promise<void> {
     const message = (err instanceof Error ? err.message : String(err)).slice(0, 300);
-    this.logger.error(`${where} failed: ${message}`);
+    const transient = isTransientError(err);
+    if (transient) this.logger.warn(`${where} failed (transient): ${message}`);
+    else this.logger.error(`${where} failed: ${message}`);
     await recordEvent(this.db, userId, 'error', { where: where.slice(0, 80), message: message.slice(0, 200) });
+    await recordErrorReport(this.db, where, message, transient, new Date(now));
+    if (transient) return;
 
     const key = `${where}|${message}`;
     const last = this.errorAlerts.get(key);
@@ -862,7 +870,7 @@ export class BotService implements OnApplicationBootstrap {
     const language = profile?.language ?? DEFAULT_BOT_LANGUAGE;
 
     if (!account || !handler) {
-      await this.api?.answerCallbackQuery(parsed.callbackId, botMessage(language, 'callback.stale'));
+      await this.answerCallback(parsed.callbackId, botMessage(language, 'callback.stale'));
       return;
     }
 
@@ -878,15 +886,13 @@ export class BotService implements OnApplicationBootstrap {
       });
     } catch (err) {
       await this.reportError(`button ${parsed.parts.slice(0, 2).join(':')}`, err, account.userId);
-      await this.api?.answerCallbackQuery(
-        parsed.callbackId,
-        botMessage(language, 'callback.failed'),
-      );
+      await this.answerCallback(parsed.callbackId, botMessage(language, 'callback.failed'));
       return;
     }
 
     // Answer first: the client spinner is waiting, and an edit may be slower.
-    await this.api?.answerCallbackQuery(parsed.callbackId, result?.alert);
+    // A failed answer must not cost the edit: the press itself has worked.
+    await this.answerCallback(parsed.callbackId, result?.alert);
     if (result?.editText !== undefined) {
       await this.editMessage(parsed.chatId, parsed.messageId, result.editText, {
         parseMode: 'HTML',
@@ -895,6 +901,20 @@ export class BotService implements OnApplicationBootstrap {
       });
     } else if (result?.editKeyboard !== undefined) {
       await this.editKeyboard(parsed.chatId, parsed.messageId, result.editKeyboard ?? []);
+    }
+  }
+
+  /**
+   * Stops the spinner on the pressed button. Best-effort: losing the answer
+   * (a dropped connection, a query Telegram already expired) only leaves the
+   * spinner a few seconds longer, while throwing would skip the edit and make
+   * the press look ignored.
+   */
+  private async answerCallback(callbackId: string, text?: string): Promise<void> {
+    try {
+      await this.api?.answerCallbackQuery(callbackId, text);
+    } catch (err) {
+      this.logger.warn(`callback answer failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

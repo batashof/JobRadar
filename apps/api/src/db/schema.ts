@@ -641,6 +641,41 @@ export const events = pgTable(
   (t) => [index('events_name_created_at_idx').on(t.name, t.createdAt)],
 );
 
+// The bug and feedback inbox (ADR-037): what users ran into and what they
+// told the author, triaged once a day in the owner's chat. An error is one row
+// per fingerprint (where + normalised message) with a counter; each /feedback
+// is its own row. `status`: new → fix (the owner pressed 🛠) → issued (a
+// GitHub issue labelled agent-fix exists) → done (the issue closed); or skip.
+export const reports = pgTable(
+  'reports',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    // 'error' | 'feedback'
+    kind: text('kind').notNull(),
+    fingerprint: text('fingerprint').notNull(),
+    // Errors: the content-free label (`describeUpdate`); feedback: its first words.
+    title: text('title').notNull(),
+    // Errors: the message; feedback: the text as the user wrote it.
+    detail: text('detail').notNull(),
+    // Feedback only, so /delete takes the text with the account; errors are
+    // shared by every user who hits them and keep no owner.
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    count: integer('count').notNull().default(1),
+    // A network fault or Telegram's 429/5xx: counted, never an instant alert.
+    transient: boolean('transient').notNull().default(false),
+    status: text('status').notNull().default('new'),
+    issueNumber: integer('issue_number'),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).defaultNow().notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
+    // When the daily digest last listed it; null = not shown yet.
+    digestedAt: timestamp('digested_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('reports_fingerprint_idx').on(t.fingerprint),
+    index('reports_status_idx').on(t.status),
+  ],
+);
+
 // One open dialog per chat (ADR-024 §4): what the bot is waiting for when the
 // user next types plain text, e.g. a skills list. In Postgres, not in memory,
 // because Render restarts the process. `flow` names the feature that owns it.

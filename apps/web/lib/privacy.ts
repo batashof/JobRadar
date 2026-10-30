@@ -29,6 +29,7 @@ const en: PrivacyText = {
         'The vacancies sent to you and your reactions to them.',
         'The applications you track in /applications.',
         'If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.',
+        'What you write with /feedback, until the author has handled it.',
       ],
     },
     {
@@ -38,6 +39,8 @@ const en: PrivacyText = {
         'To read your resume, its text is sent once per upload to an AI provider: Groq by default. Providers that ' +
           'train on submitted data never receive your resume. Vacancies are scored by a formula inside JobRadar; ' +
           'your resume is not sent to an AI provider for that.',
+        'What you write with /feedback is read by the author of the bot. To get it fixed, it may be published in the ' +
+          "project's public issue tracker without your name, username or contacts.",
       ],
     },
     {
@@ -65,6 +68,7 @@ const ru: PrivacyText = {
         'Отправленные тебе вакансии и твои реакции на них.',
         'Отклики, которые ты ведёшь в /applications.',
         'Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.',
+        'То, что ты пишешь в /feedback, пока автор это не разберёт.',
       ],
     },
     {
@@ -74,6 +78,8 @@ const ru: PrivacyText = {
         'Чтобы прочитать резюме, его текст при каждой загрузке один раз отправляется AI-провайдеру: по умолчанию это Groq. ' +
           'Провайдеры, которые обучаются на присланных данных, твоё резюме не получают. Вакансии оцениваются формулой ' +
           'внутри JobRadar; для этого резюме AI-провайдеру не отправляется.',
+        'То, что ты пишешь в /feedback, читает автор бота. Чтобы это исправить, текст может попасть в публичный список ' +
+          'задач проекта без твоего имени, username и контактов.',
       ],
     },
     {

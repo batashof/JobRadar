@@ -70,6 +70,8 @@ export const BOT_CALLBACK_NAMESPACES = {
   plan: 'l',
   /** /gmail: connect or disconnect the owner's Gmail for sending applications (2.0.0, owner only). */
   gmail: 'g',
+  /** /triage: the owner marks inbox bugs and feedback to fix or skip (ADR-037, owner only). */
+  triage: 't',
 } as const;
 
 /**

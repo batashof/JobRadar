@@ -86,6 +86,42 @@ describe('TelegramApi', () => {
     expect((error as Error).message).toContain('ECONNRESET');
   });
 
+  it('names the cause of a network fault', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } }));
+
+    await expect(api.sendMessage('99', 'hi')).rejects.toThrow('sendMessage failed: fetch failed (ECONNRESET)');
+  });
+
+  it('retries an idempotent call once after a network fault', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed')).mockReturnValue(ok(true));
+
+    await api.answerCallbackQuery('cb-1', 'ok');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(bodyOf(1)).toEqual({ callback_query_id: 'cb-1', text: 'ok' });
+  });
+
+  it('gives up after the second network fault', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(api.editMessageText('99', 1, 'x')).rejects.toThrow('editMessageText failed: fetch failed');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('never resends a message, which may have arrived', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(api.sendMessage('99', 'hi')).rejects.toThrow('fetch failed');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a reply Telegram refused', async () => {
+    fetchMock.mockReturnValue(fail({ error_code: 400, description: 'Bad Request: query is too old' }));
+
+    await expect(api.answerCallbackQuery('cb-1')).rejects.toBeInstanceOf(TelegramApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('registers a webhook with the secret token and a narrow update filter', async () => {
     fetchMock.mockReturnValue(ok(true));
     await api.setWebhook('https://api.test/bot/telegram/webhook', 'shh');

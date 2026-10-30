@@ -2,6 +2,12 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — Bug and feedback inbox with a daily triage (v2.12.0)
+- Developer's screenshot: an alert `button s:open — answerCallbackQuery failed: fetch failed`. Cause: Node's fetch lost the connection to Telegram while answering the press; the answer threw before the screen edit, so "← Back" looked dead. Transient, but it cost the user the screen and woke the owner.
+- Fix: button answers are best-effort, idempotent Bot API calls are retried once after a network fault, errors name their cause; transient faults (network, timeouts, Telegram 429/5xx) get no instant alert.
+- Developer asked for an agent: errors and feedback in one list, a daily list in Telegram, mark what to fix, fixes happen on their own. `reports` table (migration 0027), `/triage` with 🛠/🙈/↩️, `triage.yml` (08:15 and 20:15 Minsk) turns marked items into `agent-fix` issues and sends the morning digest; the fixer is a scheduled Claude Code session on the developer's account (subscription, $0). ADR-037. `/privacy` and the web policy: feedback text is kept until handled and may be published without the author's name.
+- Tested: unit tests, an e2e scenario on Postgres (feedback → `/triage` → 🛠, a recurring fixed fault reopens, `/delete` removes the feedback), and `scripts/triage.ts` against a local database with GitHub and Telegram faked.
+- Next step: apply migration 0027 with `DB (prod)` → `migrate`; first digest the next morning.
 ## 2026-10-30 — Backend-stack rule for frontend profiles (v2.11.0)
 - Full audit run (120 judged by Groq): 638 vacancies, 39 delivered, 59% of deliveries a fit, 16 false positives (6 another family, 4 fullstack, 3 skills, 3 non-engineering), 1 false negative; the audit auto-merged PR #47 (`media buyer` → marketing).
 - Developer's rule: a fullstack job in a backend language the profile lacks is not wanted, Node.js fullstack is, and adding the language to skills brings them back. `foreignBackendStack` in `score.ts` caps such titles for frontend profiles (`cap: 'stack'`); the audit reports `foreign-stack` / `stack-policy` (ADR-036).

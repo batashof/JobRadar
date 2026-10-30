@@ -1,5 +1,5 @@
 import type { BotMessageContext } from '../bot/bot.service';
-import { events } from '../db/schema';
+import { events, reports } from '../db/schema';
 import { FEEDBACK_FLOW, FEEDBACK_MAX, FeedbackBotService } from './feedback-bot.service';
 
 const ctx: BotMessageContext = { userId: 'u1', chatId: '555', language: 'ru', role: 'user' };
@@ -44,10 +44,22 @@ describe('FeedbackBotService', () => {
     expect(toOwner()).toBe('💬 Отзыв от @anna (ru)\n\nфильтр по локации не работает');
     expect(bot.sendToUser).toHaveBeenCalledWith('u1', 'Спасибо! Передал автору.');
     expect(dialogs.open).not.toHaveBeenCalled();
-    // Only the fact and the length are kept, never the text.
-    expect(inserts).toEqual([
-      { table: events, values: { userId: 'u1', name: 'feedback', props: { length: 29 } } },
-    ]);
+    // The event keeps only the fact and the length; the text goes to the
+    // triage inbox (ADR-037), tied to the account so /delete removes it.
+    expect(inserts[0]).toEqual({
+      table: events,
+      values: { userId: 'u1', name: 'feedback', props: { length: 29 } },
+    });
+    expect(inserts[1]).toEqual({
+      table: reports,
+      values: {
+        kind: 'feedback',
+        fingerprint: expect.stringMatching(/^feedback:[\w-]{36}$/),
+        title: 'фильтр по локации не работает',
+        detail: 'фильтр по локации не работает',
+        userId: 'u1',
+      },
+    });
   });
 
   it('asks for the text on a bare /feedback, then forwards the answer', async () => {
