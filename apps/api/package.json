@@ -1,6 +1,6 @@
 {
   "name": "@jobradar/api",
-  "version": "2.10.2",
+  "version": "2.11.0",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -24,6 +24,7 @@
     "cleanup:junk": "tsx scripts/cleanup-junk-vacancies.ts",
     "formula:check": "tsx scripts/formula-check.ts",
     "audit:quality": "tsx scripts/quality-audit.ts",
+    "triage": "tsx scripts/triage.ts",
     "linkedin:alerts:preview": "tsx scripts/linkedin-alerts-preview.ts"
   },
   "dependencies": {

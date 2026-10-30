@@ -9,6 +9,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.11.0] — 2026-10-30
+
+### Added
+
+- **Bug and feedback inbox (ADR-036).** Errors the bot hits and every `/feedback` text are kept in a new `reports` table (migration `0027`); an error is one row with a counter however often it repeats. The owner's `/triage` lists what is open with 🛠 fix, 🙈 skip and ↩️ undo buttons.
+- **`Triage` workflow**, twice a day (08:15 and 20:15 Minsk): items marked 🛠 become GitHub issues labelled `agent-fix` for a scheduled Claude Code fixer, closed issues close their items, and the morning run sends the open list to the owner's chat when something is new. Issues carry no user id or username; feedback is published without contacts.
+
+### Fixed
+
+- A button press whose answer to Telegram failed on the network (`answerCallbackQuery failed: fetch failed`) no longer skips the screen update: the answer is best-effort, and idempotent Telegram calls are retried once after a network fault. The error now names its cause (`ECONNRESET`, …).
+- Transient faults (network, timeouts, Telegram 429/5xx) no longer send an instant alert to the owner; they are counted in the inbox and listed only once they repeat.
+
+### Changed
+
+- `/privacy` and the web policy: `/feedback` text is kept until it is handled or the account is deleted, and may be published without the author's name.
+
 ## [2.10.2] — 2026-10-30
 
 ### Fixed

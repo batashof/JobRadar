@@ -7,6 +7,7 @@ import {
   digestSettings,
   events,
   plannerSettings,
+  reports,
   telegramAccounts,
   users,
 } from '../db/schema';
@@ -883,5 +884,64 @@ describe('BotService error reports (v2.6.0)', () => {
       props: { where: '/boom', message: 'kaput' },
     });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain('/boom');
+  });
+});
+
+describe('BotService transient faults and callback answers (ADR-036)', () => {
+  beforeEach(() => fetchMock.mockReset());
+  const OWNER = [{ chatId: '42', language: 'ru' }];
+  const press = {
+    callback_query: { id: 'cb-1', data: 's:open', message: { message_id: 77, chat: { id: 555 } } },
+  };
+
+  it('keeps a network fault in the inbox without alerting the owner', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(users, OWNER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.reportError('button s:open', new Error('answerCallbackQuery failed: fetch failed'), 'user-1');
+
+    expect(writes.find((w) => w.table === events)).toBeDefined();
+    expect(writes.find((w) => w.table === reports)?.values).toMatchObject({
+      kind: 'error',
+      title: 'button s:open',
+      transient: true,
+      fingerprint: 'error:button s:open|answerCallbackQuery failed: fetch failed',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('puts a real failure in the inbox and still alerts at once', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(users, OWNER);
+    fetchMock.mockReturnValue(message());
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+
+    await bot.reportError('/resume', new TypeError("Cannot read properties of undefined (reading 'x')"));
+
+    expect(writes.find((w) => w.table === reports)?.values).toMatchObject({ transient: false });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still redraws the screen when answering the press fails on the network', async () => {
+    const { db, writes, queue } = makeDb();
+    queue(telegramAccounts, [{ userId: 'user-1' }]);
+    queue(users, RU_USER);
+    const bot = new BotService(db, config('123:abc'), new BotDialogs(db));
+    bot.registerCallback('s', () => Promise.resolve({ editText: 'Настройки', editKeyboard: [] }));
+    // Both tries of the answer fail (the client retries an idempotent call
+    // once), then the edit goes through.
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockReturnValue(ok(true));
+
+    await bot.handleUpdate(press);
+
+    const methods = fetchMock.mock.calls.map((call) => String(call[0]).split('/').pop());
+    expect(methods).toEqual(['answerCallbackQuery', 'answerCallbackQuery', 'editMessageText']);
+    // Nothing failed from the user's side, so nothing is reported.
+    expect(writes.filter((w) => w.table === events || w.table === reports)).toHaveLength(0);
   });
 });

@@ -7,6 +7,7 @@ import { type BotMessageContext, BotService } from '../bot/bot.service';
 import { recordEvent } from '../common/events';
 import { DB, type Database } from '../db/db.module';
 import { telegramAccounts } from '../db/schema';
+import { recordFeedbackReport } from '../triage/reports';
 
 /** The dialog flow that waits for the feedback text after a bare `/feedback`. */
 export const FEEDBACK_FLOW = 'feedback';
@@ -33,8 +34,9 @@ export function feedbackText(lang: Language, key: keyof (typeof TEXT)['en']): st
 
 /**
  * `/feedback` (v2.6.0): a user tells the author what is wrong. The text goes
- * to the owner's chat and is not stored; `events` keeps only that feedback
- * was sent, for the count in `/stats`.
+ * to the owner's chat at once and into the triage inbox (ADR-036), where the
+ * owner marks it to fix or skip; it is deleted with the account. `events`
+ * keeps only that feedback was sent, for the count in `/stats`.
  */
 @Injectable()
 export class FeedbackBotService implements OnModuleInit {
@@ -74,6 +76,7 @@ export class FeedbackBotService implements OnModuleInit {
     // is what to look up.
     const who = account?.username ? `@${account.username}` : ctx.userId;
     await recordEvent(this.db, ctx.userId, 'feedback', { length: text.length });
+    await recordFeedbackReport(this.db, ctx.userId, text);
     await this.bot.notifyOwners((language) =>
       feedbackText(language, 'forwarded')
         .replace('{who}', who)

@@ -2,7 +2,9 @@ import { eq, sql } from 'drizzle-orm';
 
 import { OWNER_COMMANDS, PUBLIC_COMMANDS } from '../../src/bot/command-menu';
 import { botMessage } from '../../src/bot/messages';
-import { candidateProfiles, digestItems, digestSettings, sources, telegramAccounts, users, vacancies } from '../../src/db/schema';
+import { BotService } from '../../src/bot/bot.service';
+import { candidateProfiles, digestItems, digestSettings, reports, sources, telegramAccounts, users, vacancies } from '../../src/db/schema';
+import { loadTriage } from '../../src/triage/reports';
 import { DigestSendService, INSTANT_SETTLE_MINUTES } from '../../src/digest/digest-send.service';
 import { ChatUser, type E2eApp, eventsNamed, startApp, waitFor } from './support/harness';
 import { textPdf } from './support/pdf';
@@ -374,6 +376,51 @@ describe('error alerts', () => {
     } finally {
       await e2e.db.execute(sql`alter table resumes_e2e_broken rename to resumes`);
     }
+  });
+});
+
+describe('the bug and feedback inbox (ADR-036)', () => {
+  it('keeps feedback and errors, and the author marks them in /triage', async () => {
+    const tester = new ChatUser(e2e, 7_400_001, 'en');
+    await tester.say('/start');
+    await tester.say('/feedback Please add Go vacancies, mail me at go@fan.dev');
+
+    const bot = e2e.app.get(BotService);
+    // A network fault twice: one row, counted, below the floor so not listed.
+    await bot.reportError('button s:open', new Error('answerCallbackQuery failed: fetch failed'));
+    await bot.reportError('button s:open', new Error('answerCallbackQuery failed: fetch failed'));
+    const [fault] = await e2e.db.select().from(reports).where(eq(reports.title, 'button s:open'));
+    expect(fault).toMatchObject({ count: 2, transient: true, status: 'new' });
+    // The /resume failure of the scenario above is a real bug and stays listed.
+    await e2e.db.update(reports).set({ status: 'skip' }).where(eq(reports.title, '/resume'));
+
+    const before = await loadTriage(e2e.db);
+    expect(before.items.map((i) => i.kind)).toEqual(['feedback']);
+    expect(before.extras.quietTransient).toBe(1);
+
+    const owner = new ChatUser(e2e, OWNER_CHAT, 'en');
+    e2e.telegram.reset();
+    await owner.say('/triage');
+    const list = await owner.waitForMessage(/Bugs and feedback: 1 open/);
+    expect(list.text).toContain('Please add Go vacancies');
+    const [feedback] = await e2e.db.select().from(reports).where(eq(reports.kind, 'feedback'));
+    expect(feedback?.digestedAt).not.toBeNull();
+
+    await owner.press(list, `t:f:${feedback!.id}`);
+    const [marked] = await e2e.db.select().from(reports).where(eq(reports.id, feedback!.id));
+    expect(marked?.status).toBe('fix');
+    expect(e2e.telegram.callsOf('editMessageText').at(-1)?.body.text).toContain('to be fixed');
+
+    // A fixed fault that comes back opens again for the next digest.
+    await e2e.db.update(reports).set({ status: 'done', issueNumber: 50 }).where(eq(reports.id, fault!.id));
+    await bot.reportError('button s:open', new Error('answerCallbackQuery failed: fetch failed'));
+    const [back] = await e2e.db.select().from(reports).where(eq(reports.id, fault!.id));
+    expect(back).toMatchObject({ status: 'new', count: 3, issueNumber: null, digestedAt: null });
+
+    // /delete takes the tester's feedback text with the account.
+    await tester.say('/delete');
+    await tester.press(tester.last()!, 'u:del:y');
+    expect(await e2e.db.select().from(reports).where(eq(reports.kind, 'feedback'))).toEqual([]);
   });
 });
 

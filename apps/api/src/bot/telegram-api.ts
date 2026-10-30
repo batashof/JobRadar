@@ -10,6 +10,22 @@ import { Logger } from '@nestjs/common';
 const API_BASE = 'https://api.telegram.org';
 const REQUEST_TIMEOUT_MS = 10_000;
 const DOWNLOAD_TIMEOUT_MS = 30_000;
+/**
+ * Methods safe to send twice: a repeat changes nothing. After a network fault
+ * (typically a keep-alive socket the far side closed while the service was
+ * idle) they get one more try; `sendMessage` does not, since the first copy
+ * may have arrived.
+ */
+const RETRY_ON_NETWORK_FAULT = new Set([
+  'answerCallbackQuery',
+  'editMessageText',
+  'editMessageReplyMarkup',
+  'getFile',
+  'getMe',
+  'setWebhook',
+  'setMyCommands',
+]);
+const NETWORK_RETRY_DELAY_MS = 300;
 
 /** One row of an inline keyboard; a keyboard is rows of buttons. */
 export interface InlineButton {
@@ -178,20 +194,29 @@ export class TelegramApi {
     });
   }
 
+  private post(method: string, body: Record<string, unknown>): Promise<Response> {
+    return fetch(`${API_BASE}/bot${this.token}/${method}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      // Undefined values would serialise as absent keys anyway; JSON.stringify drops them.
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  }
+
   private async call<T>(method: string, body: Record<string, unknown>): Promise<T> {
     let response: Response;
     try {
-      response = await fetch(`${API_BASE}/bot${this.token}/${method}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        // Undefined values would serialise as absent keys anyway; JSON.stringify drops them.
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    } catch (err) {
-      throw new Error(
-        `${method} failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      response = await this.post(method, body);
+    } catch (first) {
+      if (!RETRY_ON_NETWORK_FAULT.has(method)) throw networkError(method, first);
+      this.logger.warn(`${networkError(method, first).message}; retrying once`);
+      await new Promise((resolve) => setTimeout(resolve, NETWORK_RETRY_DELAY_MS));
+      try {
+        response = await this.post(method, body);
+      } catch (second) {
+        throw networkError(method, second);
+      }
     }
 
     const payload = (await response.json().catch(() => ({ ok: false }))) as TelegramResponse<T>;
@@ -208,6 +233,17 @@ export class TelegramApi {
     }
     return payload.result;
   }
+}
+
+/**
+ * Node's fetch reports every network fault as "fetch failed" and keeps the
+ * reason (ECONNRESET, a DNS failure, a connect timeout) in `cause`.
+ */
+function networkError(method: string, err: unknown): Error {
+  const message = err instanceof Error ? err.message : String(err);
+  const cause = err instanceof Error ? (err.cause as { code?: string; message?: string } | undefined) : undefined;
+  const reason = cause?.code ?? cause?.message;
+  return new Error(`${method} failed: ${message}${reason ? ` (${reason})` : ''}`);
 }
 
 function toWire(keyboard: InlineKeyboard) {

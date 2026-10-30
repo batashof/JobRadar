@@ -37,6 +37,7 @@ export const OWNER_COMMANDS: readonly [string, Descriptions][] = [
   ['gmail', { en: 'Connect Gmail', ru: 'Подключить Gmail' }],
   ['testmode', { en: 'Sign up as a new user, then come back', ru: 'Пройти регистрацию как новый пользователь' }],
   ['stats', { en: 'Users, funnel, sources, errors', ru: 'Пользователи, воронка, источники, ошибки' }],
+  ['triage', { en: 'Bugs and feedback to fix', ru: 'Баги и отзывы: что фиксить' }],
 ];
 
 /** The menu for one language; the owner's adds the author tools before /help. */

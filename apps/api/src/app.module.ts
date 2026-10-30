@@ -10,6 +10,7 @@ import { BotModule } from './bot/bot.module';
 import { CandidateModule } from './candidate/candidate.module';
 import { SettingsModule } from './settings/settings.module';
 import { StatsModule } from './stats/stats.module';
+import { TriageModule } from './triage/triage.module';
 import { DbModule } from './db/db.module';
 import { DigestModule } from './digest/digest.module';
 import { HealthModule } from './health/health.module';
@@ -38,6 +39,7 @@ import { VacanciesModule } from './vacancies/vacancies.module';
     CandidateModule,
     SettingsModule,
     StatsModule,
+    TriageModule,
     DigestModule,
     LlmModule,
     MatchingModule,

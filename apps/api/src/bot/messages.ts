@@ -47,7 +47,7 @@ const STRINGS = {
     'start.back': 'Welcome back. This chat is connected to your JobRadar account again.',
     'privacy':
       'What JobRadar stores: your Telegram id, username and chat id, the interface language, when you last used the bot, your resume (the PDF and its text) if you upload one, the profile built from it or from the parameters you set with /noresume, the vacancies sent to you, your reactions to them and the applications you track (/applications). If you forward your LinkedIn job alerts (/linkedin), JobRadar reads those emails for the vacancies in them.\n\n' +
-      'Who sees it: only JobRadar. To read your resume, its text is sent once to an AI provider that does not train on it. What you send with /feedback is read by the author of the bot. Nothing is sold or shared.\n\n' +
+      'Who sees it: only JobRadar. To read your resume, its text is sent once to an AI provider that does not train on it. What you send with /feedback is read by the author of the bot and kept until it is handled; to fix it, it may be published in the public issue tracker of the project without your name or contacts. Nothing is sold or shared.\n\n' +
       'How long: until you delete it. /delete removes the account and everything in it at once.\n\n' +
       'Full policy: https://job-radar-web-phi.vercel.app/privacy',
     'delete.confirm': 'Delete your JobRadar account? Your settings, resume and vacancy history are removed for good.',
@@ -106,7 +106,7 @@ const STRINGS = {
     'start.back': 'С возвращением. Этот чат снова подключён к твоему аккаунту JobRadar.',
     'privacy':
       'Что хранит JobRadar: твой Telegram id, username и id чата, язык интерфейса, время последнего действия в боте, резюме (PDF и его текст), если ты его загрузишь, профиль, собранный по нему или по параметрам из /noresume, отправленные тебе вакансии, твои реакции на них и отклики, которые ты отмечаешь (/applications). Если ты пересылаешь оповещения LinkedIn (/linkedin), JobRadar читает эти письма, чтобы достать из них вакансии.\n\n' +
-      'Кто это видит: только JobRadar. Чтобы прочитать резюме, его текст один раз отправляется AI-провайдеру, который на нём не обучается. То, что ты пишешь в /feedback, читает автор бота. Ничего не продаётся и не передаётся.\n\n' +
+      'Кто это видит: только JobRadar. Чтобы прочитать резюме, его текст один раз отправляется AI-провайдеру, который на нём не обучается. То, что ты пишешь в /feedback, читает автор бота и хранит, пока не разберёт; чтобы это исправить, текст может попасть в публичный список задач проекта без твоего имени и контактов. Ничего не продаётся и не передаётся.\n\n' +
       'Сколько хранится: пока ты сам не удалишь. /delete сразу удаляет аккаунт и всё, что в нём.\n\n' +
       'Полная политика: https://job-radar-web-phi.vercel.app/privacy',
     'delete.confirm': 'Удалить аккаунт JobRadar? Настройки, резюме и история вакансий удалятся навсегда.',

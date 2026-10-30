@@ -1,0 +1,61 @@
+name: Triage
+
+# The bug and feedback inbox (ADR-036). Errors the bot hit and /feedback texts
+# collect in the `reports` table; the owner marks them 🛠 fix or 🙈 skip in
+# Telegram (/triage, or the buttons on the morning digest). This workflow:
+#   - turns marked items into GitHub issues labelled `agent-fix`, which the
+#     scheduled Claude Code fixer picks up after each run;
+#   - closes items whose issue was closed (completed → done, not planned → skip);
+#   - in the morning, sends the open list to the owner's chat when it holds
+#     anything new.
+# The issues are opened with this workflow's own token (issues: write); no
+# extra secret. The rest comes from the `main - jobradar-api` environment.
+on:
+  schedule:
+    - cron: '15 5 * * *' # 08:15 in Minsk: sync + digest
+    - cron: '15 17 * * *' # 20:15 in Minsk: sync only, for marks made during the day
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: 'Also send the open list to Telegram'
+        type: boolean
+        default: false
+
+concurrency:
+  group: triage
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: 'main - jobradar-api'
+    env:
+      DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
+      DATABASE_CA_CERT_PROD: ${{ secrets.DATABASE_CA_CERT_PROD }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The script imports @jobradar/shared, which resolves to its built dist/.
+      - name: Triage
+        run: |
+          pnpm --filter @jobradar/shared build
+          digest=""
+          if [ "${{ github.event.schedule }}" = "15 5 * * *" ] || [ "${{ inputs.digest }}" = "true" ]; then digest="--digest"; fi
+          pnpm --filter @jobradar/api triage --prod $digest
