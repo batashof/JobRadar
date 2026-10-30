@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — Quality audit waits out rate limits (v2.10.2)
+- Run with the developer's Groq and Gemini keys: Groq judged 32 vacancies, then 429 on 8000 tokens a minute; Gemini 503 "high demand". Findings: 69% of judged deliveries a fit, 10 false positives (4 backend-heavy fullstack, 3 non-frontend engineering roles, 1 AI/ML, 2 QA/interviewer), no false negatives, no dictionary fix.
+- `callJudge` retries 429 and 503 up to four times (Retry-After, else 15/30/45 s), gives up on a wait over 65 s.
+- Next step: developer decides the fullstack-for-frontend rule.
+
 ## 2026-10-30 — First quality audit runs (v2.10.1)
 - Manual run on prod: 643 vacancies in 24 h, 39 would be delivered; drops: 479 below the floor, 67 another family, 37 language, 21 too junior.
 - No verdicts: GitHub Models answered 200 with a plain-text "OK" (with and without the GitHub API headers); the old Azure endpoint does not resolve. A non-JSON 200 now falls over to the next provider and is logged.

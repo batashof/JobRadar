@@ -9,6 +9,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.10.2] — 2026-10-30
+
+### Fixed
+
+- Quality audit: a judge's per-minute quota (429) or a busy model (503) is waited out (Retry-After, else 15 s, 30 s, 45 s) and retried up to four times before the next provider; the first run with Groq stopped after 32 of 120 vacancies on Groq's 8000 tokens-a-minute limit.
+
 ## [2.10.1] — 2026-10-30
 
 ### Fixed
