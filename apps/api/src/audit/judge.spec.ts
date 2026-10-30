@@ -1,4 +1,4 @@
-import { buildJudgeMessages, callJudge, judgeProviders, parseVerdicts } from './judge';
+import { buildJudgeMessages, callJudge, judgeProviders, parseVerdicts, retryDelayMs } from './judge';
 import { FRONTEND, vacancy } from './fixtures';
 
 describe('buildJudgeMessages', () => {
@@ -55,11 +55,41 @@ describe('callJudge', () => {
   const ok = (content: string) =>
     new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
 
+  const noWait = jest.fn().mockResolvedValue(undefined);
+
+  it('waits out a per-minute quota and retries the same provider', async () => {
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: { 'retry-after': '7' } }))
+      .mockResolvedValueOnce(new Response('busy', { status: 503 }))
+      .mockResolvedValueOnce(ok('{"verdicts":[]}'));
+    await expect(callJudge([], providers, new Set(), fetchImpl, noWait)).resolves.toMatchObject({
+      provider: 'github-models',
+    });
+    expect(noWait.mock.calls.map(([ms]) => ms)).toEqual([7500, 30000]);
+  });
+
+  it('gives a provider up after the last try, or on a wait that long', async () => {
+    const dead = new Set<string>();
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(new Response('daily quota', { status: 429, headers: { 'retry-after': '3600' } }))
+      .mockResolvedValueOnce(ok('{"verdicts":[]}'));
+    await expect(callJudge([], providers, dead, fetchImpl, noWait)).resolves.toMatchObject({ provider: 'groq' });
+    expect(dead).toEqual(new Set(['github-models']));
+  });
+
+  it('computes the retry delay', () => {
+    expect(retryDelayMs('2', 1)).toBe(2500);
+    expect(retryDelayMs(null, 1)).toBe(15000);
+    expect(retryDelayMs(null, 9)).toBe(65000);
+  });
+
   it('falls over to the next provider and remembers the dead one', async () => {
     const dead = new Set<string>();
     const fetchImpl = jest
       .fn()
-      .mockResolvedValueOnce(new Response('rate limited', { status: 429 }))
+      .mockResolvedValueOnce(new Response('unauthorized', { status: 401 }))
       .mockResolvedValueOnce(ok('{"verdicts":[]}'))
       .mockResolvedValueOnce(ok('{"verdicts":[]}'));
     await expect(callJudge([], providers, dead, fetchImpl)).resolves.toEqual({

@@ -180,14 +180,50 @@ export interface JudgeCall {
  * bad answer) is skipped for the rest of the run, so a spent daily quota costs
  * one failed request, not one per batch.
  */
+/** Answers worth waiting out: a per-minute quota (429) or a busy model (503). */
+const RETRYABLE = new Set([429, 503]);
+/** Tries per request on a retryable answer before the provider counts as failed. */
+export const JUDGE_TRIES = 4;
+/** Longest wait for a retry; a longer Retry-After means a spent daily quota. */
+const MAX_WAIT_MS = 65_000;
+
+/** How long to wait before try `attempt` (1-based) after a retryable answer. */
+export function retryDelayMs(retryAfter: string | null, attempt: number): number {
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds > 0) return Math.min(seconds * 1000 + 500, MAX_WAIT_MS + 1);
+  return Math.min(15_000 * attempt, MAX_WAIT_MS);
+}
+
+const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export async function callJudge(
   messages: { role: string; content: string }[],
   providers: JudgeProvider[],
   dead: Set<string>,
   fetchImpl: typeof fetch = fetch,
+  sleep: (ms: number) => Promise<void> = realSleep,
 ): Promise<JudgeCall | null> {
   for (const provider of providers) {
     if (dead.has(provider.name)) continue;
+    const answer = await askProvider(provider, messages, fetchImpl, sleep);
+    if (answer) return { content: answer, provider: provider.name };
+    dead.add(provider.name);
+  }
+  return null;
+}
+
+/**
+ * One provider, with retries on a per-minute quota or a busy model (Groq's
+ * free tier allows 8000 tokens a minute, about two batches); null once it
+ * fails for good.
+ */
+async function askProvider(
+  provider: JudgeProvider,
+  messages: { role: string; content: string }[],
+  fetchImpl: typeof fetch,
+  sleep: (ms: number) => Promise<void>,
+): Promise<string | null> {
+  for (let attempt = 1; attempt <= JUDGE_TRIES; attempt++) {
     try {
       const res = await fetchImpl(provider.url, {
         method: 'POST',
@@ -209,7 +245,10 @@ export async function callJudge(
       if (!res.ok) {
         const detail = (await res.text()).slice(0, 200);
         console.warn(`judge ${provider.name}: HTTP ${res.status} ${detail}`);
-        dead.add(provider.name);
+        if (!RETRYABLE.has(res.status) || attempt === JUDGE_TRIES) return null;
+        const wait = retryDelayMs(res.headers.get('retry-after'), attempt);
+        if (wait > MAX_WAIT_MS) return null;
+        await sleep(wait);
         continue;
       }
       const raw = await res.text();
@@ -223,13 +262,12 @@ export async function callJudge(
       if (!content) {
         const type = res.headers.get('content-type') ?? '-';
         console.warn(`judge ${provider.name}: no answer (${type}) ${raw.slice(0, 200)}`);
-        dead.add(provider.name);
-        continue;
+        return null;
       }
-      return { content, provider: provider.name };
+      return content;
     } catch (error) {
       console.warn(`judge ${provider.name}: ${error instanceof Error ? error.message : error}`);
-      dead.add(provider.name);
+      return null;
     }
   }
   return null;
