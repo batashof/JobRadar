@@ -1,16 +1,79 @@
 {
   "titleOnly": {
-    "qa": ["qa", "aqa", "tester", "test automation", "тестировщик", "тестирования"],
-    "design": ["designer", "дизайнер", "ux/ui", "ui/ux"],
-    "analytics": ["analyst", "аналитик"]
+    "qa": [
+      "qa",
+      "aqa",
+      "tester",
+      "test automation",
+      "тестировщик",
+      "тестирования"
+    ],
+    "design": [
+      "designer",
+      "дизайнер",
+      "ux/ui",
+      "ui/ux"
+    ],
+    "analytics": [
+      "analyst",
+      "аналитик"
+    ]
   },
   "nonEngineering": {
-    "seo": ["seo", "сео"],
-    "marketing": ["marketing", "marketer", "smm", "ppc", "growth manager", "маркетинг", "маркетолог", "таргетолог"],
-    "content": ["copywriter", "content manager", "content writer", "editor", "копирайтер", "контент", "редактор"],
-    "sales": ["sales", "account manager", "account executive", "business development", "менеджер по продажам", "продажи"],
-    "hr": ["recruiter", "recruitment", "talent acquisition", "sourcer", "hr", "рекрутер"],
-    "support": ["customer support", "customer success", "support specialist", "call center", "поддержка", "поддержки"],
-    "management": ["project manager", "delivery manager", "scrum master", "руководитель проекта", "руководитель проектов"]
+    "seo": [
+      "seo",
+      "сео"
+    ],
+    "marketing": [
+      "marketing",
+      "marketer",
+      "smm",
+      "ppc",
+      "growth manager",
+      "маркетинг",
+      "маркетолог",
+      "таргетолог",
+      "media buyer"
+    ],
+    "content": [
+      "copywriter",
+      "content manager",
+      "content writer",
+      "editor",
+      "копирайтер",
+      "контент",
+      "редактор"
+    ],
+    "sales": [
+      "sales",
+      "account manager",
+      "account executive",
+      "business development",
+      "менеджер по продажам",
+      "продажи"
+    ],
+    "hr": [
+      "recruiter",
+      "recruitment",
+      "talent acquisition",
+      "sourcer",
+      "hr",
+      "рекрутер"
+    ],
+    "support": [
+      "customer support",
+      "customer success",
+      "support specialist",
+      "call center",
+      "поддержка",
+      "поддержки"
+    ],
+    "management": [
+      "project manager",
+      "delivery manager",
+      "scrum master",
+      "руководитель проекта",
+      "руководитель проектов"
+    ]
   }
 }
