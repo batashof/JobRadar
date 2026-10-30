@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-30 — First quality audit runs (v2.10.1)
+- Manual run on prod: 643 vacancies in 24 h, 39 would be delivered; drops: 479 below the floor, 67 another family, 37 language, 21 too junior.
+- No verdicts: GitHub Models answered 200 with a plain-text "OK" (with and without the GitHub API headers); the old Azure endpoint does not resolve. A non-JSON 200 now falls over to the next provider and is logged.
+- Next step: the developer adds GROQ_API_KEY and/or GEMINI_API_KEY to the `main - jobradar-api` environment so the audit has a working judge.
+
 ## 2026-10-30 — Resume profile accuracy (v2.10.0)
 - Developer: the profile from their resume said 7 years instead of 8+ and had no JavaScript, one of their main skills.
 - Causes: the prompt did not give the model today's date, so it counted years from dates against its own idea of "now" and could ignore a stated "8+"; nothing checked the result against the text, and models fold JavaScript into TypeScript.

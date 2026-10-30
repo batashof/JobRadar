@@ -9,6 +9,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.10.1] — 2026-10-30
+
+### Fixed
+
+- Quality audit: a judge that answers 200 with something other than JSON (GitHub Models answered a plain-text "OK" on the first runs) falls over to the next free provider and is logged with its content type; GitHub Models gets the GitHub API headers.
+
 ## [2.10.0] — 2026-10-30
 
 ### Fixed

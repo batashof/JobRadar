@@ -71,6 +71,20 @@ describe('callJudge', () => {
     expect(fetchImpl.mock.calls[2][0]).toContain('groq');
   });
 
+  it('skips a provider whose 200 answer is not JSON', async () => {
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(new Response('OK\n', { status: 200, headers: { 'content-type': 'text/plain' } }))
+      .mockResolvedValueOnce(ok('{"verdicts":[]}'));
+    await expect(callJudge([], providers, new Set(), fetchImpl)).resolves.toMatchObject({ provider: 'groq' });
+  });
+
+  it('sends the GitHub API headers to GitHub Models', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(ok('{"verdicts":[]}'));
+    await callJudge([], providers, new Set(), fetchImpl);
+    expect(fetchImpl.mock.calls[0][1].headers).toMatchObject({ 'X-GitHub-Api-Version': '2022-11-28' });
+  });
+
   it('returns null when every provider fails', async () => {
     const fetchImpl = jest.fn().mockRejectedValue(new Error('down'));
     await expect(callJudge([], providers, new Set(), fetchImpl)).resolves.toBeNull();
