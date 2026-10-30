@@ -19,6 +19,11 @@ describe('decide', () => {
     expect(d).toMatchObject({ delivered: false, reason: 'wrong-family' });
   });
 
+  it('names the backend-stack rule for a Python fullstack title', () => {
+    const [d] = decide(input, [vacancy('1', 'Full-stack Python Developer (Django + HTMX)', REACT)]);
+    expect(d).toMatchObject({ delivered: false, reason: 'foreign-stack' });
+  });
+
   it('names the level gate before anything else', () => {
     const [d] = decide(input, [vacancy('1', 'Junior Frontend Developer', REACT, { seniority: 'junior' })]);
     expect(d!.reason).toBe('too-junior');

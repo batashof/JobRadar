@@ -887,7 +887,7 @@ describe('BotService error reports (v2.6.0)', () => {
   });
 });
 
-describe('BotService transient faults and callback answers (ADR-036)', () => {
+describe('BotService transient faults and callback answers (ADR-037)', () => {
   beforeEach(() => fetchMock.mockReset());
   const OWNER = [{ chatId: '42', language: 'ru' }];
   const press = {

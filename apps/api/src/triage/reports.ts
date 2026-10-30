@@ -14,7 +14,7 @@ import {
 } from './triage-logic';
 
 /**
- * The bug and feedback inbox (ADR-036), database half. Shared by the bot and
+ * The bug and feedback inbox (ADR-037), database half. Shared by the bot and
  * the daily `scripts/triage.ts`, which opens its own connection.
  */
 

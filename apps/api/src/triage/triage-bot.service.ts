@@ -15,7 +15,7 @@ const ACTIONS = { f: 'fix', s: 'skip', n: 'new' } as const;
 const TOASTS = { fix: 'marked', skip: 'skipped', new: 'reopened' } as const;
 
 /**
- * The owner's side of the bug and feedback inbox (ADR-036): `/triage` shows
+ * The owner's side of the bug and feedback inbox (ADR-037): `/triage` shows
  * the open list, and its buttons (also on the daily digest the workflow
  * sends) mark an item to fix, skip it or take the mark back. The daily
  * `Triage` workflow turns marked items into GitHub issues for the fixer.

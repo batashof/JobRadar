@@ -34,7 +34,7 @@ export function feedbackText(lang: Language, key: keyof (typeof TEXT)['en']): st
 
 /**
  * `/feedback` (v2.6.0): a user tells the author what is wrong. The text goes
- * to the owner's chat at once and into the triage inbox (ADR-036), where the
+ * to the owner's chat at once and into the triage inbox (ADR-037), where the
  * owner marks it to fix or skip; it is deleted with the account. `events`
  * keeps only that feedback was sent, for the count in `/stats`.
  */

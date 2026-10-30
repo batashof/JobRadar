@@ -641,7 +641,7 @@ export const events = pgTable(
   (t) => [index('events_name_created_at_idx').on(t.name, t.createdAt)],
 );
 
-// The bug and feedback inbox (ADR-036): what users ran into and what they
+// The bug and feedback inbox (ADR-037): what users ran into and what they
 // told the author, triaged once a day in the owner's chat. An error is one row
 // per fingerprint (where + normalised message) with a counter; each /feedback
 // is its own row. `status`: new → fix (the owner pressed 🛠) → issued (a

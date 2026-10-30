@@ -461,7 +461,7 @@ export class BotService implements OnApplicationBootstrap {
 
   /**
    * A failure a user ran into (v2.6.0): logged, counted as an `error` event for
-   * /stats and in the triage inbox (ADR-036), and sent to the owner's chat once
+   * /stats and in the triage inbox (ADR-037), and sent to the owner's chat once
    * per `ERROR_ALERT_WINDOW_MS`. A transient fault (network, timeout, Telegram
    * 429/5xx) gets no instant alert; the daily triage counts it instead.
    * `where` is a content-free label (`describeUpdate`); never throws.

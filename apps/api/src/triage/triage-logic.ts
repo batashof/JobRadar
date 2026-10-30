@@ -3,7 +3,7 @@ import { BOT_CALLBACK_NAMESPACES, type Language } from '@jobradar/shared';
 import { escapeHtml, type InlineKeyboard, TelegramApiError } from '../bot/telegram-api';
 
 /**
- * The bug and feedback inbox (ADR-036), pure half: what counts as a transient
+ * The bug and feedback inbox (ADR-037), pure half: what counts as a transient
  * fault, how errors are grouped, how the owner's triage list and the GitHub
  * issue read. The bot (`TriageBotService`) and the daily workflow
  * (`scripts/triage.ts`) render the list with the same function, so a press on
@@ -202,7 +202,7 @@ export function issueBody(item: IssueSource): string {
   const lines =
     item.kind === 'error'
       ? [
-          `**Inbox report #${item.id}: bot error** (ADR-036)`,
+          `**Inbox report #${item.id}: bot error** (ADR-037)`,
           '',
           `- Where: \`${item.title}\``,
           `- Seen: ${item.count} time(s), first ${day(item.firstSeenAt)} UTC, last ${day(item.lastSeenAt)} UTC`,
@@ -213,7 +213,7 @@ export function issueBody(item: IssueSource): string {
           '```',
         ]
       : [
-          `**Inbox report #${item.id}: user feedback** (ADR-036, author and contacts removed)`,
+          `**Inbox report #${item.id}: user feedback** (ADR-037, author and contacts removed)`,
           '',
           '```text',
           fenced(redact(item.detail)),

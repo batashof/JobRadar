@@ -1,5 +1,5 @@
 /**
- * Daily triage of the bug and feedback inbox (ADR-036), run by the "Triage"
+ * Daily triage of the bug and feedback inbox (ADR-037), run by the "Triage"
  * workflow:
  *   1. items the owner marked 🛠 become GitHub issues labelled agent-fix,
  *      which the scheduled fixer takes;

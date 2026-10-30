@@ -7,6 +7,7 @@ import {
   explainScore,
   FAR_GRADE_CAP,
   FEEDBACK_MAX_POINTS,
+  foreignBackendStack,
   matchesLocation,
   passesPreferences,
   roleFamily,
@@ -205,6 +206,57 @@ describe('scoreVacancy', () => {
   it('accepts a fullstack title for a frontend candidate', () => {
     const result = scoreVacancy(frontend, vacancy({ title: 'Senior Fullstack Engineer' }), { now });
     expect(result.score).toBeGreaterThan(WRONG_FAMILY_CAP);
+  });
+
+  describe('backend stack rule (ADR-036)', () => {
+    const fullstackDescription = 'React, TypeScript and Redux on the frontend, an API behind it.';
+
+    it('caps a fullstack title in a backend language the candidate does not have', () => {
+      for (const title of [
+        'Full-stack Python Developer (Django + HTMX)',
+        'Fullstack Developer (Java and Angular/React)',
+        'Senior Full Stack Engineer (.NET / React)',
+        'Senior Fullstack PHP Developer',
+        'Senior Python Developer',
+      ]) {
+        const result = scoreVacancy(frontend, vacancy({ title, description: fullstackDescription }), { now });
+        expect({ title, score: result.score, cap: result.cap }).toEqual({
+          title,
+          score: expect.any(Number),
+          cap: 'stack',
+        });
+        expect(result.score).toBeLessThanOrEqual(WRONG_FAMILY_CAP);
+      }
+    });
+
+    it('keeps a fullstack title on Node.js', () => {
+      for (const title of [
+        'Senior Fullstack Engineer (React/Node.js)',
+        'Full Stack Developer, NestJS + Next.js',
+        'Fullstack Developer (Node.js / Python)',
+        'Senior Fullstack Engineer',
+      ]) {
+        const result = scoreVacancy(frontend, vacancy({ title, description: fullstackDescription }), { now });
+        expect({ title, cap: result.cap }).toEqual({ title, cap: undefined });
+      }
+    });
+
+    it('keeps the language once the candidate lists it, or a framework of it', () => {
+      const withPython: ScoringProfile = { ...frontend, skills: [...frontend.skills, { name: 'Python', weight: 'familiar' }] };
+      const withDjango: ScoringProfile = { ...frontend, skills: [...frontend.skills, { name: 'Django', weight: 'familiar' }] };
+      const title = 'Full-stack Python Developer (Django + HTMX)';
+      expect(foreignBackendStack(title, 'frontend', new Set(['react']))).toBe('python');
+      for (const profile of [withPython, withDjango]) {
+        const result = scoreVacancy(profile, vacancy({ title, description: fullstackDescription }), { now });
+        expect(result.cap).toBeUndefined();
+      }
+    });
+
+    it('leaves frontend titles and other candidates alone', () => {
+      expect(foreignBackendStack('Senior Frontend Developer (Python knowledge is a plus)', 'frontend', new Set())).toBeNull();
+      expect(foreignBackendStack('Fullstack Python Developer', 'backend', new Set())).toBeNull();
+      expect(foreignBackendStack('Fullstack Python Developer', null, new Set())).toBeNull();
+    });
   });
 
   it('caps a posting two grades away', () => {

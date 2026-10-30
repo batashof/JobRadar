@@ -45,7 +45,7 @@ describe('FeedbackBotService', () => {
     expect(bot.sendToUser).toHaveBeenCalledWith('u1', 'Спасибо! Передал автору.');
     expect(dialogs.open).not.toHaveBeenCalled();
     // The event keeps only the fact and the length; the text goes to the
-    // triage inbox (ADR-036), tied to the account so /delete removes it.
+    // triage inbox (ADR-037), tied to the account so /delete removes it.
     expect(inserts[0]).toEqual({
       table: events,
       values: { userId: 'u1', name: 'feedback', props: { length: 29 } },

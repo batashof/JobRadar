@@ -379,7 +379,7 @@ describe('error alerts', () => {
   });
 });
 
-describe('the bug and feedback inbox (ADR-036)', () => {
+describe('the bug and feedback inbox (ADR-037)', () => {
   it('keeps feedback and errors, and the author marks them in /triage', async () => {
     const tester = new ChatUser(e2e, 7_400_001, 'en');
     await tester.say('/start');

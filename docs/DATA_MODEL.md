@@ -391,13 +391,13 @@ Activation-funnel analytics. No message text, no resume content: event names and
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid FK → users, nullable | **set null** on user delete, so the funnel keeps its counts after `/delete` |
-| name | text not null | `start` (`props.language`, `props.source`: the `?start=` tag of a shared link, v2.6.0), `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (`props.source`) (5.2); `profile_manual_started` (`/noresume`, ADR-034); `bot_blocked`, `settings_changed`; `error` (`props.where`, `props.message`) and `feedback` (`props.length`, never the text; the text itself is in `reports`, ADR-036) (v2.6.0) |
+| name | text not null | `start` (`props.language`, `props.source`: the `?start=` tag of a shared link, v2.6.0), `account_deleted` (5.1); `resume_uploaded`, `resume_analyzed` (`props.source`, `props.provider`), `profile_confirmed` (`props.source`) (5.2); `profile_manual_started` (`/noresume`, ADR-034); `bot_blocked`, `settings_changed`; `error` (`props.where`, `props.message`) and `feedback` (`props.length`, never the text; the text itself is in `reports`, ADR-037) (v2.6.0) |
 | props | jsonb nullable | small flat map, e.g. `{ "language": "en" }` |
 | created_at | timestamptz | index `(name, created_at)` |
 
 Account deletion (`/delete`) is one `DELETE FROM users`: every other user-keyed table cascades.
 
-### reports (migration `0027`, ADR-036)
+### reports (migration `0027`, ADR-037)
 
 The bug and feedback inbox the owner triages in `/triage` and the daily `Triage` workflow.
 

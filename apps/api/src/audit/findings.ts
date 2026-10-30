@@ -24,6 +24,8 @@ export type Cause =
   | 'non-engineering-title'
   /** A fullstack role sent to a frontend candidate: a rule, the developer decides. */
   | 'fullstack-policy'
+  /** Held back by the backend-stack rule (ADR-036): the developer's own rule, not a bug. */
+  | 'stack-policy'
   /** The judge reads another job family than the formula. */
   | 'family'
   /** The working-language reading dropped a vacancy the judge thinks is fine. */
@@ -76,6 +78,8 @@ function falseNegativeCause(decision: Decision): Cause {
       return 'grade';
     case 'wrong-family':
       return 'family';
+    case 'foreign-stack':
+      return 'stack-policy';
     default:
       return 'skills';
   }

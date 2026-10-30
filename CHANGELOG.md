@@ -9,11 +9,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
-## [2.11.0] — 2026-10-30
+## [2.12.0] — 2026-10-30
 
 ### Added
 
-- **Bug and feedback inbox (ADR-036).** Errors the bot hits and every `/feedback` text are kept in a new `reports` table (migration `0027`); an error is one row with a counter however often it repeats. The owner's `/triage` lists what is open with 🛠 fix, 🙈 skip and ↩️ undo buttons.
+- **Bug and feedback inbox (ADR-037).** Errors the bot hits and every `/feedback` text are kept in a new `reports` table (migration `0027`); an error is one row with a counter however often it repeats. The owner's `/triage` lists what is open with 🛠 fix, 🙈 skip and ↩️ undo buttons.
 - **`Triage` workflow**, twice a day (08:15 and 20:15 Minsk): items marked 🛠 become GitHub issues labelled `agent-fix` for a scheduled Claude Code fixer, closed issues close their items, and the morning run sends the open list to the owner's chat when something is new. Issues carry no user id or username; feedback is published without contacts.
 
 ### Fixed
@@ -24,6 +24,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Changed
 
 - `/privacy` and the web policy: `/feedback` text is kept until it is handled or the account is deleted, and may be published without the author's name.
+
+## [2.11.0] — 2026-10-30
+
+### Changed
+
+- Matching: for a frontend profile, a vacancy title naming a backend language the profile lacks (Python, Java, .NET, PHP, Go, Ruby, …) is capped below every min-fit preset and not delivered; fullstack titles on Node.js stay, and adding the language to the profile's skills brings such titles back (ADR-036).
+- Quality audit: such drops are reported as `foreign-stack`, and a judge who disagrees is shown as the developer's rule.
 
 ## [2.10.2] — 2026-10-30
 

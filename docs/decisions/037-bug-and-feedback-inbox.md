@@ -1,4 +1,4 @@
-# ADR-036: A bug and feedback inbox, triaged daily in Telegram, fixed by a scheduled Claude Code session
+# ADR-037: A bug and feedback inbox, triaged daily in Telegram, fixed by a scheduled Claude Code session
 
 - Status: Accepted
 - Date: 2026-10-30

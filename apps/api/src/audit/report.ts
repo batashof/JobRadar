@@ -19,6 +19,7 @@ export interface AuditSummary {
 const CAUSE_LABEL: Record<Cause, string> = {
   'non-engineering-title': 'not an engineering job',
   'fullstack-policy': 'fullstack for a frontend profile (rule, your call)',
+  'stack-policy': 'backend stack not in the profile (rule, ADR-036)',
   family: 'another job family',
   language: 'working language misread',
   grade: 'grade gate',
@@ -33,6 +34,7 @@ const REASON_LABEL: Record<DropReason, string> = {
   language: 'language filter',
   'too-junior': 'too junior',
   'wrong-family': 'another job family',
+  'foreign-stack': 'backend stack not in the profile',
   'far-grade': 'grade too far',
   'below-floor': 'below the min fit',
 };

@@ -1,7 +1,7 @@
 import { FIX_LABEL } from './triage-logic';
 
 /**
- * The few GitHub REST calls the daily triage makes (ADR-036), on the
+ * The few GitHub REST calls the daily triage makes (ADR-037), on the
  * workflow's own GITHUB_TOKEN with `issues: write`. Plain fetch, no Octokit:
  * three endpoints do not earn a dependency (ADR-001).
  */
@@ -38,7 +38,7 @@ export async function ensureFixLabel(gh: GithubRepo): Promise<void> {
     body: JSON.stringify({
       name: FIX_LABEL,
       color: 'd93f0b',
-      description: 'Marked in the bot triage for the automatic fixer (ADR-036)',
+      description: 'Marked in the bot triage for the automatic fixer (ADR-037)',
     }),
   });
   if (!response.ok && response.status !== 422) await fail(response, 'create label');

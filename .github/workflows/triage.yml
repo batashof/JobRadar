@@ -1,6 +1,6 @@
 name: Triage
 
-# The bug and feedback inbox (ADR-036). Errors the bot hit and /feedback texts
+# The bug and feedback inbox (ADR-037). Errors the bot hit and /feedback texts
 # collect in the `reports` table; the owner marks them 🛠 fix or 🙈 skip in
 # Telegram (/triage, or the buttons on the morning digest). This workflow:
 #   - turns marked items into GitHub issues labelled `agent-fix`, which the
