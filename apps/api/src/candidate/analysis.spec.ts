@@ -1,10 +1,13 @@
 import {
   ANALYSIS_PROMPT_VERSION,
   buildAnalysisPrompt,
+  completeSkills,
   dedupeSkills,
   displaySkill,
   fallbackProfile,
   parseAnalysis,
+  reconcileAnalysis,
+  statedYears,
 } from './analysis';
 
 const validReply = {
@@ -41,7 +44,69 @@ describe('buildAnalysisPrompt', () => {
   });
 
   it('has a prompt version to store on profiles', () => {
-    expect(ANALYSIS_PROMPT_VERSION).toBeGreaterThanOrEqual(1);
+    expect(ANALYSIS_PROMPT_VERSION).toBeGreaterThanOrEqual(2);
+  });
+
+  it('tells the model today\'s date, a stated "N+ years" and that JavaScript is its own skill', () => {
+    const { system } = buildAnalysisPrompt('cv', 'en', new Date('2026-10-30T12:00:00Z'));
+    expect(system).toContain('2026-10-30');
+    expect(system).toContain('8+ years');
+    expect(system).toContain('JavaScript and TypeScript are two skills');
+  });
+});
+
+describe('reconcileAnalysis (the resume text wins)', () => {
+  const analysis = parseAnalysis(JSON.stringify({ ...validReply, years: 7 }))!;
+
+  it('reads a stated number of years in English and Russian', () => {
+    expect(statedYears('Senior Frontend Engineer with 8+ years of experience')).toBe(8);
+    expect(statedYears('Опыт: более 8 лет; 3 года в EPAM')).toBe(8);
+    expect(statedYears('React 18, 2019 – present, 1.5 years')).toBeNull();
+    expect(statedYears('no number here')).toBeNull();
+  });
+
+  it('takes the stated years over a smaller count from dates, never a smaller one', () => {
+    expect(reconcileAnalysis(analysis, '8+ years building web apps').years).toBe(8);
+    expect(reconcileAnalysis({ ...analysis, years: null }, '8+ years').years).toBe(8);
+    expect(reconcileAnalysis({ ...analysis, years: 10 }, '2 years at EPAM').years).toBe(10);
+    expect(reconcileAnalysis(analysis, 'no stated years').years).toBe(7);
+  });
+
+  it('adds a language the model folded into another: core when the resume keeps naming it', () => {
+    const text = 'Skills: JavaScript, TypeScript, React. Built JS widgets; JavaScript (ES6+) since 2017.';
+    const skills = completeSkills(
+      [
+        { name: 'React', weight: 'core' },
+        { name: 'TypeScript', weight: 'core' },
+        { name: 'GraphQL', weight: 'familiar' },
+      ],
+      text,
+    );
+    expect(skills).toEqual([
+      { name: 'React', weight: 'core' },
+      { name: 'TypeScript', weight: 'core' },
+      { name: 'JavaScript', weight: 'core' },
+      { name: 'GraphQL', weight: 'familiar' },
+    ]);
+  });
+
+  it('adds a skill named once as familiar, by its dictionary label, and ignores plain words', () => {
+    const skills = completeSkills([{ name: 'React', weight: 'core' }], 'React, ReactJS, used Docker once; go to market');
+    expect(skills).toEqual([
+      { name: 'React', weight: 'core' },
+      { name: 'Docker', weight: 'familiar' },
+    ]);
+  });
+
+  it('keeps the model\'s core skills when the list is full, dropping its last familiar ones', () => {
+    const full = [
+      ...Array.from({ length: 10 }, (_, i) => ({ name: `Core${i}`, weight: 'core' as const })),
+      ...Array.from({ length: 10 }, (_, i) => ({ name: `Also${i}`, weight: 'familiar' as const })),
+    ];
+    const skills = completeSkills(full, 'JavaScript, JavaScript, JavaScript');
+    expect(skills).toHaveLength(20);
+    expect(skills[10]).toEqual({ name: 'JavaScript', weight: 'core' });
+    expect(skills.map((s) => s.name)).not.toContain('Also9');
   });
 });
 

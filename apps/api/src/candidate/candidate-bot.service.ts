@@ -27,12 +27,15 @@ import {
   buildAnalysisPrompt,
   fallbackProfile,
   parseAnalysis,
+  reconcileAnalysis,
   ROLE_TITLES,
 } from './analysis';
 import { type CandidateProfileRow, CandidateService, type ProfileWrite } from './candidate.service';
 import {
+  editSkillsInput,
   evaluationMessage,
   parseSkillsInput,
+  parseYearsInput,
   pickerKeyboard,
   profileCard,
   profileText,
@@ -46,6 +49,9 @@ const FLOW = 'profile';
 
 /** The skills answer of the no-resume wizard, which goes on to English (ADR-034). */
 const WIZARD_SKILLS_STEP = 'wizard-skills';
+
+/** The typed answer to "✏️ Experience". */
+const YEARS_STEP = 'years';
 
 /** `prompt_version` of a profile no prompt produced (ADR-034). */
 const MANUAL_PROMPT_VERSION = 0;
@@ -91,7 +97,9 @@ export class CandidateBotService implements OnModuleInit {
 
   onModuleInit(): void {
     this.bot.registerDocumentHandler((ctx, doc) => this.onDocument(ctx, doc));
-    this.bot.registerDialog(FLOW, (ctx, text, dialog) => this.onSkillsText(ctx, text, dialog.step));
+    this.bot.registerDialog(FLOW, (ctx, text, dialog) =>
+      dialog.step === YEARS_STEP ? this.onYearsText(ctx, text) : this.onSkillsText(ctx, text, dialog.step),
+    );
     this.bot.registerCallback(BOT_CALLBACK_NAMESPACES.profile, (ctx) => this.onCallback(ctx));
     this.bot.registerCommand('resume', (ctx) => this.showResume(ctx));
     this.bot.registerCommand('setup', (ctx) => this.showSetup(ctx));
@@ -278,7 +286,9 @@ export class CandidateBotService implements OnModuleInit {
         // The owner's own resume may use the full chain; strangers' may not.
         providers: owner ? undefined : this.resumeProviders,
       });
-      const analysis = parseAnalysis(reply.text);
+      const parsed = parseAnalysis(reply.text);
+      // The resume text corrects what models get wrong: years, dropped skills.
+      const analysis = parsed && reconcileAnalysis(parsed, text);
       if (analysis) {
         await recordEvent(this.db, ctx.userId, 'resume_analyzed', {
           source: 'llm',
@@ -373,7 +383,18 @@ export class CandidateBotService implements OnModuleInit {
         return this.applyPick(ctx, action, value);
       case 's':
         await this.dialogs.open(ctx.chatId, { userId: ctx.userId, flow: FLOW, step: 'skills', payload: {} });
-        await this.say(ctx, 'askSkills');
+        if (profile.skills.length === 0) {
+          await this.say(ctx, 'askSkills');
+        } else {
+          // The current list as <code>, so a tap copies it for a full rewrite.
+          const skills = `<code>${escapeHtml(profile.skills.map((s) => s.name).join(', '))}</code>`;
+          const text = escapeHtml(profileText(ctx.language, 'askSkillsEdit')).replace('{skills}', skills);
+          await this.bot.sendToUser(ctx.userId, text, { parseMode: 'HTML' });
+        }
+        return {};
+      case 'y':
+        await this.dialogs.open(ctx.chatId, { userId: ctx.userId, flow: FLOW, step: YEARS_STEP, payload: {} });
+        await this.say(ctx, 'askYears');
         return {};
       case 'wr':
       case 'wg':
@@ -427,7 +448,9 @@ export class CandidateBotService implements OnModuleInit {
 
   /** Typed skills list, the one free-text answer of the dialog. */
   async onSkillsText(ctx: BotMessageContext, text: string, step = 'skills'): Promise<void> {
-    const skills = parseSkillsInput(text);
+    // The wizard starts from nothing; an edit of a list may add or remove one skill.
+    const current = step === WIZARD_SKILLS_STEP ? [] : ((await this.profiles.get(ctx.userId))?.skills ?? []);
+    const skills = current.length > 0 ? editSkillsInput(current, text) : parseSkillsInput(text);
     if (skills.length === 0) return this.say(ctx, 'badSkills');
     await this.profiles.update(ctx.userId, { skills });
     await this.dialogs.close(ctx.chatId);
@@ -438,6 +461,18 @@ export class CandidateBotService implements OnModuleInit {
       });
       return;
     }
+    const profile = await this.profiles.get(ctx.userId);
+    if (!profile) return this.say(ctx, 'noProfile');
+    const card = this.card(ctx, profile);
+    await this.bot.sendToUser(ctx.userId, card.text, { parseMode: 'HTML', keyboard: card.keyboard });
+  }
+
+  /** Typed answer to "✏️ Experience": a number of years. */
+  async onYearsText(ctx: BotMessageContext, text: string): Promise<void> {
+    const years = parseYearsInput(text);
+    if (years === null) return this.say(ctx, 'badYears');
+    await this.profiles.update(ctx.userId, { years });
+    await this.dialogs.close(ctx.chatId);
     const profile = await this.profiles.get(ctx.userId);
     if (!profile) return this.say(ctx, 'noProfile');
     const card = this.card(ctx, profile);

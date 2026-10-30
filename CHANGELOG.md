@@ -9,6 +9,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.10.0] — 2026-10-30
+
+### Fixed
+
+- **Resume profile: years and dropped skills.** The analysis prompt (version 2) gives the model today's date, tells it to take a stated "8+ years" as is and to list JavaScript and TypeScript as two skills. After the call the resume text corrects the result: a stated number of years wins over a smaller count from dates, and dictionary skills the resume names but the model left out are added (main when named three times or more). A resume saying "8+ years" with JavaScript next to TypeScript no longer comes out as 7 years without JavaScript.
+
+### Added
+
+- "✏️ Experience" on the profile card: the years are typed by hand ("8", "8+").
+- "✏️ Skills" shows the current list and takes `+Skill` / `-Skill` to add or remove one skill instead of retyping the list.
+
 ## [2.9.0] — 2026-10-30
 
 ### Added

@@ -1,6 +1,7 @@
 import {
   BOT_CALLBACK_NAMESPACES,
   CANDIDATE_SKILLS_MAX,
+  canonicalSkill,
   type CandidateSkill,
   ENGLISH_LEVELS,
   type Language,
@@ -49,12 +50,17 @@ const TEXT = {
     editGrade: '✏️ Grade',
     editEnglish: '✏️ English',
     editSkills: '✏️ Skills',
+    editYears: '✏️ Experience',
     retry: '🔄 Analyse again',
     back: '← Back',
     confirmed:
       'Profile saved. New vacancies that fit it will arrive here as they are posted, quiet hours 22:00–08:00. Next: /filters for which vacancies to receive, /settings for when.',
     askSkills: 'Send your skills separated by commas, the main ones first. Example: React, TypeScript, Next.js, Redux',
     badSkills: 'I did not find any skills in that. Send them separated by commas, e.g. React, TypeScript.',
+    askSkillsEdit:
+      'Now: {skills}\n\nTo add or remove one, send +Skill or -Skill, e.g. +JavaScript, -jQuery (an added one counts as main). To replace the whole list, send it separated by commas, the main ones first.',
+    askYears: 'How many years of professional experience do you have? Send a number, e.g. 8.',
+    badYears: 'Send the number of years as digits, from 0 to 50, e.g. 8.',
     noProfile: 'Send your resume as a PDF first, or set the profile by hand: /noresume.',
     pickGrade: 'Pick your grade:',
     pickEnglish: 'Pick your English level:',
@@ -125,12 +131,17 @@ const TEXT = {
     editGrade: '✏️ Грейд',
     editEnglish: '✏️ Английский',
     editSkills: '✏️ Навыки',
+    editYears: '✏️ Опыт',
     retry: '🔄 Проанализировать снова',
     back: '← Назад',
     confirmed:
       'Профиль сохранён. Новые подходящие вакансии будут приходить сюда сразу после публикации, ночью (22:00–08:00) тишина. Дальше: /filters — какие вакансии присылать, /settings — когда.',
     askSkills: 'Пришли навыки через запятую, основные первыми. Пример: React, TypeScript, Next.js, Redux',
     badSkills: 'Не нашёл навыков в сообщении. Пришли их через запятую, например: React, TypeScript.',
+    askSkillsEdit:
+      'Сейчас: {skills}\n\nЧтобы добавить или убрать навык, пришли +Навык или -Навык, например: +JavaScript, -jQuery (добавленный считается основным). Чтобы заменить весь список, пришли его через запятую, основные первыми.',
+    askYears: 'Сколько лет у тебя коммерческого опыта? Пришли число, например 8.',
+    badYears: 'Пришли число лет цифрами, от 0 до 50, например 8.',
     noProfile: 'Сначала пришли резюме в PDF или задай профиль вручную: /noresume.',
     pickGrade: 'Выбери грейд:',
     pickEnglish: 'Выбери уровень английского:',
@@ -256,9 +267,10 @@ export function profileCard(
       { text: profileText(lang, 'editGrade'), callbackData: `${NS}:g` },
     ],
     [
+      { text: profileText(lang, 'editYears'), callbackData: `${NS}:y` },
       { text: profileText(lang, 'editEnglish'), callbackData: `${NS}:e` },
-      { text: profileText(lang, 'editSkills'), callbackData: `${NS}:s` },
     ],
+    [{ text: profileText(lang, 'editSkills'), callbackData: `${NS}:s` }],
     // A profile set by hand has no resume to analyse again.
     ...(options.manual ? [] : [[{ text: profileText(lang, 'retry'), callbackData: `${NS}:retry` }]]),
   ];
@@ -304,7 +316,7 @@ export function parseSkillsInput(input: string): CandidateSkill[] {
   const seen = new Set<string>();
   const names = input
     .split(/[,;\n]+/)
-    .map((s) => s.trim().replace(/^[-•*]\s*/, ''))
+    .map((s) => s.trim().replace(/^[-+•*]\s*/, ''))
     .filter((s) => s.length > 0 && s.length <= 40)
     .filter((s) => {
       const key = s.toLowerCase();
@@ -314,6 +326,44 @@ export function parseSkillsInput(input: string): CandidateSkill[] {
     })
     .slice(0, CANDIDATE_SKILLS_MAX);
   return names.map((name, index) => ({ name, weight: index < 6 ? 'core' : 'familiar' }));
+}
+
+/**
+ * A typed answer to "✏️ Skills" on an existing list: "+JavaScript, -jQuery"
+ * adds and removes (an added skill joins the main ones, it was missing from
+ * them), anything else replaces the list as `parseSkillsInput` reads it.
+ */
+export function editSkillsInput(current: CandidateSkill[], input: string): CandidateSkill[] {
+  const items = input
+    .split(/[,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (items.length === 0 || !items.every((s) => /^[+-]/.test(s))) return parseSkillsInput(input);
+
+  const key = (name: string) => canonicalSkill(name);
+  const removed = new Set(
+    items.filter((s) => s.startsWith('-')).map((s) => key(s.slice(1).trim())),
+  );
+  const kept = current.filter((skill) => !removed.has(key(skill.name)));
+  const seen = new Set(kept.map((skill) => key(skill.name)));
+  const added: CandidateSkill[] = [];
+  for (const item of items.filter((s) => s.startsWith('+'))) {
+    const name = item.slice(1).trim();
+    if (!name || name.length > 40 || seen.has(key(name))) continue;
+    seen.add(key(name));
+    added.push({ name, weight: 'core' });
+  }
+  const core = kept.filter((s) => s.weight === 'core');
+  const familiar = kept.filter((s) => s.weight !== 'core');
+  return [...core, ...added, ...familiar].slice(0, CANDIDATE_SKILLS_MAX);
+}
+
+/** "8", "8+", "8 лет" → 8; null when it is not a plausible number of years. */
+export function parseYearsInput(input: string): number | null {
+  const match = /^\s*(\d{1,2})\s*\+?\s*(?:\p{L}+\.?)?\s*$/u.exec(input);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return n <= 50 ? n : null;
 }
 
 /** The active resume as /resume and /setup show it. */

@@ -161,6 +161,29 @@ describe('CandidateBotService — upload', () => {
     expect(bot.sendToUser.mock.calls[2][2].keyboard[0][0].callbackData).toBe('p:ok');
   });
 
+  it('corrects the model from the resume text: stated years, a skill it left out (prompt v2)', async () => {
+    const { service, llm, resumes, profiles, ctx } = setup();
+    llm.complete.mockResolvedValue({ text: JSON.stringify({ ...JSON.parse(llmReply), years: 7 }), provider: 'groq' });
+    resumes.getActive.mockResolvedValue({
+      id: 'resume-1',
+      filename: 'cv.pdf',
+      extractedText: '8+ years. Skills: JavaScript, React. JavaScript apps, JavaScript tooling.',
+    });
+    await service.onDocument(ctx, pdf);
+    await settle();
+    expect(profiles.replace).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        years: 8,
+        promptVersion: 2,
+        skills: [
+          { name: 'React', weight: 'core' },
+          { name: 'JavaScript', weight: 'core' },
+        ],
+      }),
+    );
+  });
+
   it('lets the owner use the full provider chain', async () => {
     const { service, llm, ctx } = setup({ role: 'owner' });
     await service.onDocument(ctx, pdf);
@@ -239,6 +262,44 @@ describe('CandidateBotService — confirmation and edits', () => {
     });
     expect(dialogs.close).toHaveBeenCalledWith('555');
     expect(sent(bot).at(-1)).toContain('Твой профиль');
+  });
+
+  it('shows the current skills on edit and adds one with +', async () => {
+    const { service, profiles, bot, ctx } = setup();
+    await service.onCallback(press(ctx, ['p', 's']));
+    expect(sent(bot)[0]).toContain('Сейчас: <code>React</code>');
+
+    await service.onSkillsText(ctx, '+JavaScript');
+    expect(profiles.update).toHaveBeenCalledWith('user-1', {
+      skills: [
+        { name: 'React', weight: 'core' },
+        { name: 'JavaScript', weight: 'core' },
+      ],
+    });
+  });
+
+  it('asks for years as text, stores a number and redraws the card', async () => {
+    const { service, dialogs, profiles, bot, ctx } = setup();
+    await service.onCallback(press(ctx, ['p', 'y']));
+    expect(dialogs.open).toHaveBeenCalledWith('555', expect.objectContaining({ flow: 'profile', step: 'years' }));
+    expect(sent(bot)[0]).toContain('Сколько лет');
+
+    await service.onYearsText(ctx, 'eight');
+    expect(profiles.update).not.toHaveBeenCalled();
+    expect(sent(bot).at(-1)).toContain('цифрами');
+
+    await service.onYearsText(ctx, '8+');
+    expect(profiles.update).toHaveBeenCalledWith('user-1', { years: 8 });
+    expect(dialogs.close).toHaveBeenCalledWith('555');
+    expect(sent(bot).at(-1)).toContain('Твой профиль');
+  });
+
+  it('routes a typed answer of the years step to the years handler', async () => {
+    const { service, bot, profiles, ctx } = setup();
+    service.onModuleInit();
+    const handler = bot.registerDialog.mock.calls[0][1];
+    await handler(ctx, '9', { step: 'years' });
+    expect(profiles.update).toHaveBeenCalledWith('user-1', { years: 9 });
   });
 
   it('keeps the dialog open when the answer has no skills', async () => {
