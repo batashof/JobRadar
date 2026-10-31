@@ -17,7 +17,10 @@ name: Quality audit
 # PAT: contents + pull requests) opens it as a person instead, and CI runs.
 on:
   schedule:
-    - cron: '0 4 * * *' # 07:00 in Minsk
+    # 03:17 in Minsk. GitHub starts scheduled runs late on the free tier, and
+    # later still on the hour: the 07:00 run of 2026-10-31 started at 13:08.
+    # An early, off-the-hour slot lands the report by the morning even then.
+    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       hours:

@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-10-31 — Quality audit runs earlier
+- The scheduled 07:00 (Minsk) audit started at 13:08: GitHub delayed the cron by six hours (other scheduled workflows ran hours late too). The run itself succeeded: 581 vacancies, 28 delivered, 78% of deliveries a fit (59% the day before), 24 dropped by the backend-stack rule (ADR-036).
+- Cron moved to 00:17 UTC (03:17 Minsk), off the hour, so even a late start lands the report by the morning. ADR-035 and RISKS updated.
+- Next step: if it is still late, trigger the workflow from Supabase pg_cron through the GitHub API (needs a fine-grained token with Actions write).
+
 ## 2026-10-30 — A short bot menu, settings as the hub (v2.13.0)
 - Developer asked: menu = /start (only before an account), /setup, /digest, /settings, /help, /privacy, /feedback, /delete, plus /stats and /testmode for them alone; everything else from /settings with a new profile button; /applications, /plan, /linkedin, /gmail, /noresume hidden but kept; every button two per row with a fitting icon.
 - /digest checked: still registered and covered by the e2e journey (send now, nothing to match), kept in the menu. /delete already asked for a confirmation; its buttons got icons.
