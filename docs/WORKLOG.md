@@ -2,6 +2,11 @@
 
 > Chronological log of work done. Newest entries on top. Every session that changes the repo must add an entry (see CLAUDE.md).
 
+## 2026-11-01 — Reports that do reach the bot (v2.13.1)
+- Developer: the reports do not arrive in the bot. Triage ran every day without errors but logged "nothing new, not sent": the inbox was empty and an empty list sent nothing. GitHub also started the 08:15 slot at 13:56 and 14:52. The quality audit sent its summary only to the audited owner account's chat and stayed silent when that account had none.
+- The morning triage list is sent every day (an empty one as one line); triage at 05:41 and 17:41 Minsk; the audit summary goes to every owner chat; both scripts log each chat's result (`common/owner-telegram.ts`). The fixer task triggers a Triage sync before it lists issues. ADR-037 amended.
+- Next step: check the next morning's run log for "sent to 1 chat(s)" and "summary to chat …: sent".
+
 ## 2026-10-31 — Quality audit runs earlier
 - The scheduled 07:00 (Minsk) audit started at 13:08: GitHub delayed the cron by six hours (other scheduled workflows ran hours late too). The run itself succeeded: 581 vacancies, 28 delivered, 78% of deliveries a fit (59% the day before), 24 dropped by the backend-stack rule (ADR-036).
 - Cron moved to 00:17 UTC (03:17 Minsk), off the hour, so even a late start lands the report by the morning. ADR-035 and RISKS updated.

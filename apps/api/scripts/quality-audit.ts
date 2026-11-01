@@ -27,6 +27,7 @@ import { applyTermFixes, findIssues, proposeTermFixes, type TitleCase } from '..
 import { buildJudgeMessages, callJudge, JUDGE_BATCH, judgeProviders, parseVerdicts, type Verdict } from '../src/audit/judge';
 import { type AuditSummary, renderPrBody, renderReport, renderTelegram } from '../src/audit/report';
 import { fallbackProfile } from '../src/candidate/analysis';
+import { ownerChats, sendTelegramMessage } from '../src/common/owner-telegram';
 import { openScriptDb } from '../src/db/prod-db';
 import {
   candidateProfiles,
@@ -64,7 +65,7 @@ async function main(): Promise<void> {
   const now = new Date();
   const { db, close } = openScriptDb(prod);
   try {
-    // The author: an owner with a linked chat, the one with the most deliveries
+    // The author: an owner account, the one with the most deliveries
     // (every pre-bot account became an owner, test accounts included).
     const sent = sql<number>`(select count(*) from ${digestItems} where ${digestItems.userId} = ${users.id})::int`;
     const [owner] = await db
@@ -224,18 +225,19 @@ async function main(): Promise<void> {
       console.log(`applied ${fixes.length} dictionary fix(es)`);
     }
 
+    // The summary goes to every owner chat, like the bot's own owner notices:
+    // the audited account (most deliveries) may not be the chat the author
+    // reads, e.g. after /testmode.
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (token && owner.chatId) {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: owner.chatId,
-          text: renderTelegram(summary),
-          link_preview_options: { is_disabled: true },
-        }),
-      });
-      if (!res.ok) console.warn(`telegram: HTTP ${res.status}`);
+    if (!token) {
+      console.log('telegram: TELEGRAM_BOT_TOKEN is not set, summary not sent');
+    } else {
+      const chats = await ownerChats(db);
+      if (chats.length === 0) console.warn('telegram: no owner has a linked chat, summary not sent');
+      for (const chat of chats) {
+        const error = await sendTelegramMessage(token, { chat_id: chat.chatId, text: renderTelegram(summary) });
+        console.log(`telegram: summary to chat ${chat.chatId}: ${error ?? 'sent'}`);
+      }
     }
   } finally {
     await close();

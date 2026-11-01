@@ -98,7 +98,7 @@ const TEXT = {
     quiet:
       '⚡ Temporary network faults in 24 h: {n}. Not bugs: they are listed only past {floor} repeats.',
     progress: '🔧 With the fixer: {n} (GitHub issues labelled agent-fix).',
-    how: '🛠 makes a GitHub issue the fixer takes (synced at 08:15 and 20:15 Minsk), 🙈 skips, ↩️ undoes.',
+    how: '🛠 makes a GitHub issue the fixer takes (synced every morning and evening, and before each fixer run), 🙈 skips, ↩️ undoes.',
     marked: '#{id}: to be fixed',
     skipped: '#{id}: skipped',
     reopened: '#{id}: back in the list',
@@ -113,7 +113,7 @@ const TEXT = {
     quiet:
       '⚡ Временных сетевых сбоев за сутки: {n}. Это не баги: в список попадают только после {floor} повторов.',
     progress: '🔧 У фиксера: {n} (GitHub issues с меткой agent-fix).',
-    how: '🛠 создаёт GitHub issue для фиксера (синхронизация в 08:15 и 20:15 по Минску), 🙈 пропускает, ↩️ отменяет.',
+    how: '🛠 создаёт GitHub issue для фиксера (синхронизация утром, вечером и перед каждым запуском фиксера), 🙈 пропускает, ↩️ отменяет.',
     marked: '#{id}: в работу',
     skipped: '#{id}: пропущено',
     reopened: '#{id}: снова в списке',

@@ -5,8 +5,8 @@
  *      which the scheduled fixer takes;
  *   2. issues that were closed close their items (done, or skip when closed
  *      as not planned);
- *   3. with --digest, the open list goes to the owner's Telegram chat when
- *      it holds something the owner has not seen.
+ *   3. with --digest, the open list goes to every owner chat, a short
+ *      "nothing open" line when it is empty.
  *
  * Inputs:
  *   DATABASE_URL_PROD (+ DATABASE_CA_CERT_PROD)   with --prod
@@ -16,13 +16,13 @@
  * Usage: pnpm --filter @jobradar/api triage [--prod] [--digest]
  */
 import { appendFileSync } from 'node:fs';
-import type { Language } from '@jobradar/shared';
 import { config } from 'dotenv';
 import { and, eq, isNotNull } from 'drizzle-orm';
 
 import type { InlineKeyboard } from '../src/bot/telegram-api';
+import { ownerChats, sendTelegramMessage } from '../src/common/owner-telegram';
 import { openScriptDb } from '../src/db/prod-db';
-import { reports, telegramAccounts, users } from '../src/db/schema';
+import { reports } from '../src/db/schema';
 import { createIssue, ensureFixLabel, type GithubRepo, issueOutcome } from '../src/triage/github-issues';
 import { loadTriage, markDigested } from '../src/triage/reports';
 import { FIX_LABEL, issueBody, issueTitle, renderTriage, type ReportKind, type ReportStatus } from '../src/triage/triage-logic';
@@ -78,36 +78,25 @@ async function main(): Promise<void> {
 
     const bot = process.env.TELEGRAM_BOT_TOKEN;
     if (digest && bot) {
+      // Sent every morning, an empty list too: silence read as "the digest is
+      // broken" (2026-11-01), and a short "nothing open" says it is alive.
       const { items, extras } = await loadTriage(db);
-      if (!items.some((item) => item.unseen)) {
-        log.push('- Digest: nothing new, not sent.');
-      } else {
-        const owners = await db
-          .select({ chatId: telegramAccounts.chatId, language: users.language })
-          .from(users)
-          .innerJoin(telegramAccounts, eq(telegramAccounts.userId, users.id))
-          .where(and(eq(users.role, 'owner'), isNotNull(telegramAccounts.chatId)));
-        let sent = 0;
-        for (const owner of owners) {
-          const lang: Language = owner.language === 'en' ? 'en' : 'ru';
-          const { text, keyboard } = renderTriage(lang, items, extras);
-          const response = await fetch(`https://api.telegram.org/bot${bot}/sendMessage`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: owner.chatId,
-              text,
-              parse_mode: 'HTML',
-              link_preview_options: { is_disabled: true },
-              reply_markup: { inline_keyboard: toWire(keyboard) },
-            }),
-          });
-          if (response.ok) sent += 1;
-          else console.warn(`telegram: HTTP ${response.status} ${await response.text().catch(() => '')}`);
-        }
-        if (sent > 0) await markDigested(db, items.map((item) => item.id));
-        log.push(`- Digest: ${items.length} open item(s) sent to ${sent} chat(s).`);
+      const chats = await ownerChats(db);
+      if (chats.length === 0) log.push('- Digest: no owner has a linked chat, not sent.');
+      let sent = 0;
+      for (const chat of chats) {
+        const { text, keyboard } = renderTriage(chat.language, items, extras);
+        const error = await sendTelegramMessage(bot, {
+          chat_id: chat.chatId,
+          text,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: toWire(keyboard) },
+        });
+        if (error) log.push(`- Digest to chat ${chat.chatId} failed: ${error}`);
+        else sent += 1;
       }
+      if (sent > 0) await markDigested(db, items.map((item) => item.id));
+      log.push(`- Digest: ${items.length} open item(s) sent to ${sent} chat(s).`);
     } else if (digest) {
       log.push('- TELEGRAM_BOT_TOKEN is not set: no digest.');
     }
