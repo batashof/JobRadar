@@ -6,14 +6,17 @@ name: Triage
 #   - turns marked items into GitHub issues labelled `agent-fix`, which the
 #     scheduled Claude Code fixer picks up after each run;
 #   - closes items whose issue was closed (completed → done, not planned → skip);
-#   - in the morning, sends the open list to the owner's chat when it holds
-#     anything new.
+#   - in the morning, sends the open list to the owner's chat, or a short
+#     "nothing open" line when it is empty.
 # The issues are opened with this workflow's own token (issues: write); no
 # extra secret. The rest comes from the `main - jobradar-api` environment.
 on:
   schedule:
-    - cron: '15 5 * * *' # 08:15 in Minsk: sync + digest
-    - cron: '15 17 * * *' # 20:15 in Minsk: sync only, for marks made during the day
+    # Off the hour and early: GitHub started the 08:15 slot at 13:56 and 14:52
+    # on its first days, so the digest needs a head start to land by morning.
+    # The fixer also runs a sync itself before it looks for issues.
+    - cron: '41 2 * * *' # 05:41 in Minsk: sync + digest
+    - cron: '41 14 * * *' # 17:41 in Minsk: sync only, for marks made during the day
   workflow_dispatch:
     inputs:
       digest:
@@ -57,5 +60,5 @@ jobs:
         run: |
           pnpm --filter @jobradar/shared build
           digest=""
-          if [ "${{ github.event.schedule }}" = "15 5 * * *" ] || [ "${{ inputs.digest }}" = "true" ]; then digest="--digest"; fi
+          if [ "${{ github.event.schedule }}" = "41 2 * * *" ] || [ "${{ inputs.digest }}" = "true" ]; then digest="--digest"; fi
           pnpm --filter @jobradar/api triage --prod $digest

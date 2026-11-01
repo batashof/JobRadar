@@ -9,6 +9,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `DB (prod)` workflow runs in the `main - jobradar-api` environment, so it receives the secrets stored there. Repository secrets still work.
 - CLAUDE.md: a docs map (which file answers which question), a code map with the CI commands, and the PR-based merge rule replacing "direct to `main`".
 
+## [2.13.1] — 2026-11-01
+
+### Fixed
+
+- The morning bug and feedback list is sent every day, a short "no open bugs or feedback" line when it is empty; until now an empty list sent nothing, which read as a broken digest.
+- The quality audit's Telegram summary goes to every owner chat instead of only the audited account's, which may have no linked chat (after `/testmode`), and both scripts log what each chat got or why it was not sent.
+- Triage runs at 05:41 and 17:41 Minsk instead of 08:15 and 20:15: GitHub started the 08:15 slot up to six hours late.
+
 ## [2.13.0] — 2026-10-30
 
 ### Changed
