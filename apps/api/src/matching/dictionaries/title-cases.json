@@ -102,5 +102,11 @@
     "families": [
       "marketing"
     ]
+  },
+  {
+    "title": "Retention Manager",
+    "families": [
+      "management"
+    ]
   }
 ]
